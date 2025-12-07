@@ -1,22 +1,59 @@
+# backend/routes/report.py
 from flask import Blueprint, request, jsonify, current_app as app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from werkzeug.utils import secure_filename
 from database import db
-from utils.ocr import process_file
-from utils.nlp_processor import summarize_report, create_plain_language_summary
 import os
 from datetime import datetime
-from pytz import timezone  
+from pytz import timezone
 
-# ADD TIMEZONE SETUP
+# TIMEZONE
 IST = timezone('Asia/Kolkata')
 
 report_bp = Blueprint('report', __name__)
+
+# Try to import local OCR helper, but don't crash if it's missing.
+# process_file may be None -> caller must handle fallback to AI.
+try:
+    from utils.ocr import process_file
+except Exception:
+    process_file = None
+
+# Try to import AI summarizer helpers lazily when needed
+def ai_extract_text_fallback(filepath):
+    """
+    Try AI-based PDF/text extractor from utils.ai_summarizer if available.
+    Returns extracted text or None.
+    """
+    try:
+        # Many projects have different helper names; try common options
+        from utils.ai_summarizer import extract_text_from_pdf, extract_text_from_file
+        # prefer extract_text_from_pdf
+        if 'extract_text_from_pdf' in locals():
+            try:
+                return extract_text_from_pdf(filepath)
+            except Exception:
+                pass
+        # fallback to generic extractor
+        try:
+            return extract_text_from_file(filepath)
+        except Exception:
+            pass
+    except Exception:
+        # last attempt: try a generic function name
+        try:
+            from utils.ai_summarizer import extract_text
+            return extract_text(filepath)
+        except Exception:
+            return None
+    return None
+
 
 def allowed_file(filename):
     ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg'}
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
 @report_bp.route('/upload', methods=['POST'])
 @jwt_required()
@@ -37,35 +74,51 @@ def upload_report():
 
         # Save file
         filename = secure_filename(file.filename)
-        timestamp = datetime.now(IST).strftime('%Y%m%d_%H%M%S')  # CHANGED THIS LINE
+        timestamp = datetime.now(IST).strftime('%Y%m%d_%H%M%S')
         unique_filename = f"{timestamp}_{filename}"
 
         # Create uploads folder if not exists
-        upload_folder = 'uploads'
+        upload_folder = os.path.join(os.getcwd(), 'uploads')
         if not os.path.exists(upload_folder):
-            os.makedirs(upload_folder)
+            os.makedirs(upload_folder, exist_ok=True)
 
         filepath = os.path.join(upload_folder, unique_filename)
         file.save(filepath)
 
-        # Process OCR - Extract text from file
-        extracted_text = process_file(filepath)
+        # 1) Try local OCR (if available)
+        extracted_text = None
+        try:
+            if callable(process_file):
+                extracted_text = process_file(filepath)
+        except Exception:
+            extracted_text = None
 
-        # Process AI - Generate intelligent summary
+        # 2) If local OCR not available or returned None -> use AI fallback (if available)
+        if not extracted_text:
+            try:
+                extracted_text = ai_extract_text_fallback(filepath)
+            except Exception:
+                extracted_text = None
+
+        # If still no extracted text, return a clear message (or proceed with empty string)
+        if not extracted_text:
+            # We choose to continue but indicate text wasn't extracted locally.
+            # Downstream AI summarizer may still accept file or base64 input — but for safety return an error here.
+            return jsonify({
+                'error': 'Unable to extract text from uploaded file with local OCR. AI fallback not available.'
+            }), 500
+
+        # 3) Generate AI summaries (these functions must exist in your utils.ai_summarizer)
         try:
             from utils.ai_summarizer import generate_medical_summary, generate_quick_summary
-
-            print("Generating AI summary...")
             plain_summary = generate_medical_summary(extracted_text)
             quick_summary = generate_quick_summary(extracted_text)
-
             summary = {
                 'plain_language_summary': plain_summary,
                 'quick_summary': quick_summary,
                 'status': 'success',
                 'word_count': len(extracted_text.split())
             }
-
         except Exception as e:
             return jsonify({'error': f'AI processing failed: {str(e)}'}), 500
 
@@ -80,7 +133,7 @@ def upload_report():
             'extracted_text': extracted_text,
             'summary': summary,
             'plain_language_summary': plain_summary,
-            'uploaded_at': datetime.now(IST).strftime("%Y-%m-%d %I:%M %p"),  # CHANGED THIS LINE
+            'uploaded_at': datetime.now(IST).strftime("%Y-%m-%d %I:%M %p"),
             'processed': True
         }
 
@@ -104,6 +157,7 @@ def upload_report():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
 @report_bp.route('/history', methods=['GET'])
 @jwt_required()
 def get_history():
@@ -122,7 +176,7 @@ def get_history():
             formatted_reports.append({
                 'id': str(report['_id']),
                 'filename': report.get('original_filename', 'Unknown'),
-                'uploaded_at': report.get('uploaded_at'),  # CHANGED THIS LINE - already formatted
+                'uploaded_at': report.get('uploaded_at'),
                 'plain_summary': report.get('plain_language_summary', 'No summary available')
             })
 
@@ -134,6 +188,7 @@ def get_history():
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 
 @report_bp.route('/details/<report_id>', methods=['GET'])
 @jwt_required()
@@ -154,7 +209,7 @@ def get_report_details(report_id):
         return jsonify({
             'id': str(report['_id']),
             'filename': report.get('original_filename'),
-            'uploaded_at': report.get('uploaded_at'),  # CHANGED THIS LINE - already formatted
+            'uploaded_at': report.get('uploaded_at'),
             'extracted_text': report.get('extracted_text'),
             'summary': report.get('summary'),
             'plain_language_summary': report.get('plain_language_summary')

@@ -1,86 +1,105 @@
-import pytesseract
-from PIL import Image
+# backend/utils/ocr.py
+"""
+Defensive OCR helper.
+If local OCR libs (pytesseract / Pillow / pdf2image) are not installed,
+this module will still import fine and process_file() will return None.
+Caller must handle None and optionally use AI fallback.
+"""
+
 import os
 
-# Set Tesseract path (Windows)
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+# Default flags / placeholders
+OCR_AVAILABLE = False
+pytesseract = None
+Image = None
+convert_from_path = None
+
+# Try to import optional heavy OCR libs only if they exist
+try:
+    import pytesseract as _pytesseract
+    from PIL import Image as _Image
+    pytesseract = _pytesseract
+    Image = _Image
+    OCR_AVAILABLE = True
+except Exception:
+    # Local OCR not available — fine for lightweight deploy
+    pytesseract = None
+    Image = None
+    OCR_AVAILABLE = False
+
+# pdf2image is optional (only needed for scanned PDFs)
+try:
+    from pdf2image import convert_from_path as _convert_from_path
+    convert_from_path = _convert_from_path
+except Exception:
+    convert_from_path = None
+
 
 def extract_text_from_image(image_path):
-    """
-    Extract text from an image file using OCR
-    """
+    """Extract text from an image using pytesseract (if available)."""
+    if not OCR_AVAILABLE or Image is None or pytesseract is None:
+        return None
+
     try:
         img = Image.open(image_path)
         text = pytesseract.image_to_string(img)
-        return text.strip()
-    except Exception as e:
-        raise Exception(f"OCR Error: {str(e)}")
+        return text.strip() if text else None
+    except Exception:
+        return None
+
 
 def extract_text_from_pdf(pdf_path):
     """
-    Extract text from PDF file - handles both text-based and scanned PDFs
+    Try to extract text from PDF using PyMuPDF (if installed) first.
+    If textual extraction is poor or PyMuPDF isn't available, fall back to scanned-PDF OCR (pdf2image + pytesseract).
+    If local OCR tools are not available, return None.
     """
+    # Try fast text extraction with PyMuPDF (fitz) if available
     try:
-        # First, try direct text extraction
         import fitz  # PyMuPDF
-        
         doc = fitz.open(pdf_path)
-        text = ""
-        
+        text_chunks = []
         for page in doc:
-            text += page.get_text()
-        
+            text_chunks.append(page.get_text())
         doc.close()
-        
-        # If we got meaningful text, return it
-        if len(text.strip()) > 100:
-            return text.strip()
-        
-        # Otherwise, it's a scanned PDF - use OCR
-        print("Scanned PDF detected. Using OCR...")
-        return extract_text_from_scanned_pdf(pdf_path)
-        
-    except Exception as e:
-        # If PyMuPDF fails, try OCR
-        return extract_text_from_scanned_pdf(pdf_path)
+        text = "\n".join(text_chunks).strip()
+        # If the extracted text seems meaningful, return it
+        if text and len(text) > 50:
+            return text
+    except Exception:
+        text = ""
 
-def extract_text_from_scanned_pdf(pdf_path):
-    """
-    Extract text from scanned PDF using OCR
-    """
+    # If we got little/no text, and local OCR is available, use pdf2image -> pytesseract
+    if convert_from_path is None or pytesseract is None:
+        # Local OCR not available
+        return None
+
     try:
-        from pdf2image import convert_from_path
-        
-        # Set poppler path for Windows
-        poppler_path = r'C:\poppler\poppler-25.07.0\Library\bin'
-        
-        # Convert PDF to images
-        print("Converting PDF pages to images...")
-        images = convert_from_path(pdf_path, poppler_path=poppler_path)
-        
-        # OCR each page
-        all_text = ""
-        for i, image in enumerate(images):
-            print(f" Processing page {i+1}/{len(images)}...")
-            page_text = pytesseract.image_to_string(image)
-            all_text += f"\n--- Page {i+1} ---\n{page_text}\n"
-        
-        return all_text.strip()
-        
-    except ImportError:
-        return "Error: pdf2image library not installed. Run: pip install pdf2image"
-    except Exception as e:
-        raise Exception(f"Scanned PDF OCR Error: {str(e)}")
+        # Convert PDF pages to images (poppler must be available on host if used locally)
+        images = convert_from_path(pdf_path)
+        all_text = []
+        for i, page_image in enumerate(images):
+            page_text = pytesseract.image_to_string(page_image)
+            if page_text:
+                all_text.append(f"--- Page {i+1} ---\n{page_text}")
+        final = "\n".join(all_text).strip()
+        return final if final else None
+    except Exception:
+        return None
+
 
 def process_file(filepath):
     """
-    Main function to process uploaded file and extract text
+    Unified entrypoint. Returns extracted text (string) or None if no local extractor is available or extraction fails.
     """
-    file_extension = os.path.splitext(filepath)[1].lower()
-    
-    if file_extension in ['.png', '.jpg', '.jpeg']:
+    if not filepath or not os.path.exists(filepath):
+        return None
+
+    ext = os.path.splitext(filepath)[1].lower()
+    if ext in (".png", ".jpg", ".jpeg"):
         return extract_text_from_image(filepath)
-    elif file_extension == '.pdf':
+    if ext == ".pdf":
         return extract_text_from_pdf(filepath)
-    else:
-        raise Exception("Unsupported file format")
+
+    # Unsupported file type for local OCR
+    return None
