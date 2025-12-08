@@ -1,15 +1,12 @@
-# backend/routes/report.py
 from flask import Blueprint, request, jsonify, current_app as app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from werkzeug.utils import secure_filename
-from database import db
+from app import db                       # ← THIS IS THE ONLY CHANGE
 import os
 from datetime import datetime
 from pytz import timezone
 
-# TIMEZONE
 IST = timezone('Asia/Kolkata')
-
 report_bp = Blueprint('report', __name__)
 
 # Try to import local OCR helper, but don't crash if it's missing.
@@ -100,13 +97,13 @@ def upload_report():
             except Exception:
                 extracted_text = None
 
-        # If still no extracted text, return a clear message (or proceed with empty string)
+               # 2) If local OCR not available or returned None -> use AI fallback
         if not extracted_text:
-            # We choose to continue but indicate text wasn't extracted locally.
-            # Downstream AI summarizer may still accept file or base64 input — but for safety return an error here.
-            return jsonify({
-                'error': 'Unable to extract text from uploaded file with local OCR. AI fallback not available.'
-            }), 500
+            try:
+                from utils.ai_summarizer import extract_text_from_pdf_with_ai
+                extracted_text = extract_text_from_pdf_with_ai(filepath)
+            except Exception as e:
+                return jsonify({'error': f'Unable to extract text from PDF: {str(e)}'}), 500
 
         # 3) Generate AI summaries (these functions must exist in your utils.ai_summarizer)
         try:

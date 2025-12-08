@@ -1,8 +1,7 @@
-# backend/routes/jargon.py
 from flask import Blueprint, request, jsonify
-from utils.ai_explainer import explain_medical_term  # ← FIXED: No ".."
+from utils.ai_explainer import explain_medical_term
 
-jargon_bp = Blueprint('jargon', __name__, url_prefix='/api/jargon')
+jargon_bp = Blueprint('jargon', __name__)
 
 @jargon_bp.route('/explain', methods=['POST'])
 def explain():

@@ -1,6 +1,7 @@
 from flask import Flask
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
+from pymongo import MongoClient
 from config import Config
 from dotenv import load_dotenv
 load_dotenv()
@@ -17,11 +18,23 @@ app.config.from_object(Config)
 CORS(app)
 jwt = JWTManager(app)
 
+# ──────────────────────────────────────
+# MongoDB Connection using .env variable
+# ──────────────────────────────────────
+try:
+    client = MongoClient(os.getenv("MONGODB_URI"))
+    db = client.get_database()  # automatically picks the database from the URI
+    print("Connected to MongoDB successfully!")
+except Exception as e:
+    print("MongoDB connection failed:", e)
+    sys.exit(1)  # stop the app if DB is down
+# ──────────────────────────────────────
+
 # Create uploads folder
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'])
 
-# Import routes
+# Import routes (they will use the `db` object from above)
 from routes.auth import auth_bp
 from routes.report import report_bp
 from routes.jargon import jargon_bp
@@ -36,4 +49,4 @@ def home():
     return {'message': 'API is running!', 'status': 'success'}
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5000)
