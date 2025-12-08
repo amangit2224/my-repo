@@ -6,4 +6,4 @@ python-dotenv==1.0.0
 gunicorn
 pytz==2024.2
 groq==0.37.1
-google-generativeai==0.8.5
+google-generativeai>=0.7.2
