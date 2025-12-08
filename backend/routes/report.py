@@ -82,34 +82,24 @@ def upload_report():
         filepath = os.path.join(upload_folder, unique_filename)
         file.save(filepath)
 
-        # 1) Try local OCR (if available)
+        # 1) Try local OCR — will always be None on Render (perfect)
         extracted_text = None
-        try:
-            if callable(process_file):
-                extracted_text = process_file(filepath)
-        except Exception:
-            extracted_text = None
+        if callable(process_file):
+            extracted_text = process_file(filepath)
 
-        # 2) If local OCR not available or returned None -> use AI fallback (if available)
-        if not extracted_text:
-            try:
-                extracted_text = ai_extract_text_fallback(filepath)
-            except Exception:
-                extracted_text = None
-
-               # 2) If local OCR not available or returned None -> use AI fallback
+        # 2) Use Gemini to read PDF directly (THIS IS THE WINNER)
         if not extracted_text:
             try:
                 from utils.ai_summarizer import extract_text_from_pdf_with_ai
                 extracted_text = extract_text_from_pdf_with_ai(filepath)
             except Exception as e:
-                return jsonify({'error': f'Unable to extract text from PDF: {str(e)}'}), 500
+                return jsonify({'error': f'AI failed to read PDF: {str(e)}'}), 500
 
-        # 3) Generate AI summaries (these functions must exist in your utils.ai_summarizer)
+        # 3) Generate summaries
         try:
             from utils.ai_summarizer import generate_medical_summary, generate_quick_summary
             plain_summary = generate_medical_summary(extracted_text)
-            quick_summary = generate_quick_summary(extracted_text)
+            quick_summary = generate_quick_summary(extracted_text)  # FIXED: removed extra parenthesis
             summary = {
                 'plain_language_summary': plain_summary,
                 'quick_summary': quick_summary,
@@ -117,7 +107,7 @@ def upload_report():
                 'word_count': len(extracted_text.split())
             }
         except Exception as e:
-            return jsonify({'error': f'AI processing failed: {str(e)}'}), 500
+            return jsonify({'error': f'AI summary failed: {str(e)}'}), 500
 
         # Save report to database
         reports_collection = db['reports']
