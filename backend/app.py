@@ -14,8 +14,16 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 app = Flask(__name__)
 app.config.from_object(Config)
 
-# Initialize extensions
-CORS(app)
+# Initialize extensions with proper CORS config
+CORS(app, resources={
+    r"/*": {
+        "origins": "*",
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"],
+        "expose_headers": ["Content-Type", "Authorization"]
+    }
+})
+
 jwt = JWTManager(app)
 
 # ──────────────────────────────────────
@@ -46,7 +54,7 @@ app.register_blueprint(jargon_bp, url_prefix='/api/jargon')
 
 @app.route('/')
 def home():
-    return {'message': 'API is running!', 'status': 'success'}
+    return {'message': 'Medical Report Summarizer API is running', 'status': 'success'}
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
