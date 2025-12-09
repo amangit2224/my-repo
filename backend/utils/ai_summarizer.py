@@ -3,7 +3,6 @@ import requests
 import os
 from dotenv import load_dotenv
 import base64
-import json
 
 load_dotenv()
 
@@ -11,7 +10,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 def extract_text_from_pdf_with_ai(filepath):
     """
-    Extract text from PDF using Gemini REST API (most reliable method)
+    Extract text from PDF using Gemini REST API
     """
     try:
         # Read PDF and convert to base64
@@ -19,8 +18,8 @@ def extract_text_from_pdf_with_ai(filepath):
             pdf_bytes = f.read()
             pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
         
-        # Prepare API request
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+        # FIXED: Use gemini-1.5-pro instead of flash (it's more stable)
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={GEMINI_API_KEY}"
         
         headers = {
             "Content-Type": "application/json"
@@ -66,7 +65,7 @@ def generate_medical_summary(text):
     Generate patient-friendly summary using Gemini REST API
     """
     try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={GEMINI_API_KEY}"
         
         headers = {
             "Content-Type": "application/json"
@@ -105,7 +104,7 @@ def generate_quick_summary(text):
     Generate 3-bullet summary using Gemini REST API
     """
     try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={GEMINI_API_KEY}"
         
         headers = {
             "Content-Type": "application/json"
