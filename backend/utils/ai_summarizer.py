@@ -5,11 +5,14 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Use the model that actually exists and supports file upload
+# FIXED: Use the correct model name that's currently available
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-model = genai.GenerativeModel("gemini-1.5-flash-001")  # This works 100%
+model = genai.GenerativeModel("gemini-1.5-flash")  # Removed the -001 suffix
 
 def extract_text_from_pdf_with_ai(filepath):
+    """
+    Upload PDF to Gemini and extract all text content.
+    """
     try:
         uploaded = genai.upload_file(filepath)
         response = model.generate_content([
@@ -19,18 +22,36 @@ def extract_text_from_pdf_with_ai(filepath):
         genai.delete_file(uploaded.name)
         return response.text.strip()
     except Exception as e:
-        raise Exception(f"Gemini error: {str(e)}")
+        raise Exception(f"Gemini PDF extraction failed: {str(e)}")
 
 def generate_medical_summary(text):
+    """
+    Generate a patient-friendly explanation of the medical report.
+    """
     try:
-        response = model.generate_content(f"Explain this medical report like I'm a 15-year-old patient. Be kind and clear:\n\n{text[:12000]}")
+        prompt = f"""Explain this medical report in simple, clear language that a 15-year-old patient can understand. 
+Be kind, encouraging, and avoid medical jargon. Focus on what the results mean in practical terms.
+
+Medical Report:
+{text[:12000]}"""
+        
+        response = model.generate_content(prompt)
         return response.text
     except Exception as e:
-        return f"Summary failed: {e}"
+        return f"Summary generation failed: {str(e)}"
 
 def generate_quick_summary(text):
+    """
+    Generate a 3-bullet point summary of the medical report.
+    """
     try:
-        response = model.generate_content(f"3 bullet points summary of this report:\n\n{text[:4000]}")
+        prompt = f"""Create exactly 3 bullet points summarizing the key findings of this medical report. 
+Be concise and focus on the most important information.
+
+Medical Report:
+{text[:4000]}"""
+        
+        response = model.generate_content(prompt)
         return response.text
     except Exception as e:
-        return "Quick summary failed"
+        return f"Quick summary generation failed: {str(e)}"
