@@ -10,7 +10,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 def extract_text_from_pdf_with_ai(filepath):
     """
-    Extract text from PDF using Gemini REST API
+    Extract text from PDF using Gemini 2.5 Flash API
     """
     try:
         # Read PDF and convert to base64
@@ -18,8 +18,8 @@ def extract_text_from_pdf_with_ai(filepath):
             pdf_bytes = f.read()
             pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
         
-        # FIXED: Use gemini-1.5-pro instead of flash (it's more stable)
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={GEMINI_API_KEY}"
+        # CORRECT MODEL: gemini-2.5-flash (supports PDFs!)
+        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
         
         headers = {
             "Content-Type": "application/json"
@@ -38,11 +38,7 @@ def extract_text_from_pdf_with_ai(filepath):
                         }
                     }
                 ]
-            }],
-            "generationConfig": {
-                "temperature": 0.1,
-                "maxOutputTokens": 8192
-            }
+            }]
         }
         
         # Make the API call
@@ -62,10 +58,10 @@ def extract_text_from_pdf_with_ai(filepath):
 
 def generate_medical_summary(text):
     """
-    Generate patient-friendly summary using Gemini REST API
+    Generate patient-friendly summary using Gemini 2.5 Flash
     """
     try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={GEMINI_API_KEY}"
+        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
         
         headers = {
             "Content-Type": "application/json"
@@ -80,11 +76,7 @@ Medical Report:
         payload = {
             "contents": [{
                 "parts": [{"text": prompt}]
-            }],
-            "generationConfig": {
-                "temperature": 0.7,
-                "maxOutputTokens": 2048
-            }
+            }]
         }
         
         response = requests.post(url, headers=headers, json=payload, timeout=30)
@@ -101,10 +93,10 @@ Medical Report:
 
 def generate_quick_summary(text):
     """
-    Generate 3-bullet summary using Gemini REST API
+    Generate 3-bullet summary using Gemini 2.5 Flash
     """
     try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={GEMINI_API_KEY}"
+        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
         
         headers = {
             "Content-Type": "application/json"
@@ -119,11 +111,7 @@ Medical Report:
         payload = {
             "contents": [{
                 "parts": [{"text": prompt}]
-            }],
-            "generationConfig": {
-                "temperature": 0.5,
-                "maxOutputTokens": 512
-            }
+            }]
         }
         
         response = requests.post(url, headers=headers, json=payload, timeout=30)
