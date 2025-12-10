@@ -49,31 +49,51 @@ function HealthTrends() {
 
     reportsToAnalyze.forEach((report) => {
       const summary = report.plain_language_summary || report.plain_summary || '';
+      
+      console.log('Analyzing report:', report.filename);
+      console.log('Summary preview:', summary.substring(0, 200));
 
-      const testRegex = /\*\*([A-Z][A-Za-z0-9\s\-/()]+?)\*\*:\s*([\d.]+)\s*([a-zA-Z/%]+)/g;
-      let match;
+      // FIXED: More flexible regex patterns to catch different formats
+      const patterns = [
+        // Pattern 1: **Test Name**: value unit
+        /\*\*([A-Z][A-Za-z0-9\s\-/()]+?)\*\*:\s*([\d.]+)\s*([a-zA-Z/%]+)/g,
+        // Pattern 2: Test Name: value unit (no asterisks)
+        /([A-Z][A-Za-z0-9\s\-/()]+?):\s*([\d.]+)\s*([a-zA-Z/%]+)/g,
+        // Pattern 3: - Test Name: value unit (bullet points)
+        /[-•]\s*([A-Z][A-Za-z0-9\s\-/()]+?):\s*([\d.]+)\s*([a-zA-Z/%]+)/g
+      ];
 
-      while ((match = testRegex.exec(summary)) !== null) {
-        const testName = match[1].trim();
-        const value = parseFloat(match[2]);
-        const unit = match[3].trim();
+      patterns.forEach(pattern => {
+        let match;
+        const regexCopy = new RegExp(pattern.source, pattern.flags);
+        
+        while ((match = regexCopy.exec(summary)) !== null) {
+          const testName = match[1].trim();
+          const value = parseFloat(match[2]);
+          const unit = match[3].trim();
 
-        if (!isNaN(value)) {
-          if (!testMap[testName]) {
-            testMap[testName] = {
-              name: testName,
-              unit,
-              dataPoints: []
-            };
+          // Skip if testName is too short or looks like a sentence
+          if (testName.length < 3 || testName.split(' ').length > 5) continue;
+
+          if (!isNaN(value)) {
+            console.log('Found test:', testName, value, unit);
+            
+            if (!testMap[testName]) {
+              testMap[testName] = {
+                name: testName,
+                unit,
+                dataPoints: []
+              };
+            }
+
+            testMap[testName].dataPoints.push({
+              date: report.uploaded_at,
+              value,
+              reportId: report.id
+            });
           }
-
-          testMap[testName].dataPoints.push({
-            date: report.uploaded_at,
-            value,
-            reportId: report.id
-          });
         }
-      }
+      });
     });
 
     const testsArray = Object.values(testMap).map(test => {
@@ -81,6 +101,7 @@ function HealthTrends() {
       return test;
     });
 
+    console.log('Total tests extracted:', testsArray.length);
     setTests(testsArray);
 
     if (testsArray.length > 0) {
@@ -102,9 +123,10 @@ function HealthTrends() {
           (a, b) => new Date(b.uploaded_at) - new Date(a.uploaded_at)
         );
 
-        const recent = sortedDesc.slice(0, 1);
-        setRecentReports(recent);
-        extractAllTests(recent);
+        // FIXED: Analyze ALL reports instead of just 1
+        const allReports = sortedDesc.slice(0, 10); // Take up to 10 most recent
+        setRecentReports(allReports);
+        extractAllTests(allReports);
       } else {
         setRecentReports([]);
         setTests([]);
@@ -178,7 +200,7 @@ function HealthTrends() {
           <div>
             <h2 style={{ marginBottom: 8 }}>Your Test Results</h2>
             <p style={{ color: 'var(--text-secondary)', margin: 0 }}>
-              Showing results from {recentReports.length} report{recentReports.length !== 1 ? 's' : ''}
+              Analyzing {recentReports.length} report{recentReports.length !== 1 ? 's' : ''}
             </p>
           </div>
         </div>
@@ -187,9 +209,12 @@ function HealthTrends() {
         {tests.length === 0 ? (
           <div className="empty-state">
             <span className="empty-icon">📊</span>
-            <p>No test data found in your most recent report</p>
+            <p>No test data found in your reports</p>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
-              Make sure your latest report contains valid test values
+              Upload medical reports with test values (like blood tests, glucose levels, etc.)
+            </p>
+            <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 8 }}>
+              💡 Tip: Reports should contain values like "Hemoglobin: 14.5 g/dL"
             </p>
             <button onClick={() => navigate('/dashboard')} className="btn-primary">
               Upload Report
