@@ -58,7 +58,7 @@ def extract_text_from_pdf_with_ai(filepath):
 
 def generate_medical_summary(text):
     """
-    Generate patient-friendly summary using Gemini 2.5 Flash
+    Generate patient-friendly summary with STRUCTURED test values for Health Trends
     """
     try:
         url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
@@ -67,11 +67,22 @@ def generate_medical_summary(text):
             "Content-Type": "application/json"
         }
         
-        prompt = f"""Explain this medical report in simple, clear language that a 15-year-old patient can understand. 
-Be kind, encouraging, and avoid medical jargon. Focus on what the results mean in practical terms.
+        prompt = f"""Analyze this medical report and create a patient-friendly summary.
+
+CRITICAL: Format ALL test results EXACTLY like this:
+**Test Name**: value unit
+
+Examples:
+**Hemoglobin**: 14.5 g/dL
+**Blood Glucose**: 95 mg/dL
+**Cholesterol**: 180 mg/dL
+
+Then add a friendly explanation in simple language for a 15-year-old.
 
 Medical Report:
-{text[:12000]}"""
+{text[:12000]}
+
+Remember: Use **Test Name**: value unit format for ALL numeric results!"""
         
         payload = {
             "contents": [{
