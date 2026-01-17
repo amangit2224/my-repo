@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
-import API_BASE_URL from '../utils/api';
-
+import api from '../utils/api';
 
 function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -16,14 +14,16 @@ function ForgotPassword() {
     setMessage('');
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/forgot-password`, {
-      email: email.trim().toLowerCase() }
-      );
+      const response = await api.post('/api/forgot-password', {
+        email: email.trim().toLowerCase(),
+      });
 
       setMessage(response.data.message);
       setEmail('');
     } catch (err) {
-      setError('Something went wrong. Please try again.');
+      setError(
+        err.response?.data?.error || 'Something went wrong. Please try again.'
+      );
     } finally {
       setLoading(false);
     }
