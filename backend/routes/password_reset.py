@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash
-from utils.token_utils import generate_token, hash_token
+from utils.token_utils import generate_token
 from utils.email_service import send_reset_email
 from database import db
 import os
@@ -29,11 +29,10 @@ def forgot_password():
         return jsonify({"message": response_msg}), 200
 
     token = generate_token()
-    token_hash = hash_token(token)
 
     db.password_resets.insert_one({
         "email": email,
-        "token_hash": token_hash,
+        "token": token,              # ✅ STORE PLAIN TOKEN
         "expires_at": datetime.utcnow() + timedelta(hours=1),
         "used": False,
         "created_at": datetime.utcnow()
@@ -48,7 +47,7 @@ def forgot_password():
 
 
 # ─────────────────────────────
-# RESET PASSWORD  ✅ FIXED
+# RESET PASSWORD  ✅ FINAL FIX
 # ─────────────────────────────
 @password_reset_bp.route("/reset-password", methods=["POST"])
 def reset_password():
@@ -63,10 +62,8 @@ def reset_password():
     if len(password) < 8:
         return jsonify({"error": "Password must be at least 8 characters"}), 400
 
-    token_hash = hash_token(token)
-
     record = db.password_resets.find_one({
-        "token_hash": token_hash,
+        "token": token,               # ✅ MATCH PLAIN TOKEN
         "used": False,
         "expires_at": {"$gt": datetime.utcnow()}
     })
