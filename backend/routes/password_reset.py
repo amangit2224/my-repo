@@ -16,10 +16,9 @@ EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
 # ─────────────────────────────
 @password_reset_bp.route("/forgot-password", methods=["POST"])
 def forgot_password():
-    data = request.get_json()
+    data = request.get_json(force=True)
     email = data.get("email", "").strip().lower()
 
-    # Always return same response (security)
     response_msg = "Reset link sent successfully"
 
     if not email or not EMAIL_REGEX.match(email):
@@ -49,16 +48,17 @@ def forgot_password():
 
 
 # ─────────────────────────────
-# RESET PASSWORD
+# RESET PASSWORD  ✅ FIXED
 # ─────────────────────────────
 @password_reset_bp.route("/reset-password", methods=["POST"])
 def reset_password():
-    data = request.get_json()
-    token = data.get("token", "").strip()
-    password = data.get("password", "").strip()
+    data = request.get_json(force=True)
 
-    if not token:
-        return jsonify({"error": "Invalid token"}), 400
+    token = data.get("token")
+    password = data.get("password")
+
+    if not token or not password:
+        return jsonify({"error": "Invalid request"}), 400
 
     if len(password) < 8:
         return jsonify({"error": "Password must be at least 8 characters"}), 400
