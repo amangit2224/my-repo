@@ -1,30 +1,33 @@
 from flask import Blueprint, request, jsonify
 from datetime import datetime, timedelta
+from werkzeug.security import generate_password_hash
 from utils.token_utils import generate_token, hash_token
-from utils.email_service import send_test_email  # temporary
+from utils.email_service import send_reset_email
 from database import db
 import os
 import re
-from werkzeug.security import generate_password_hash
 
 password_reset_bp = Blueprint("password_reset", __name__)
 
 EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
 
-# ─────────────────────────────────────────────
+# ─────────────────────────────
 # FORGOT PASSWORD
-# ─────────────────────────────────────────────
+# ─────────────────────────────
 @password_reset_bp.route("/forgot-password", methods=["POST"])
 def forgot_password():
     data = request.get_json()
     email = data.get("email", "").strip().lower()
 
+    # Always return same response (security)
+    response_msg = "Reset link sent successfully"
+
     if not email or not EMAIL_REGEX.match(email):
-        return jsonify({"message": "If the email exists, a reset link will be sent."}), 200
+        return jsonify({"message": response_msg}), 200
 
     user = db.users.find_one({"email": email})
     if not user:
-        return jsonify({"message": "If the email exists, a reset link will be sent."}), 200
+        return jsonify({"message": response_msg}), 200
 
     token = generate_token()
     token_hash = hash_token(token)
@@ -37,17 +40,17 @@ def forgot_password():
         "created_at": datetime.utcnow()
     })
 
-    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    frontend_url = os.getenv("FRONTEND_URL")
     reset_link = f"{frontend_url}/reset-password?token={token}"
 
-    send_test_email(email)  # TEMP (email logic later)
+    send_reset_email(email, reset_link)
 
-    return jsonify({"message": "Reset link sent successfully"}), 200
+    return jsonify({"message": response_msg}), 200
 
 
-# ─────────────────────────────────────────────
+# ─────────────────────────────
 # RESET PASSWORD
-# ─────────────────────────────────────────────
+# ─────────────────────────────
 @password_reset_bp.route("/reset-password", methods=["POST"])
 def reset_password():
     data = request.get_json()
@@ -55,7 +58,7 @@ def reset_password():
     password = data.get("password", "").strip()
 
     if not token:
-        return jsonify({"error": "Token is required"}), 400
+        return jsonify({"error": "Invalid token"}), 400
 
     if len(password) < 8:
         return jsonify({"error": "Password must be at least 8 characters"}), 400

@@ -1,23 +1,31 @@
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 import os
-from dotenv import load_dotenv
 
-load_dotenv()
-
-def send_test_email(to_email):
+def send_reset_email(to_email, reset_link):
     message = Mail(
         from_email=os.getenv("SENDER_EMAIL"),
         to_emails=to_email,
-        subject="Test Email from Medical Report Project",
-        html_content="<p>If you got this, email works ✅</p>"
+        subject="Reset Your Password",
+        html_content=f"""
+        <h3>Password Reset</h3>
+        <p>You requested to reset your password.</p>
+        <p>Click the link below to proceed:</p>
+        <p>
+            <a href="{reset_link}" target="_blank">
+                Reset Password
+            </a>
+        </p>
+        <p>This link is valid for 1 hour.</p>
+        <p>If you did not request this, ignore this email.</p>
+        """
     )
 
     try:
         sg = SendGridAPIClient(os.getenv("SENDGRID_API_KEY"))
-        response = sg.send(message)
-        print("Email sent:", response.status_code)
+        sg.send(message)
+        print("Reset email sent successfully")
         return True
     except Exception as e:
-        print("Email error:", e)
+        print("SendGrid error:", e)
         return False
