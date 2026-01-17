@@ -7,6 +7,8 @@ import History from './pages/History';
 import ReportDetails from './pages/ReportDetails';
 import JargonBuster from './pages/JargonBuster';
 import HealthTrends from './pages/HealthTrends';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 import './App.css';
 
@@ -33,6 +35,12 @@ function App() {
           <Route path="/" element={<Navigate to="/login" />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          
+          {/* Password Reset Routes */}
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          
+          {/* Protected Routes */}
           <Route
             path="/dashboard"
             element={
@@ -57,12 +65,14 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route path="/health" element={
-            <ProtectedRoute>
-               <HealthTrends />
-            </ProtectedRoute>
-          } />
-
+          <Route 
+            path="/health" 
+            element={
+              <ProtectedRoute>
+                <HealthTrends />
+              </ProtectedRoute>
+            } 
+          />
           <Route
             path="/jargon"
             element={
