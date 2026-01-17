@@ -1,7 +1,12 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || "https://medical-backend-wbqv.onrender.com/api";
+// Use this structure as specified
+const API_BASE_URL =
+  process.env.NODE_ENV === 'production'
+    ? 'https://medical-backend-wbqv.onrender.com'
+    : 'http://localhost:5000';
 
+// Remove the old API_BASE_URL and use the new one above
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -20,22 +25,22 @@ api.interceptors.request.use((config) => {
 
 // AUTH API
 export const authAPI = {
-  signup: (data) => api.post('/auth/signup', data),
-  login: (data) => api.post('/auth/login', data),
+  signup: (data) => api.post('/api/auth/signup', data),
+  login: (data) => api.post('/api/auth/login', data),
 };
 
 // REPORT API
 export const reportAPI = {
   upload: (formData) =>
-    api.post('/report/upload', formData, {
+    api.post('/api/report/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
-  getHistory: () => api.get('/report/history'),
-  getDetails: (reportId) => api.get(`/report/details/${reportId}`),
+  getHistory: () => api.get('/api/report/history'),
+  getDetails: (reportId) => api.get(`/api/report/details/${reportId}`),
 };
 
 export const jargonAPI = {
-  explain: (term) => api.post('/jargon/explain', { term }),
+  explain: (term) => api.post('/api/jargon/explain', { term }),
 };
 
 export default api;
