@@ -7,3 +7,5 @@ gunicorn
 pytz==2024.2
 groq==0.37.1
 requests==2.32.3
+sendgrid
+python-dotenv
