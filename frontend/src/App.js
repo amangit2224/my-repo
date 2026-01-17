@@ -7,7 +7,7 @@ import History from './pages/History';
 import ReportDetails from './pages/ReportDetails';
 import JargonBuster from './pages/JargonBuster';
 import HealthTrends from './pages/HealthTrends';
-import ForgotPassword from './pages/ForgotPassword';
+import ForgotPassword from './pages/ResetPassword';
 import ResetPassword from './pages/ResetPassword';
 
 import './App.css';

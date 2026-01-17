@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 load_dotenv()
 import os
 import sys
+from routes.password_reset import password_reset_bp
+app.register_blueprint(password_reset_bp)
 
 # FIX: Allow imports from backend root
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
