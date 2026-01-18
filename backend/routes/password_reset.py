@@ -85,6 +85,6 @@ def reset_password():
         {"$set": {"used": True}}
     )
 
-    print(f"✅ Password reset successful for: {record['email']}")
+    print(f"Password reset successful for: {record['email']}")
 
     return jsonify({"message": "Password reset successful"}), 200
