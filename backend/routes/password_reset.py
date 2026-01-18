@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from datetime import datetime, timedelta
-from werkzeug.security import generate_password_hash
+from models.user import User  # ✅ IMPORT User model
 from utils.token_utils import generate_token
 from utils.email_service import send_reset_email
 from database import db
@@ -32,7 +32,7 @@ def forgot_password():
 
     db.password_resets.insert_one({
         "email": email,
-        "token": token,              # ✅ STORE PLAIN TOKEN
+        "token": token,
         "expires_at": datetime.utcnow() + timedelta(hours=1),
         "used": False,
         "created_at": datetime.utcnow()
@@ -47,7 +47,7 @@ def forgot_password():
 
 
 # ─────────────────────────────
-# RESET PASSWORD  ✅ FINAL FIX
+# RESET PASSWORD ✅ FIXED!
 # ─────────────────────────────
 @password_reset_bp.route("/reset-password", methods=["POST"])
 def reset_password():
@@ -59,11 +59,11 @@ def reset_password():
     if not token or not password:
         return jsonify({"error": "Invalid request"}), 400
 
-    if len(password) < 8:
-        return jsonify({"error": "Password must be at least 8 characters"}), 400
+    if len(password) < 6:  # ✅ Match your signup validation (6 chars minimum)
+        return jsonify({"error": "Password must be at least 6 characters"}), 400
 
     record = db.password_resets.find_one({
-        "token": token,               # ✅ MATCH PLAIN TOKEN
+        "token": token,
         "used": False,
         "expires_at": {"$gt": datetime.utcnow()}
     })
@@ -71,14 +71,20 @@ def reset_password():
     if not record:
         return jsonify({"error": "Invalid or expired link"}), 400
 
+    # ✅ USE THE SAME HASHING METHOD AS SIGNUP (User model)
+    hashed_password = User.hash_password(password)
+
+    # ✅ UPDATE THE CORRECT FIELD: password_hash (not password!)
     db.users.update_one(
         {"email": record["email"]},
-        {"$set": {"password": generate_password_hash(password)}}
+        {"$set": {"password_hash": hashed_password}}  # ✅ CORRECT FIELD!
     )
 
     db.password_resets.update_one(
         {"_id": record["_id"]},
         {"$set": {"used": True}}
     )
+
+    print(f"✅ Password reset successful for: {record['email']}")
 
     return jsonify({"message": "Password reset successful"}), 200
