@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import API_BASE_URL from '../utils/api';
+import api from '../utils/api';  // ✅ Use the api instance, not axios
 
 function ResetPassword() {
   const [searchParams] = useSearchParams();
@@ -13,6 +12,7 @@ function ResetPassword() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -36,18 +36,37 @@ function ResetPassword() {
     setLoading(true);
 
     try {
-      await axios.post(`${API_BASE_URL}/api/reset-password`, {
+      // ✅ Use api instance instead of axios directly
+      const response = await api.post('/api/reset-password', {
         token: token,
         password: password,
       });
 
-      navigate('/login');
+      console.log('✅ Password reset successful:', response.data);
+      setSuccess(true);
+
+      // Redirect to login after 2 seconds
+      setTimeout(() => {
+        navigate('/login');
+      }, 2000);
+
     } catch (err) {
-      setError('Reset failed.');
+      console.error('❌ Reset error:', err.response?.data);
+      setError(err.response?.data?.error || 'Reset failed. Link may be invalid or expired.');
     } finally {
       setLoading(false);
     }
   };
+
+  // Success state
+  if (success) {
+    return (
+      <div style={{ maxWidth: '400px', margin: '100px auto', textAlign: 'center' }}>
+        <h2 style={{ color: 'green' }}>✅ Password Reset Successful!</h2>
+        <p>Redirecting to login...</p>
+      </div>
+    );
+  }
 
   return (
     <div style={{ maxWidth: '400px', margin: '100px auto' }}>
@@ -56,10 +75,11 @@ function ResetPassword() {
       <form onSubmit={handleSubmit}>
         <input
           type="password"
-          placeholder="New password"
+          placeholder="New password (min 8 characters)"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           style={{ width: '100%', padding: '10px', marginBottom: '10px' }}
+          required
         />
 
         <input
@@ -68,14 +88,23 @@ function ResetPassword() {
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
           style={{ width: '100%', padding: '10px', marginBottom: '10px' }}
+          required
         />
 
         {error && <p style={{ color: 'red' }}>{error}</p>}
 
-        <button type="submit" disabled={loading}>
-          {loading ? 'Resetting…' : 'Reset Password'}
+        <button 
+          type="submit" 
+          disabled={loading || !password || !confirmPassword}
+          style={{ width: '100%', padding: '10px' }}
+        >
+          {loading ? 'Resetting...' : 'Reset Password'}
         </button>
       </form>
+
+      <div style={{ marginTop: '10px' }}>
+        <a href="/login">Back to login</a>
+      </div>
     </div>
   );
 }
