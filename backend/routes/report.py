@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from werkzeug.utils import secure_filename
 from app import db
 import os
+import sys
 from datetime import datetime
 from pytz import timezone
 
@@ -13,12 +14,21 @@ report_bp = Blueprint('report', __name__)
 # IMPORT RULE-BASED SYSTEM 🔥
 # ============================================
 try:
+    import sys
+    import os
+    # Add utils directory to path
+    utils_path = os.path.join(os.path.dirname(__file__), '..', 'utils')
+    if utils_path not in sys.path:
+        sys.path.insert(0, utils_path)
+    
     from utils.report_parser import MedicalReportParser
     from utils.template_summarizer import TemplateSummarizer
     RULE_BASED_AVAILABLE = True
     print("✅ Rule-based system loaded successfully")
 except Exception as e:
     print(f"⚠️  Rule-based system not available: {e}")
+    import traceback
+    traceback.print_exc()  # Print full error for debugging
     RULE_BASED_AVAILABLE = False
 
 # Import OCR

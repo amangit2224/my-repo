@@ -4,7 +4,34 @@ Generates plain-language summaries WITHOUT AI
 Pure algorithmic approach using templates
 """
 
-from medical_knowledge import MedicalKnowledgeBase
+import os
+import sys
+
+# Try different import paths for flexibility
+try:
+    from utils.medical_knowledge import MedicalKnowledgeBase
+    print("✅ MedicalKnowledgeBase imported from utils.medical_knowledge (template)")
+except ImportError:
+    try:
+        from medical_knowledge import MedicalKnowledgeBase
+        print("✅ MedicalKnowledgeBase imported from medical_knowledge (template)")
+    except ImportError:
+        try:
+            # Add current directory to Python path
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            parent_dir = os.path.dirname(current_dir)
+            sys.path.append(current_dir)
+            sys.path.append(parent_dir)
+            from medical_knowledge import MedicalKnowledgeBase
+            print("✅ MedicalKnowledgeBase imported with sys.path adjustment (template)")
+        except ImportError as e:
+            print(f"❌ Failed to import MedicalKnowledgeBase in template_summarizer: {e}")
+            # Create a dummy class to prevent crashes
+            class MedicalKnowledgeBase:
+                @staticmethod
+                def get_term_info(term):
+                    return None
+            print("⚠️ Using dummy MedicalKnowledgeBase in template_summarizer")
 
 class TemplateSummarizer:
     
@@ -251,7 +278,12 @@ class TemplateSummarizer:
 # ============================================
 
 if __name__ == "__main__":
-    from report_parser import MedicalReportParser
+    try:
+        from report_parser import MedicalReportParser
+        print("✅ ReportParser imported for testing")
+    except ImportError:
+        print("❌ Could not import ReportParser for testing")
+        exit(1)
     
     # Sample report text (from your actual report)
     sample_text = """

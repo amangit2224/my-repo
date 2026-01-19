@@ -11,16 +11,31 @@ import sys
 # Try different import paths for flexibility
 try:
     from utils.medical_knowledge import MedicalKnowledgeBase
+    print("✅ MedicalKnowledgeBase imported from utils.medical_knowledge")
 except ImportError:
     try:
         from medical_knowledge import MedicalKnowledgeBase
+        print("✅ MedicalKnowledgeBase imported from medical_knowledge")
     except ImportError:
-        # Add current directory to Python path
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        parent_dir = os.path.dirname(current_dir)
-        sys.path.append(current_dir)
-        sys.path.append(parent_dir)
-        from medical_knowledge import MedicalKnowledgeBase
+        try:
+            # Add current directory to Python path
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            parent_dir = os.path.dirname(current_dir)
+            sys.path.append(current_dir)
+            sys.path.append(parent_dir)
+            from medical_knowledge import MedicalKnowledgeBase
+            print("✅ MedicalKnowledgeBase imported with sys.path adjustment")
+        except ImportError as e:
+            print(f"❌ Failed to import MedicalKnowledgeBase: {e}")
+            # Create a dummy class to prevent crashes
+            class MedicalKnowledgeBase:
+                @staticmethod
+                def get_term_info(term):
+                    return None
+                @staticmethod
+                def get_interpretation(term, value, gender="all"):
+                    return {"error": "Knowledge base not available"}
+            print("⚠️ Using dummy MedicalKnowledgeBase")
 
 class MedicalReportParser:
     
