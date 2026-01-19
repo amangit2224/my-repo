@@ -1,12 +1,10 @@
 import axios from 'axios';
 
-// Use this structure as specified
 const API_BASE_URL =
   process.env.NODE_ENV === 'production'
     ? 'https://medical-backend-wbqv.onrender.com'
     : 'http://localhost:5000';
 
-// Remove the old API_BASE_URL and use the new one above
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -14,14 +12,33 @@ const api = axios.create({
   },
 });
 
-// Attach token if available
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+// Request interceptor - attach token
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
   }
-  return config;
-});
+);
+
+// Response interceptor - handle 401 errors
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // If 401 Unauthorized, redirect to login
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('username');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
 
 // AUTH API
 export const authAPI = {
@@ -39,6 +56,7 @@ export const reportAPI = {
   getDetails: (reportId) => api.get(`/api/report/details/${reportId}`),
 };
 
+// JARGON API
 export const jargonAPI = {
   explain: (term) => api.post('/api/jargon/explain', { term }),
 };

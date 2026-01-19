@@ -11,7 +11,11 @@ function JargonBuster() {
   const navigate = useNavigate();
 
   const explainTerm = async () => {
-    if (!search.trim()) return;
+    if (!search.trim()) {
+      setError('Please enter a medical term');
+      return;
+    }
+    
     setLoading(true);
     setError('');
     setResult(null);
@@ -20,10 +24,17 @@ function JargonBuster() {
       const res = await jargonAPI.explain(search.trim());
       setResult(res.data);
     } catch (err) {
+      console.error('Jargon API error:', err);
       setError(err.response?.data?.error || 'Could not explain term. Try another.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('username');
+    navigate('/login');
   };
 
   return (
@@ -31,8 +42,12 @@ function JargonBuster() {
       <div className="dashboard-header">
         <h1>Jargon Buster</h1>
         <div className="user-info">
-          <button onClick={() => navigate(-1)} className="btn-secondary">Back</button>
-          <button onClick={() => { localStorage.clear(); navigate('/login'); }} className="btn-logout">Logout</button>
+          <button onClick={() => navigate('/dashboard')} className="btn-secondary">
+            Back to Dashboard
+          </button>
+          <button onClick={handleLogout} className="btn-logout">
+            Logout
+          </button>
         </div>
       </div>
 
@@ -41,43 +56,88 @@ function JargonBuster() {
         <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
           <input
             type="text"
-            placeholder="ask here"
+            placeholder="Enter medical term (e.g., hemoglobin, cholesterol)"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && explainTerm()}
-            style={{ flex: 1, padding: '14px 16px', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '16px', background: 'var(--bg)' }}
+            style={{
+              flex: 1,
+              padding: '14px 16px',
+              border: '1px solid var(--border)',
+              borderRadius: '8px',
+              fontSize: '16px',
+              background: 'var(--bg)',
+              color: 'var(--text-primary)'
+            }}
           />
-          <button onClick={explainTerm} disabled={loading} className="btn-primary" style={{ padding: '0 24px' }}>
-            {loading ? '...' : 'Explain'}
+          <button
+            onClick={explainTerm}
+            disabled={loading}
+            className="btn-primary"
+            style={{ padding: '0 24px' }}
+          >
+            {loading ? 'Searching...' : 'Explain'}
           </button>
         </div>
 
-        {error && <p style={{ color: 'var(--danger)', textAlign: 'center' }}>{error}</p>}
+        {error && (
+          <div style={{
+            padding: '12px',
+            background: '#FEE2E2',
+            color: '#991B1B',
+            borderRadius: '8px',
+            marginBottom: '16px'
+          }}>
+            {error}
+          </div>
+        )}
 
         {result && (
-          <div className="action-card result-card" style={{ padding: '24px', borderRadius: '12px' }}>
-            <h3 style={{ margin: '0 0 16px', fontSize: '22px', color: 'var(--text)', fontWeight: '600' }}>
+          <div className="action-card result-card" style={{
+            padding: '24px',
+            borderRadius: '12px',
+            background: 'var(--bg-gray)'
+          }}>
+            <h3 style={{
+              margin: '0 0 16px',
+              fontSize: '22px',
+              color: 'var(--text-primary)',
+              fontWeight: '600'
+            }}>
               {result.term}
             </h3>
 
             <div style={{ marginBottom: '14px' }}>
-              <strong style={{ color: 'var(--text)' }}>Pronunciation:</strong>
-              <span style={{ color: 'var(--danger)', marginLeft: '8px', fontWeight: '500' }}>
+              <strong style={{ color: 'var(--text-primary)' }}>Pronunciation:</strong>
+              <span style={{
+                color: 'var(--primary)',
+                marginLeft: '8px',
+                fontWeight: '500'
+              }}>
                 {result.pronunciation}
               </span>
             </div>
 
             <div style={{ marginBottom: '14px' }}>
-              <strong style={{ color: 'var(--text)' }}>Definition:</strong>
-              <p style={{ margin: '8px 0 0', lineHeight: '1.6', color: 'var(--text)' }}>
+              <strong style={{ color: 'var(--text-primary)' }}>Definition:</strong>
+              <p style={{
+                margin: '8px 0 0',
+                lineHeight: '1.6',
+                color: 'var(--text-secondary)'
+              }}>
                 {result.definition}
               </p>
             </div>
 
             {result.example && result.example !== "No example available." && (
               <div>
-                <strong style={{ color: 'var(--text)' }}>Example:</strong>
-                <p style={{ margin: '8px 0 0', lineHeight: '1.6', fontStyle: 'italic', color: 'var(--primary)' }}>
+                <strong style={{ color: 'var(--text-primary)' }}>Example:</strong>
+                <p style={{
+                  margin: '8px 0 0',
+                  lineHeight: '1.6',
+                  fontStyle: 'italic',
+                  color: 'var(--primary)'
+                }}>
                   {result.example}
                 </p>
               </div>

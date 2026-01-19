@@ -23,6 +23,13 @@ function HealthTrends() {
   const [chartData, setChartData] = useState(null);
   const navigate = useNavigate();
 
+  // Add logout function at the top
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('username');
+    navigate('/login');
+  };
+
   const handleSelectTest = useCallback((test) => {
     setSelectedTest(test);
 
@@ -183,7 +190,8 @@ function HealthTrends() {
           <button onClick={() => navigate('/dashboard')} className="btn-secondary">
             Back
           </button>
-          <button onClick={() => { localStorage.clear(); navigate('/login'); }} className="btn-logout">
+          {/* Updated logout button to use handleLogout function */}
+          <button onClick={handleLogout} className="btn-logout">
             Logout
           </button>
         </div>
