@@ -163,6 +163,7 @@ class MedicalKnowledgeBase:
             "full_name": "Blood Glucose (Fasting)",
             "abbreviation": "FBS",
             "normal_range": {
+                "all": {"min": 70, "max": 100, "unit": "mg/dL"},  # FIXED: Added "all" key
                 "fasting": {"min": 70, "max": 100, "unit": "mg/dL"},
                 "random": {"min": 70, "max": 140, "unit": "mg/dL"}
             },
@@ -285,7 +286,7 @@ class MedicalKnowledgeBase:
             "high_means": {
                 "condition": "High LDL cholesterol",
                 "possible_causes": ["Unhealthy diet", "Sedentary lifestyle", "Genetics"],
-                "severity": "Medium to High",
+                "severity": "Medium",
                 "categories": {
                     "optimal": {"max": 100},
                     "near_optimal": {"min": 100, "max": 129},
@@ -657,6 +658,10 @@ class MedicalKnowledgeBase:
         
         normal_range = term_info.get("normal_range", {})
         
+        # Special case for Glucose - use "all" by default
+        if term_name == "Glucose" and "all" in normal_range:
+            return normal_range["all"]
+        
         # Try gender-specific first
         if gender in normal_range:
             return normal_range[gender]
@@ -708,9 +713,9 @@ class MedicalKnowledgeBase:
         interpretation = {
             "term": term_name,
             "value": value,
-            "unit": normal_range.get("unit", ""),
+            "unit": normal_range.get("unit", "") if normal_range else "",
             "status": status,
-            "normal_range": f"{normal_range.get('min', 0)} - {normal_range.get('max', 0)} {normal_range.get('unit', '')}",
+            "normal_range": f"{normal_range.get('min', 0)} - {normal_range.get('max', 0)} {normal_range.get('unit', '')}" if normal_range else "Unknown",
             "explanation": term_info.get("simple_explanation", ""),
             "category": term_info.get("category", ""),
         }
