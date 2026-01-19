@@ -1,297 +1,246 @@
 """
-Medical Report Parser - ENHANCED VERSION
-Extracts medical values from OCR text with better patterns
-NO AI REQUIRED - Pure pattern matching & regex
+Medical Report Parser - BULLETPROOF VERSION
+Handles messy OCR text with values on different lines
+NO AI REQUIRED - Pure pattern matching & logic
 """
 
 import re
-import os
 import sys
+import os
 
-# Try different import paths for flexibility
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# Try different import paths
 try:
     from utils.medical_knowledge import MedicalKnowledgeBase
-    print("✅ MedicalKnowledgeBase imported from utils.medical_knowledge")
 except ImportError:
     try:
         from medical_knowledge import MedicalKnowledgeBase
-        print("✅ MedicalKnowledgeBase imported from medical_knowledge")
     except ImportError:
-        try:
-            # Add current directory to Python path
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            parent_dir = os.path.dirname(current_dir)
-            sys.path.append(current_dir)
-            sys.path.append(parent_dir)
-            from medical_knowledge import MedicalKnowledgeBase
-            print("✅ MedicalKnowledgeBase imported with sys.path adjustment")
-        except ImportError as e:
-            print(f"❌ Failed to import MedicalKnowledgeBase: {e}")
-            # Create a dummy class to prevent crashes
-            class MedicalKnowledgeBase:
-                @staticmethod
-                def get_term_info(term):
-                    return None
-                @staticmethod
-                def get_interpretation(term, value, gender="all"):
-                    return {"error": "Knowledge base not available"}
-                @staticmethod
-                def get_normal_range(term_name, gender="all", age_group="adult"):
-                    return None
-            print("⚠️ Using dummy MedicalKnowledgeBase")
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from medical_knowledge import MedicalKnowledgeBase
 
 class MedicalReportParser:
     
     def __init__(self):
         self.kb = MedicalKnowledgeBase()
         
-        # Common test name variations and abbreviations
-        self.term_mappings = {
-            # HbA1c variations
-            "hba1c": "HbA1c",
-            "hb a1c": "HbA1c",
-            "glycated hemoglobin": "HbA1c",
-            "glycosylated hemoglobin": "HbA1c",
+        # Test name patterns (case-insensitive)
+        self.test_patterns = {
+            # HbA1c
+            r'HbA1c': 'HbA1c',
+            r'Hb\s*A1c': 'HbA1c',
+            r'GLYCATED\s*HEMOGLOBIN': 'HbA1c',
             
-            # Hemoglobin variations
-            "hemoglobin": "Hemoglobin",
-            "hb": "Hemoglobin",
-            "haemoglobin": "Hemoglobin",
+            # Cholesterol
+            r'TOTAL\s*CHOLESTEROL': 'Total Cholesterol',
+            r'CHOLESTEROL\s*TOTAL': 'Total Cholesterol',
             
-            # Cholesterol variations
-            "total cholesterol": "Total Cholesterol",
-            "cholesterol total": "Total Cholesterol",
-            "chol": "Total Cholesterol",
-            "t cholesterol": "Total Cholesterol",
+            # HDL
+            r'HDL\s*CHOLESTEROL': 'HDL',
+            r'HIGH\s*DENSITY\s*LIPOPROTEIN': 'HDL',
             
-            # HDL variations
-            "hdl cholesterol": "HDL",
-            "hdl": "HDL",
-            "hdl cholesterol - direct": "HDL",
-            "high density lipoprotein": "HDL",
+            # LDL
+            r'LDL\s*CHOLESTEROL': 'LDL',
+            r'LOW\s*DENSITY\s*LIPOPROTEIN': 'LDL',
             
-            # LDL variations
-            "ldl cholesterol": "LDL",
-            "ldl": "LDL",
-            "ldl cholesterol - direct": "LDL",
-            "low density lipoprotein": "LDL",
+            # Triglycerides
+            r'TRIGLYCERIDES': 'Triglycerides',
             
-            # Triglycerides variations
-            "triglycerides": "Triglycerides",
-            "trig": "Triglycerides",
-            "trigs": "Triglycerides",
+            # Glucose
+            r'GLUCOSE': 'Glucose',
+            r'BLOOD\s*SUGAR': 'Glucose',
+            r'FASTING\s*BLOOD\s*GLUCOSE': 'Glucose',
             
-            # Glucose variations
-            "glucose": "Glucose",
-            "blood glucose": "Glucose",
-            "fasting blood glucose": "Glucose",
-            "fbs": "Glucose",
-            "blood sugar": "Glucose",
+            # Hemoglobin
+            r'HEMOGLOBIN': 'Hemoglobin',
+            r'HAEMOGLOBIN': 'Hemoglobin',
             
-            # TSH variations
-            "tsh": "TSH",
-            "thyroid stimulating hormone": "TSH",
-            "tsh ultrasensitive": "TSH",
+            # Thyroid
+            r'TSH': 'TSH',
+            r'THYROID\s*STIMULATING\s*HORMONE': 'TSH',
+            r'T3': 'T3',
+            r'TRIIODOTHYRONINE': 'T3',
+            r'T4': 'T4',
+            r'THYROXINE': 'T4',
             
-            # T3/T4 variations
-            "t3": "T3",
-            "total triiodothyronine": "T3",
-            "triiodothyronine": "T3",
-            "t4": "T4",
-            "total thyroxine": "T4",
-            "thyroxine": "T4",
+            # Liver
+            r'SGOT': 'AST',
+            r'AST': 'AST',
+            r'ASPARTATE\s*AMINOTRANSFERASE': 'AST',
+            r'SGPT': 'ALT',
+            r'ALT': 'ALT',
+            r'ALANINE\s*TRANSAMINASE': 'ALT',
+            r'BILIRUBIN': 'Bilirubin',
             
-            # Liver enzymes
-            "sgot": "AST",
-            "ast": "AST",
-            "aspartate aminotransferase": "AST",
-            "sgpt": "ALT",
-            "alt": "ALT",
-            "alanine transaminase": "ALT",
-            "alanine aminotransferase": "ALT",
+            # Kidney
+            r'CREATININE': 'Creatinine',
+            r'BUN': 'BUN',
+            r'UREA': 'BUN',
             
-            # Other common tests
-            "creatinine": "Creatinine",
-            "bun": "BUN",
-            "uric acid": "Uric Acid",
-            "troponin": "Troponin",
-            "troponin i": "Troponin",
-            "bilirubin": "Bilirubin",
-            "calcium": "Calcium",
-            "sodium": "Sodium",
-            "potassium": "Potassium",
-            "vitamin d": "Vitamin D",
-            "vitamin b12": "Vitamin B12",
-            "iron": "Iron",
-            
-            # CBC
-            "wbc": "WBC",
-            "white blood cell": "WBC",
-            "rbc": "RBC",
-            "red blood cell": "RBC",
-            "platelets": "Platelets",
-            "platelet count": "Platelets",
-            "hematocrit": "Hematocrit",
-            "hct": "Hematocrit",
+            # Others
+            r'URIC\s*ACID': 'Uric Acid',
+            r'TROPONIN': 'Troponin',
+            r'WBC': 'WBC',
+            r'RBC': 'RBC',
+            r'PLATELETS': 'Platelets',
+            r'VITAMIN\s*D': 'Vitamin D',
+            r'VITAMIN\s*B12': 'Vitamin B12',
+            r'CALCIUM': 'Calcium',
+            r'SODIUM': 'Sodium',
+            r'POTASSIUM': 'Potassium',
+            r'IRON': 'Iron',
         }
-    
-    def normalize_term(self, term):
-        """Convert various term formats to standard name"""
-        term_lower = term.lower().strip()
-        return self.term_mappings.get(term_lower, term)
     
     def extract_test_results(self, ocr_text):
         """
-        Extract test name-value pairs from OCR text
-        ENHANCED VERSION - catches more patterns
+        BULLETPROOF extraction that handles messy OCR
+        Strategy: Find test names, then find values near them
         """
-        results = []
-        
-        # Clean up text
-        text = ocr_text.replace('\n', ' ')
-        text = ' '.join(text.split())  # Normalize whitespace
-        
-        # All known test patterns
-        test_patterns = {
-            # HbA1c patterns
-            r'HbA1c[:\s-]*(\d+\.?\d*)\s*%': 'HbA1c',
-            r'Hb\s*A1c[:\s-]*(\d+\.?\d*)\s*%': 'HbA1c',
-            r'GLYCATED HEMOGLOBIN[:\s-]*(\d+\.?\d*)\s*%': 'HbA1c',
-            
-            # Cholesterol patterns
-            r'TOTAL\s*CHOLESTEROL[:\s-]*(\d+\.?\d*)\s*mg/dL': 'Total Cholesterol',
-            r'CHOLESTEROL\s*TOTAL[:\s-]*(\d+\.?\d*)\s*mg/dL': 'Total Cholesterol',
-            r'CHOLESTEROL[:\s-]*(\d+\.?\d*)\s*mg/dL': 'Total Cholesterol',
-            
-            # HDL patterns
-            r'HDL\s*CHOLESTEROL[:\s-]*(\d+\.?\d*)\s*mg/dL': 'HDL',
-            r'HDL[:\s-]*(\d+\.?\d*)\s*mg/dL': 'HDL',
-            
-            # LDL patterns  
-            r'LDL\s*CHOLESTEROL[:\s-]*(\d+\.?\d*)\s*mg/dL': 'LDL',
-            r'LDL[:\s-]*(\d+\.?\d*)\s*mg/dL': 'LDL',
-            
-            # Triglycerides patterns
-            r'TRIGLYCERIDES[:\s-]*(\d+\.?\d*)\s*mg/dL': 'Triglycerides',
-            r'TRIG[:\s-]*(\d+\.?\d*)\s*mg/dL': 'Triglycerides',
-            
-            # Glucose patterns
-            r'GLUCOSE[:\s-]*(\d+\.?\d*)\s*mg/dL': 'Glucose',
-            r'BLOOD\s*SUGAR[:\s-]*(\d+\.?\d*)\s*mg/dL': 'Glucose',
-            
-            # Hemoglobin patterns
-            r'HEMOGLOBIN[:\s-]*(\d+\.?\d*)\s*g/dL': 'Hemoglobin',
-            r'HB[:\s-]*(\d+\.?\d*)\s*g/dL': 'Hemoglobin',
-            
-            # Other common tests
-            r'TSH[:\s-]*(\d+\.?\d*)\s*mIU/L': 'TSH',
-            r'CREATININE[:\s-]*(\d+\.?\d*)\s*mg/dL': 'Creatinine',
-            r'URIC\s*ACID[:\s-]*(\d+\.?\d*)\s*mg/dL': 'Uric Acid',
-        }
-        
-        # Try each pattern
-        found_terms = set()
-        for pattern, term_name in test_patterns.items():
-            matches = re.finditer(pattern, text, re.IGNORECASE)
-            for match in matches:
-                if term_name not in found_terms:
-                    value = float(match.group(1))
-                    
-                    # Get unit from knowledge base
-                    term_info = self.kb.get_term_info(term_name)
-                    if term_info:
-                        normal_range = self.kb.get_normal_range(term_name)
-                        unit = normal_range.get('unit', '') if normal_range else ''
-                        
-                        results.append({
-                            'term': term_name,
-                            'raw_term': match.group(0),
-                            'value': value,
-                            'unit': unit,
-                            'line_number': 0
-                        })
-                        found_terms.add(term_name)
-        
-        # Also try the original line-by-line method as fallback
-        if not results:
-            return self._extract_line_by_line(ocr_text)
-        
-        return results
-    
-    def _extract_line_by_line(self, ocr_text):
-        """Original line-by-line extraction as fallback"""
         results = []
         lines = ocr_text.split('\n')
         
+        # Step 1: Find all test names and their line numbers
+        test_locations = []
         for i, line in enumerate(lines):
-            line = line.strip()
-            if not line:
-                continue
-            
-            # Pattern 1: "TEST NAME VALUE UNIT" format
-            pattern1 = r'([A-Za-z\s\-/]+?)\s+(\d+\.?\d*)\s*([a-zA-Z/%]+)'
-            match1 = re.search(pattern1, line)
-            
-            if match1:
-                term_raw = match1.group(1).strip()
-                value = float(match1.group(2))
-                unit = match1.group(3).strip()
-                
-                # Normalize the term
-                term = self.normalize_term(term_raw)
-                
-                # Check if this is a known medical term
-                if self.kb.get_term_info(term):
-                    results.append({
-                        'term': term,
-                        'raw_term': term_raw,
-                        'value': value,
-                        'unit': unit,
-                        'line_number': i
+            line_upper = line.upper().strip()
+            for pattern, standard_name in self.test_patterns.items():
+                if re.search(pattern, line_upper, re.IGNORECASE):
+                    test_locations.append({
+                        'name': standard_name,
+                        'line_num': i,
+                        'original_line': line
                     })
-                    continue
-            
-            # Pattern 2: Test name on one line, value on next line
-            if i < len(lines) - 1:
-                next_line = lines[i + 1].strip()
-                
-                # Check if current line looks like a test name
-                if any(keyword in line.lower() for keyword in ['cholesterol', 'glucose', 'hemoglobin', 'thyroid', 'hba1c', 'hdl', 'ldl', 'triglycerides']):
-                    # Check if next line has a number
-                    pattern2 = r'(\d+\.?\d*)\s*([a-zA-Z/%]+)?'
-                    match2 = re.search(pattern2, next_line)
-                    
-                    if match2:
-                        term = self.normalize_term(line)
-                        value = float(match2.group(1))
-                        unit = match2.group(2).strip() if match2.group(2) else ""
-                        
-                        if self.kb.get_term_info(term):
-                            results.append({
-                                'term': term,
-                                'raw_term': line,
-                                'value': value,
-                                'unit': unit,
-                                'line_number': i
-                            })
+                    break  # Only one match per line
+        
+        # Step 2: For each test, find its value
+        for test_loc in test_locations:
+            value_found = self._find_value_for_test(
+                test_loc, 
+                lines, 
+                ocr_text
+            )
+            if value_found:
+                results.append(value_found)
         
         # Remove duplicates (keep first occurrence)
-        seen_terms = set()
+        seen = set()
         unique_results = []
-        for result in results:
-            if result['term'] not in seen_terms:
-                unique_results.append(result)
-                seen_terms.add(result['term'])
+        for r in results:
+            if r['term'] not in seen:
+                unique_results.append(r)
+                seen.add(r['term'])
         
         return unique_results
+    
+    def _find_value_for_test(self, test_loc, lines, full_text):
+        """
+        Find the numeric value for a specific test
+        Looks in: same line, next 3 lines, structured table format
+        """
+        test_name = test_loc['name']
+        start_line = test_loc['line_num']
+        
+        # Strategy 1: Check same line for value
+        same_line = lines[start_line]
+        value = self._extract_number_from_line(same_line)
+        if value:
+            unit = self._get_unit_for_test(test_name, same_line)
+            return self._create_result(test_name, value, unit, start_line)
+        
+        # Strategy 2: Check next 3 lines for standalone number
+        for offset in range(1, 4):
+            if start_line + offset < len(lines):
+                next_line = lines[start_line + offset].strip()
+                value = self._extract_number_from_line(next_line)
+                if value:
+                    unit = self._get_unit_for_test(test_name, next_line)
+                    return self._create_result(test_name, value, unit, start_line)
+        
+        # Strategy 3: Look for table format
+        # Example: "TEST_NAME    VALUE   UNIT"
+        # Find test name, then look for numbers in nearby columns
+        test_line = lines[start_line]
+        
+        # Extract all numbers from the surrounding context (10 lines after test name)
+        context_lines = lines[start_line:start_line+10]
+        context_text = ' '.join(context_lines)
+        
+        # Find all numbers with units
+        number_matches = re.findall(r'(\d+\.?\d*)\s*(mg/dL|%|g/dL|mIU/L|pg/mL|µg/dL|U/L|mmol/L)', context_text)
+        
+        if number_matches:
+            # Use first number found (most likely to be the value)
+            value_str, unit = number_matches[0]
+            value = float(value_str)
+            
+            # Verify unit matches expected unit for this test
+            expected_unit = self._get_expected_unit(test_name)
+            if expected_unit and unit.lower() == expected_unit.lower():
+                return self._create_result(test_name, value, unit, start_line)
+            elif not expected_unit:  # No expected unit, accept any
+                return self._create_result(test_name, value, unit, start_line)
+        
+        return None
+    
+    def _extract_number_from_line(self, line):
+        """Extract first valid number from a line"""
+        # Look for number with optional decimal
+        match = re.search(r'(\d+\.?\d*)', line)
+        if match:
+            try:
+                value = float(match.group(1))
+                # Sanity check: medical values are usually between 0.1 and 10000
+                if 0.1 <= value <= 10000:
+                    return value
+            except:
+                pass
+        return None
+    
+    def _get_unit_for_test(self, test_name, text):
+        """Get unit from text or from knowledge base"""
+        # Try to find unit in text
+        units = ['mg/dL', '%', 'g/dL', 'mIU/L', 'pg/mL', 'µg/dL', 'U/L', 'mmol/L']
+        for unit in units:
+            if unit in text:
+                return unit
+        
+        # Fallback to knowledge base
+        return self._get_expected_unit(test_name)
+    
+    def _get_expected_unit(self, test_name):
+        """Get expected unit from knowledge base"""
+        normal_range = self.kb.get_normal_range(test_name)
+        if normal_range:
+            return normal_range.get('unit', '')
+        return ''
+    
+    def _create_result(self, test_name, value, unit, line_num):
+        """Create a result dictionary"""
+        return {
+            'term': test_name,
+            'raw_term': test_name,
+            'value': value,
+            'unit': unit,
+            'line_number': line_num
+        }
     
     def parse_report(self, ocr_text, gender="female", age=50):
         """
         Main parsing function
         Returns complete analysis with interpretations
         """
+        print(f"\n{'='*60}")
+        print(f"PARSING REPORT (Gender: {gender}, Age: {age})")
+        print(f"{'='*60}")
+        
         # Extract raw test results
         test_results = self.extract_test_results(ocr_text)
+        
+        print(f"\n✅ Found {len(test_results)} tests:")
+        for r in test_results:
+            print(f"   • {r['term']}: {r['value']} {r['unit']}")
         
         # Analyze each result
         analyzed_results = []
@@ -337,6 +286,13 @@ class MedicalReportParser:
         # Detect report type
         report_type = self.detect_report_type(test_results)
         
+        print(f"\n📋 Report Type: {report_type}")
+        print(f"   Normal: {len(categorized['normal'])}")
+        print(f"   High: {len(categorized['high'])}")
+        print(f"   Low: {len(categorized['low'])}")
+        print(f"   Critical: {len(categorized['critical'])}")
+        print(f"{'='*60}\n")
+        
         return {
             'report_type': report_type,
             'total_tests': len(test_results),
@@ -369,7 +325,7 @@ class MedicalReportParser:
             return "Kidney Function Test"
         
         if 'Glucose' in test_names or 'HbA1c' in test_names:
-            return "Diabetes Screening"
+            return "Diabetes Screening / Lipid Profile"
         
         return "General Health Panel"
 
@@ -379,15 +335,20 @@ class MedicalReportParser:
 # ============================================
 
 if __name__ == "__main__":
-    # Test with sample OCR text from your actual report
+    # Test with ACTUAL messy OCR text from Test_Report2.pdf
     sample_text = """
     HbA1c - (HPLC)
     H.P.L.C 5.9 %
     
-    TOTAL CHOLESTEROL 195 mg/dL
-    HDL CHOLESTEROL - DIRECT 46 mg/dL
-    LDL CHOLESTEROL - DIRECT 118 mg/dL
-    TRIGLYCERIDES 210 mg/dL
+    TOTAL CHOLESTEROL PHOTOMETRY mg/dL < 200
+    HDL CHOLESTEROL - DIRECT PHOTOMETRY mg/dL 40-60
+    LDL CHOLESTEROL - DIRECT PHOTOMETRY mg/dL < 100
+    TRIGLYCERIDES PHOTOMETRY mg/dL < 150
+    
+    195
+    46
+    118
+    210
     
     TROPONIN I HEART ATTACK RISK 1.4 pg/mL
     """
@@ -395,7 +356,7 @@ if __name__ == "__main__":
     parser = MedicalReportParser()
     
     print("=" * 60)
-    print("TESTING ENHANCED REPORT PARSER")
+    print("TESTING BULLETPROOF PARSER")
     print("=" * 60)
     
     # Parse the report
@@ -404,17 +365,12 @@ if __name__ == "__main__":
     print(f"\nReport Type: {analysis['report_type']}")
     print(f"Total Tests Found: {analysis['total_tests']}")
     
-    if analysis['total_tests'] > 0:
-        print("\n" + "=" * 60)
-        print("DETAILED RESULTS:")
-        print("=" * 60)
-        
-        for result in analysis['all_results']:
-            term = result['term']
-            value = result['value']
-            unit = result['unit']
-            status = result['interpretation']['status']
-            print(f"\n{term}: {value} {unit} ({status})")
-            print(f"   Normal Range: {result['interpretation']['normal_range']}")
-    else:
-        print("\n❌ NO TESTS FOUND! Check extraction patterns.")
+    print("\n" + "=" * 60)
+    print("ALL RESULTS:")
+    print("=" * 60)
+    
+    for result in analysis['all_results']:
+        status_emoji = "✅" if result['interpretation']['status'] == 'normal' else "⚠️"
+        print(f"\n{status_emoji} {result['term']}: {result['value']} {result['unit']}")
+        print(f"   Status: {result['interpretation']['status'].upper()}")
+        print(f"   Normal Range: {result['interpretation']['normal_range']}")
