@@ -1,6 +1,6 @@
 """
-Medical Report Parser
-Extracts medical values from OCR text
+Medical Report Parser - ENHANCED VERSION
+Extracts medical values from OCR text with better patterns
 NO AI REQUIRED - Pure pattern matching & regex
 """
 
@@ -35,6 +35,9 @@ except ImportError:
                 @staticmethod
                 def get_interpretation(term, value, gender="all"):
                     return {"error": "Knowledge base not available"}
+                @staticmethod
+                def get_normal_range(term_name, gender="all", age_group="adult"):
+                    return None
             print("⚠️ Using dummy MedicalKnowledgeBase")
 
 class MedicalReportParser:
@@ -140,11 +143,84 @@ class MedicalReportParser:
     def extract_test_results(self, ocr_text):
         """
         Extract test name-value pairs from OCR text
-        Returns: list of dicts with {term, value, unit, status}
+        ENHANCED VERSION - catches more patterns
         """
         results = []
         
-        # Split text into lines
+        # Clean up text
+        text = ocr_text.replace('\n', ' ')
+        text = ' '.join(text.split())  # Normalize whitespace
+        
+        # All known test patterns
+        test_patterns = {
+            # HbA1c patterns
+            r'HbA1c[:\s-]*(\d+\.?\d*)\s*%': 'HbA1c',
+            r'Hb\s*A1c[:\s-]*(\d+\.?\d*)\s*%': 'HbA1c',
+            r'GLYCATED HEMOGLOBIN[:\s-]*(\d+\.?\d*)\s*%': 'HbA1c',
+            
+            # Cholesterol patterns
+            r'TOTAL\s*CHOLESTEROL[:\s-]*(\d+\.?\d*)\s*mg/dL': 'Total Cholesterol',
+            r'CHOLESTEROL\s*TOTAL[:\s-]*(\d+\.?\d*)\s*mg/dL': 'Total Cholesterol',
+            r'CHOLESTEROL[:\s-]*(\d+\.?\d*)\s*mg/dL': 'Total Cholesterol',
+            
+            # HDL patterns
+            r'HDL\s*CHOLESTEROL[:\s-]*(\d+\.?\d*)\s*mg/dL': 'HDL',
+            r'HDL[:\s-]*(\d+\.?\d*)\s*mg/dL': 'HDL',
+            
+            # LDL patterns  
+            r'LDL\s*CHOLESTEROL[:\s-]*(\d+\.?\d*)\s*mg/dL': 'LDL',
+            r'LDL[:\s-]*(\d+\.?\d*)\s*mg/dL': 'LDL',
+            
+            # Triglycerides patterns
+            r'TRIGLYCERIDES[:\s-]*(\d+\.?\d*)\s*mg/dL': 'Triglycerides',
+            r'TRIG[:\s-]*(\d+\.?\d*)\s*mg/dL': 'Triglycerides',
+            
+            # Glucose patterns
+            r'GLUCOSE[:\s-]*(\d+\.?\d*)\s*mg/dL': 'Glucose',
+            r'BLOOD\s*SUGAR[:\s-]*(\d+\.?\d*)\s*mg/dL': 'Glucose',
+            
+            # Hemoglobin patterns
+            r'HEMOGLOBIN[:\s-]*(\d+\.?\d*)\s*g/dL': 'Hemoglobin',
+            r'HB[:\s-]*(\d+\.?\d*)\s*g/dL': 'Hemoglobin',
+            
+            # Other common tests
+            r'TSH[:\s-]*(\d+\.?\d*)\s*mIU/L': 'TSH',
+            r'CREATININE[:\s-]*(\d+\.?\d*)\s*mg/dL': 'Creatinine',
+            r'URIC\s*ACID[:\s-]*(\d+\.?\d*)\s*mg/dL': 'Uric Acid',
+        }
+        
+        # Try each pattern
+        found_terms = set()
+        for pattern, term_name in test_patterns.items():
+            matches = re.finditer(pattern, text, re.IGNORECASE)
+            for match in matches:
+                if term_name not in found_terms:
+                    value = float(match.group(1))
+                    
+                    # Get unit from knowledge base
+                    term_info = self.kb.get_term_info(term_name)
+                    if term_info:
+                        normal_range = self.kb.get_normal_range(term_name)
+                        unit = normal_range.get('unit', '') if normal_range else ''
+                        
+                        results.append({
+                            'term': term_name,
+                            'raw_term': match.group(0),
+                            'value': value,
+                            'unit': unit,
+                            'line_number': 0
+                        })
+                        found_terms.add(term_name)
+        
+        # Also try the original line-by-line method as fallback
+        if not results:
+            return self._extract_line_by_line(ocr_text)
+        
+        return results
+    
+    def _extract_line_by_line(self, ocr_text):
+        """Original line-by-line extraction as fallback"""
+        results = []
         lines = ocr_text.split('\n')
         
         for i, line in enumerate(lines):
@@ -153,8 +229,6 @@ class MedicalReportParser:
                 continue
             
             # Pattern 1: "TEST NAME VALUE UNIT" format
-            # Example: "HbA1c 5.9 %"
-            # Example: "TOTAL CHOLESTEROL 195 mg/dL"
             pattern1 = r'([A-Za-z\s\-/]+?)\s+(\d+\.?\d*)\s*([a-zA-Z/%]+)'
             match1 = re.search(pattern1, line)
             
@@ -178,12 +252,11 @@ class MedicalReportParser:
                     continue
             
             # Pattern 2: Test name on one line, value on next line
-            # Common in structured reports
             if i < len(lines) - 1:
                 next_line = lines[i + 1].strip()
                 
                 # Check if current line looks like a test name
-                if any(keyword in line.lower() for keyword in ['cholesterol', 'glucose', 'hemoglobin', 'thyroid']):
+                if any(keyword in line.lower() for keyword in ['cholesterol', 'glucose', 'hemoglobin', 'thyroid', 'hba1c', 'hdl', 'ldl', 'triglycerides']):
                     # Check if next line has a number
                     pattern2 = r'(\d+\.?\d*)\s*([a-zA-Z/%]+)?'
                     match2 = re.search(pattern2, next_line)
@@ -322,7 +395,7 @@ if __name__ == "__main__":
     parser = MedicalReportParser()
     
     print("=" * 60)
-    print("TESTING REPORT PARSER")
+    print("TESTING ENHANCED REPORT PARSER")
     print("=" * 60)
     
     # Parse the report
@@ -331,25 +404,17 @@ if __name__ == "__main__":
     print(f"\nReport Type: {analysis['report_type']}")
     print(f"Total Tests Found: {analysis['total_tests']}")
     
-    print("\n" + "=" * 60)
-    print("ABNORMAL RESULTS:")
-    print("=" * 60)
-    
-    for result in analysis['categorized']['high']:
-        print(f"\n{result['term']}: {result['value']} {result['unit']}")
-        print(f"   Status: {result['interpretation']['status'].upper()}")
-        print(f"   Normal Range: {result['interpretation']['normal_range']}")
-        print(f"   Condition: {result['interpretation'].get('condition', 'N/A')}")
-    
-    for result in analysis['categorized']['low']:
-        print(f"\n{result['term']}: {result['value']} {result['unit']}")
-        print(f"   Status: {result['interpretation']['status'].upper()}")
-        print(f"   Normal Range: {result['interpretation']['normal_range']}")
-        print(f"   Condition: {result['interpretation'].get('condition', 'N/A')}")
-    
-    print("\n" + "=" * 60)
-    print("NORMAL RESULTS:")
-    print("=" * 60)
-    
-    for result in analysis['categorized']['normal']:
-        print(f"{result['term']}: {result['value']} {result['unit']}")
+    if analysis['total_tests'] > 0:
+        print("\n" + "=" * 60)
+        print("DETAILED RESULTS:")
+        print("=" * 60)
+        
+        for result in analysis['all_results']:
+            term = result['term']
+            value = result['value']
+            unit = result['unit']
+            status = result['interpretation']['status']
+            print(f"\n{term}: {value} {unit} ({status})")
+            print(f"   Normal Range: {result['interpretation']['normal_range']}")
+    else:
+        print("\n❌ NO TESTS FOUND! Check extraction patterns.")
