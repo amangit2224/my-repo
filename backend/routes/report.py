@@ -194,6 +194,54 @@ def upload_report():
                 traceback.print_exc()
 
         # ============================================
+        # STEP 2.5: MEDICAL VALIDATION (if verification ON)
+        # ============================================
+
+        medical_validation = None
+
+        if verify_report and parsed_data:
+            try:
+                print("MEDICAL VALIDATION - Checking value plausibility...")
+                from utils.medical_validator import MedicalValidator
+                
+                validator = MedicalValidator()
+                medical_validation = validator.validate_report(parsed_data)
+                
+                print(f"Medical validation complete!")
+                print(f"   Medical Suspicion: {medical_validation['suspicion_score']}")
+                
+                # Add medical suspicion to verification score
+                if verification_result:
+                    # Combine PDF forensics + medical validation
+                    combined_suspicion = verification_result.get('suspicion_score', 0) + medical_validation['suspicion_score']
+                    
+                    # Recalculate trust score
+                    verification_result['trust_score'] = max(0, 100 - combined_suspicion)
+                    verification_result['findings'].extend(medical_validation['findings'])
+                    verification_result['medical_validation'] = medical_validation
+                    
+                    # Redetermine risk level
+                    trust_score = verification_result['trust_score']
+                    if trust_score >= 90:
+                        verification_result['risk_level'] = "Verified ✅"
+                    elif trust_score >= 70:
+                        verification_result['risk_level'] = "Low Risk"
+                    elif trust_score >= 50:
+                        verification_result['risk_level'] = "Medium Risk"
+                    elif trust_score >= 30:
+                        verification_result['risk_level'] = "High Risk"
+                    else:
+                        verification_result['risk_level'] = "Critical - Likely Fake"
+                    
+                    print(f"   Combined Trust Score: {verification_result['trust_score']}/100")
+                    print(f"   Final Risk Level: {verification_result['risk_level']}")
+                
+            except Exception as e:
+                print(f"Medical validation failed: {e}")
+                import traceback
+                traceback.print_exc()
+
+        # ============================================
         # STEP 3: AI ENHANCEMENT (OPTIONAL - only if toggle ON)
         # ============================================
 
@@ -276,7 +324,8 @@ def upload_report():
             'report_type': parsed_data['report_type'] if parsed_data else 'Unknown',
             'ai_enhanced': ai_enhancement_success,
             'verification': verification_result,
-            'verification_enabled': verify_report
+            'verification_enabled': verify_report,
+            'medical_validation': medical_validation
         }
 
         print(f"\n{'='*60}")
@@ -306,6 +355,7 @@ def upload_report():
             'use_ai': use_ai,
             'verification': verification_result,
             'verification_enabled': verify_report,
+            'medical_validation': medical_validation,
             'parsed_data': parsed_data,
             'uploaded_at': datetime.now(IST).strftime("%Y-%m-%d %I:%M %p"),
             'processed': True
@@ -412,7 +462,8 @@ def get_report_details(report_id):
             'rule_based_summary': report.get('rule_based_summary'),
             'ai_enhanced_summary': report.get('ai_enhanced_summary'),
             'verification': report.get('verification'),
-            'verification_enabled': report.get('verification_enabled', False)
+            'verification_enabled': report.get('verification_enabled', False),
+            'medical_validation': report.get('medical_validation')
         }), 200
 
     except Exception as e:
