@@ -122,40 +122,62 @@ def upload_report():
         extracted_text = None
         extraction_method = None
         
-        # Try PyPDF2 first (FASTEST - instant!)
-        if callable(process_file):
+        # Try PyPDF2 first (FASTEST - instant!) - ONLY for PDFs
+        if filepath.lower().endswith('.pdf') and callable(process_file):
             try:
                 print("Trying PyPDF2 (fast local extraction)...")
                 extracted_text = process_file(filepath)
+                
+                # ✅ FIX: Check if text is meaningful (more than 50 chars)
                 if extracted_text and len(extracted_text.strip()) > 50:
                     extraction_method = "PyPDF2 (local)"
-                    print(f"PyPDF2 SUCCESS! Extracted {len(extracted_text)} chars in <1 second")
+                    print(f"✅ PyPDF2 SUCCESS! Extracted {len(extracted_text)} chars in <1 second")
+                else:
+                    # PyPDF2 returned empty/minimal text - likely scanned
+                    print(f"⚠️ PyPDF2 returned minimal text ({len(extracted_text or '')} chars) - likely scanned PDF")
+                    extracted_text = None  # Reset to trigger AI fallback
             except Exception as e:
-                print(f"PyPDF2 failed: {e}")
+                print(f"❌ PyPDF2 failed: {e}")
+                extracted_text = None
 
-        # Fallback to AI (only if PyPDF2 failed - for scanned images)
+        # ✅ FIX: Fallback to Gemini AI OCR (for scanned PDFs or when PyPDF2 fails)
         if not extracted_text:
             try:
-                print("PyPDF2 failed, trying Gemini AI (15 sec timeout)...")
+                print("📸 PyPDF2 failed/insufficient text → Trying Gemini AI OCR...")
                 from utils.ai_summarizer import extract_text_from_pdf_with_ai
+                
+                # This works for both scanned PDFs and images
                 extracted_text = extract_text_from_pdf_with_ai(filepath)
                 
-                if extracted_text:
-                    extraction_method = "Gemini AI (fallback)"
-                    print(f"Gemini AI SUCCESS! Extracted {len(extracted_text)} chars")
+                if extracted_text and len(extracted_text.strip()) > 50:
+                    extraction_method = "Gemini AI OCR"
+                    print(f"✅ Gemini AI SUCCESS! Extracted {len(extracted_text)} chars")
+                else:
+                    print(f"❌ Gemini AI returned insufficient text")
+                    extracted_text = None
                     
             except Exception as e:
-                print(f"Gemini AI failed: {e}")
+                print(f"❌ Gemini AI OCR failed: {e}")
+                import traceback
+                traceback.print_exc()
 
-        # If still no text, fail clearly
+        # ✅ FIX: Final validation - if still no text, return clear error
         if not extracted_text or len(extracted_text.strip()) < 50:
+            error_msg = 'Could not extract text from report'
+            details = 'File may be corrupted, password-protected, or severely damaged. '
+            
+            if filepath.lower().endswith('.pdf'):
+                details += 'PDF appears to be scanned but OCR failed. Try a clearer scan or digital PDF.'
+            else:
+                details += 'Image quality may be too low for text recognition.'
+            
             return jsonify({
-                'error': 'Could not extract text from report',
-                'details': 'File may be corrupted, password-protected, or contain only images without OCR'
+                'error': error_msg,
+                'details': details
             }), 400
 
         print(f"\n{'='*60}")
-        print(f"TEXT EXTRACTION COMPLETE")
+        print(f"✅ TEXT EXTRACTION COMPLETE")
         print(f"Method: {extraction_method}")
         print(f"Text length: {len(extracted_text)} characters")
         print(f"{'='*60}\n")
