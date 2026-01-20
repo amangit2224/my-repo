@@ -141,7 +141,7 @@ function ReportDetails() {
           </p>
         </div>
 
-        {/* Verification Badge */}
+        {/* FIXED: Verification Badge with Readable Text */}
         {report.verification_enabled && report.verification && (
           <div style={{
             marginBottom: '24px',
@@ -152,8 +152,12 @@ function ReportDetails() {
               report.verification.trust_score >= 50 ? '#F59E0B' : '#EF4444'
             }`,
             background: `${
-              report.verification.trust_score >= 70 ? '#D1FAE5' : 
-              report.verification.trust_score >= 50 ? '#FEF3C7' : '#FEE2E2'
+              report.verification.trust_score >= 70 ? '#ECFDF5' : 
+              report.verification.trust_score >= 50 ? '#FFFBEB' : '#FEF2F2'
+            }`,
+            color: `${
+              report.verification.trust_score >= 70 ? '#065F46' : 
+              report.verification.trust_score >= 50 ? '#78350F' : '#991B1B'
             }`
           }}>
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: '12px' }}>
@@ -166,12 +170,18 @@ function ReportDetails() {
                   margin: 0, 
                   fontSize: '20px', 
                   fontWeight: 700,
-                  color: report.verification.trust_score >= 70 ? '#065F46' : 
-                         report.verification.trust_score >= 50 ? '#92400E' : '#991B1B'
+                  color: report.verification.trust_score >= 70 ? '#047857' : 
+                         report.verification.trust_score >= 50 ? '#B45309' : '#DC2626'
                 }}>
                   {report.verification.risk_level}
                 </h3>
-                <p style={{ margin: '4px 0 0', fontSize: '16px', fontWeight: 600 }}>
+                <p style={{ 
+                  margin: '4px 0 0', 
+                  fontSize: '16px', 
+                  fontWeight: 600,
+                  color: report.verification.trust_score >= 70 ? '#059669' : 
+                         report.verification.trust_score >= 50 ? '#D97706' : '#EF4444'
+                }}>
                   Trust Score: {report.verification.trust_score}/100
                 </p>
               </div>
@@ -179,17 +189,25 @@ function ReportDetails() {
 
             {report.verification.findings && report.verification.findings.length > 0 && (
               <div style={{ marginTop: '16px' }}>
-                <strong style={{ fontSize: '15px', display: 'block', marginBottom: '8px' }}>
-                  Findings:
+                <strong style={{ 
+                  fontSize: '15px', 
+                  display: 'block', 
+                  marginBottom: '8px',
+                  color: report.verification.trust_score >= 70 ? '#047857' : 
+                         report.verification.trust_score >= 50 ? '#92400E' : '#991B1B'
+                }}>
+                  📋 Findings:
                 </strong>
                 <ul style={{ 
                   margin: '0', 
                   paddingLeft: '24px', 
                   fontSize: '14px',
-                  lineHeight: '1.6'
+                  lineHeight: '1.8',
+                  color: report.verification.trust_score >= 70 ? '#065F46' : 
+                         report.verification.trust_score >= 50 ? '#78350F' : '#991B1B'
                 }}>
                   {report.verification.findings.map((finding, idx) => (
-                    <li key={idx} style={{ marginBottom: '4px' }}>{finding}</li>
+                    <li key={idx} style={{ marginBottom: '6px' }}>{finding}</li>
                   ))}
                 </ul>
               </div>
@@ -197,17 +215,25 @@ function ReportDetails() {
 
             {report.verification.recommendations && report.verification.recommendations.length > 0 && (
               <div style={{ marginTop: '16px' }}>
-                <strong style={{ fontSize: '15px', display: 'block', marginBottom: '8px' }}>
-                  Recommendations:
+                <strong style={{ 
+                  fontSize: '15px', 
+                  display: 'block', 
+                  marginBottom: '8px',
+                  color: report.verification.trust_score >= 70 ? '#047857' : 
+                         report.verification.trust_score >= 50 ? '#92400E' : '#991B1B'
+                }}>
+                  💡 Recommendations:
                 </strong>
                 <ul style={{ 
                   margin: '0', 
                   paddingLeft: '24px', 
                   fontSize: '14px',
-                  lineHeight: '1.6'
+                  lineHeight: '1.8',
+                  color: report.verification.trust_score >= 70 ? '#065F46' : 
+                         report.verification.trust_score >= 50 ? '#78350F' : '#991B1B'
                 }}>
                   {report.verification.recommendations.map((rec, idx) => (
-                    <li key={idx} style={{ marginBottom: '4px' }}>{rec}</li>
+                    <li key={idx} style={{ marginBottom: '6px' }}>{rec}</li>
                   ))}
                 </ul>
               </div>
