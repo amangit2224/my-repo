@@ -80,6 +80,43 @@ def upload_report():
         print(f"{'='*60}")
 
         # ============================================
+        # STEP 0.5: VERIFICATION (OPTIONAL - only if toggle ON)
+        # ============================================
+
+        verify_report_str = request.form.get('verify_report', 'false')
+        verify_report = verify_report_str.lower() in ['true', '1', 'yes']
+
+        print(f"Verification Toggle: {'ON' if verify_report else 'OFF'}")
+
+        verification_result = None
+
+        if verify_report:
+            try:
+                print("VERIFICATION ENABLED - Running forensics...")
+                from utils.pdf_forensics import PDFForensics
+                
+                forensics = PDFForensics()
+                verification_result = forensics.analyze_pdf(filepath)
+                
+                print(f"Verification complete!")
+                print(f"   Trust Score: {verification_result['trust_score']}/100")
+                print(f"   Risk Level: {verification_result['risk_level']}")
+                
+            except Exception as e:
+                print(f"Verification failed: {e}")
+                import traceback
+                traceback.print_exc()
+                verification_result = {
+                    'verified': False,
+                    'trust_score': 0,
+                    'risk_level': 'Error',
+                    'findings': [f'Verification error: {str(e)}'],
+                    'recommendations': ['Unable to verify - manual review required']
+                }
+        else:
+            print("Verification: Skipped (toggle OFF)")
+
+        # ============================================
         # STEP 1: EXTRACT TEXT (FAST METHOD FIRST!)
         # ============================================
         extracted_text = None
@@ -238,6 +275,8 @@ def upload_report():
             'tests_found': parsed_data['total_tests'] if parsed_data else 0,
             'report_type': parsed_data['report_type'] if parsed_data else 'Unknown',
             'ai_enhanced': ai_enhancement_success,
+            'verification': verification_result,
+            'verification_enabled': verify_report
         }
 
         print(f"\n{'='*60}")
@@ -265,6 +304,8 @@ def upload_report():
             'ai_enhanced_summary': ai_enhanced_summary,
             'ai_summary': ai_summary,
             'use_ai': use_ai,
+            'verification': verification_result,
+            'verification_enabled': verify_report,
             'parsed_data': parsed_data,
             'uploaded_at': datetime.now(IST).strftime("%Y-%m-%d %I:%M %p"),
             'processed': True
@@ -284,14 +325,15 @@ def upload_report():
 
         return jsonify({
             'message': 'Report processed successfully',
-            'report_id': report_id,  # FIXED: Use variable, not function call
+            'report_id': report_id,
             'filename': filename,
             'summary': summary_data,
             'plain_language_summary': final_summary,
             'method_used': summary_data['method'],
             'extraction_method': extraction_method,
             'tests_analyzed': summary_data['tests_found'],
-            'ai_enhanced': summary_data['ai_enhanced']
+            'ai_enhanced': summary_data['ai_enhanced'],
+            'verification_enabled': summary_data['verification_enabled']
         }), 200
 
     except Exception as e:
@@ -325,7 +367,8 @@ def get_history():
                 'extraction_method': report.get('extraction_method', 'unknown'),
                 'report_type': report.get('summary', {}).get('report_type', 'Unknown'),
                 'ai_enhanced': report.get('summary', {}).get('ai_enhanced', False),
-                'use_ai': report.get('use_ai', False)
+                'use_ai': report.get('use_ai', False),
+                'verification_enabled': report.get('verification_enabled', False)
             })
 
         return jsonify({
@@ -367,7 +410,9 @@ def get_report_details(report_id):
             'ai_enhanced': report.get('summary', {}).get('ai_enhanced', False),
             'use_ai': report.get('use_ai', False),
             'rule_based_summary': report.get('rule_based_summary'),
-            'ai_enhanced_summary': report.get('ai_enhanced_summary')
+            'ai_enhanced_summary': report.get('ai_enhanced_summary'),
+            'verification': report.get('verification'),
+            'verification_enabled': report.get('verification_enabled', False)
         }), 200
 
     except Exception as e:
