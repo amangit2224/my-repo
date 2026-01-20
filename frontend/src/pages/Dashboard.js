@@ -115,7 +115,7 @@ function Dashboard({ darkMode, setDarkMode }) {
 
     try {
       const response = await reportAPI.upload(formData);
-      console.log('Upload response:', response.data);  // Debug log
+      console.log('✅ Upload response:', response.data);
       
       setUploadProgress(100);
       
@@ -129,21 +129,25 @@ function Dashboard({ darkMode, setDarkMode }) {
       setSelectedFile(null);
       setUseAI(false); // Reset toggle
       if (fileInputRef.current) fileInputRef.current.value = '';
-      fetchReports();
       
-      // FIXED: Better navigation with validation
+      // 🔥 FIX: Get report ID FIRST, navigate IMMEDIATELY
       const reportId = response.data.report_id;
       console.log('Navigating to report ID:', reportId);
       
       if (reportId && reportId !== 'undefined') {
-        setTimeout(() => navigate(`/report/${reportId}`), 800);
+        // 🔥 NAVIGATE IMMEDIATELY - Don't call fetchReports first!
+        navigate(`/report/${reportId}`);
+        
+        // 🔥 Update history in background (after navigation)
+        setTimeout(() => fetchReports(), 1000);
       } else {
         console.error('Invalid report ID!', response.data);
-        // Still show success but don't navigate
-        setUploadSuccess('Report processed! View it in History.');
+        setUploadError('Upload successful but navigation failed');
+        // Still update history even if navigation failed
+        fetchReports();
       }
     } catch (error) {
-      console.error('Upload error:', error);  // Debug log
+      console.error('❌ Upload error:', error);
       setUploadError(error.response?.data?.error || 'Upload failed');
     } finally {
       clearInterval(interval);
