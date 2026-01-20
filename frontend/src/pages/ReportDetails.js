@@ -6,7 +6,7 @@ import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 
 function ReportDetails() {
-  const { reportId } = useParams();  // 🔥 FIXED: Changed from 'id' to 'reportId'
+  const { reportId } = useParams();
   const navigate = useNavigate();
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -14,7 +14,7 @@ function ReportDetails() {
   const printRef = useRef();
 
   useEffect(() => {
-    console.log('Loading report with ID:', reportId);  // 🔥 Debug log
+    console.log('Loading report with ID:', reportId);
     
     if (!reportId || reportId === 'undefined') {
       console.error('Invalid report ID!');
@@ -22,7 +22,7 @@ function ReportDetails() {
       return;
     }
     
-    reportAPI.getDetails(reportId)  // 🔥 FIXED: Using reportId
+    reportAPI.getDetails(reportId)
       .then(res => {
         console.log('Report loaded successfully:', res.data);
         setReport(res.data);
@@ -32,7 +32,7 @@ function ReportDetails() {
         alert('Failed to load report');
       })
       .finally(() => setLoading(false));
-  }, [reportId]);  // 🔥 FIXED: Dependency changed to reportId
+  }, [reportId]);
 
   const speakSummary = () => {
     if (!report?.plain_language_summary || isSpeaking) return;
@@ -123,10 +123,10 @@ function ReportDetails() {
             className="btn-primary"
             style={{ padding: '10px 20px', fontSize: '14px' }}
           >
-            {isSpeaking ? '🔇 Stop Reading' : '🔊 Read Aloud'}
+            {isSpeaking ? 'Stop Reading' : 'Read Aloud'}
           </button>
           <button onClick={exportToPDF} className="btn-primary" style={{ padding: '10px 20px', fontSize: '14px' }}>
-            📄 Export to PDF
+            Export to PDF
           </button>
         </div>
       </div>
@@ -140,6 +140,80 @@ function ReportDetails() {
             Uploaded: {report.uploaded_at}
           </p>
         </div>
+
+        {/* Verification Badge */}
+        {report.verification_enabled && report.verification && (
+          <div style={{
+            marginBottom: '24px',
+            padding: '20px',
+            borderRadius: '12px',
+            border: `3px solid ${
+              report.verification.trust_score >= 70 ? '#10B981' : 
+              report.verification.trust_score >= 50 ? '#F59E0B' : '#EF4444'
+            }`,
+            background: `${
+              report.verification.trust_score >= 70 ? '#D1FAE5' : 
+              report.verification.trust_score >= 50 ? '#FEF3C7' : '#FEE2E2'
+            }`
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '12px' }}>
+              <span style={{ fontSize: '32px', marginRight: '12px' }}>
+                {report.verification.trust_score >= 70 ? '✅' : 
+                 report.verification.trust_score >= 50 ? '⚠️' : '🚨'}
+              </span>
+              <div>
+                <h3 style={{ 
+                  margin: 0, 
+                  fontSize: '20px', 
+                  fontWeight: 700,
+                  color: report.verification.trust_score >= 70 ? '#065F46' : 
+                         report.verification.trust_score >= 50 ? '#92400E' : '#991B1B'
+                }}>
+                  {report.verification.risk_level}
+                </h3>
+                <p style={{ margin: '4px 0 0', fontSize: '16px', fontWeight: 600 }}>
+                  Trust Score: {report.verification.trust_score}/100
+                </p>
+              </div>
+            </div>
+
+            {report.verification.findings && report.verification.findings.length > 0 && (
+              <div style={{ marginTop: '16px' }}>
+                <strong style={{ fontSize: '15px', display: 'block', marginBottom: '8px' }}>
+                  Findings:
+                </strong>
+                <ul style={{ 
+                  margin: '0', 
+                  paddingLeft: '24px', 
+                  fontSize: '14px',
+                  lineHeight: '1.6'
+                }}>
+                  {report.verification.findings.map((finding, idx) => (
+                    <li key={idx} style={{ marginBottom: '4px' }}>{finding}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {report.verification.recommendations && report.verification.recommendations.length > 0 && (
+              <div style={{ marginTop: '16px' }}>
+                <strong style={{ fontSize: '15px', display: 'block', marginBottom: '8px' }}>
+                  Recommendations:
+                </strong>
+                <ul style={{ 
+                  margin: '0', 
+                  paddingLeft: '24px', 
+                  fontSize: '14px',
+                  lineHeight: '1.6'
+                }}>
+                  {report.verification.recommendations.map((rec, idx) => (
+                    <li key={idx} style={{ marginBottom: '4px' }}>{rec}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="summary-section" style={{ marginBottom: '32px' }}>
           <h2 style={{ fontSize: '20px', margin: '0 0 16px', fontWeight: 600 }}>

@@ -11,6 +11,7 @@ function Dashboard({ darkMode, setDarkMode }) {
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [useAI, setUseAI] = useState(false);  // AI Toggle State
+  const [verifyReport, setVerifyReport] = useState(false);  // Verification Toggle State
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
   const username = localStorage.getItem('username');
@@ -105,6 +106,7 @@ function Dashboard({ darkMode, setDarkMode }) {
     const formData = new FormData();
     formData.append('file', selectedFile);
     formData.append('use_ai', useAI);  // Send AI toggle flag
+    formData.append('verify_report', verifyReport);  // Send verification toggle flag
 
     const interval = setInterval(() => {
       setUploadProgress(prev => {
@@ -115,7 +117,7 @@ function Dashboard({ darkMode, setDarkMode }) {
 
     try {
       const response = await reportAPI.upload(formData);
-      console.log('✅ Upload response:', response.data);
+      console.log('Upload response:', response.data);
       
       setUploadProgress(100);
       
@@ -125,20 +127,26 @@ function Dashboard({ darkMode, setDarkMode }) {
                         method === 'rule_based_with_ai' ? 'Rule-based + AI enhancement' : 
                         'AI analysis';
       
-      setUploadSuccess(`Report processed successfully using ${methodText}!`);
+      let successMessage = `Report processed successfully using ${methodText}!`;
+      if (response.data.verification_enabled) {
+        successMessage += ' Verification completed.';
+      }
+      
+      setUploadSuccess(successMessage);
       setSelectedFile(null);
       setUseAI(false); // Reset toggle
+      setVerifyReport(false); // Reset verification toggle
       if (fileInputRef.current) fileInputRef.current.value = '';
       
-      // 🔥 FIX: Get report ID FIRST, navigate IMMEDIATELY
+      // Get report ID FIRST, navigate IMMEDIATELY
       const reportId = response.data.report_id;
       console.log('Navigating to report ID:', reportId);
       
       if (reportId && reportId !== 'undefined') {
-        // 🔥 NAVIGATE IMMEDIATELY - Don't call fetchReports first!
+        // NAVIGATE IMMEDIATELY - Don't call fetchReports first!
         navigate(`/report/${reportId}`);
         
-        // 🔥 Update history in background (after navigation)
+        // Update history in background (after navigation)
         setTimeout(() => fetchReports(), 1000);
       } else {
         console.error('Invalid report ID!', response.data);
@@ -147,7 +155,7 @@ function Dashboard({ darkMode, setDarkMode }) {
         fetchReports();
       }
     } catch (error) {
-      console.error('❌ Upload error:', error);
+      console.error('Upload error:', error);
       setUploadError(error.response?.data?.error || 'Upload failed');
     } finally {
       clearInterval(interval);
@@ -225,6 +233,48 @@ function Dashboard({ darkMode, setDarkMode }) {
           </label>
         </div>
 
+        {/* Verification Toggle */}
+        <div style={{
+          marginBottom: '20px',
+          padding: '16px',
+          background: 'var(--bg-gray)',
+          borderRadius: '12px',
+          border: '2px solid var(--border)'
+        }}>
+          <label style={{
+            display: 'flex',
+            alignItems: 'center',
+            cursor: 'pointer',
+            fontSize: '16px',
+            fontWeight: '500'
+          }}>
+            <input
+              type="checkbox"
+              checked={verifyReport}
+              onChange={(e) => setVerifyReport(e.target.checked)}
+              style={{
+                width: '20px',
+                height: '20px',
+                marginRight: '12px',
+                cursor: 'pointer'
+              }}
+            />
+            <div>
+              <span style={{ color: 'var(--text-primary)' }}>
+                Verify Report Authenticity
+              </span>
+              <div style={{
+                fontSize: '14px',
+                color: 'var(--text-secondary)',
+                marginTop: '4px'
+              }}>
+                Checks for tampering, editing, or fake reports. Use if suspicious.
+                {verifyReport ? ' Verification enabled' : ' (Optional)'}
+              </div>
+            </div>
+          </label>
+        </div>
+
         <div
           className={`upload-box ${isDragging ? 'drag-over' : ''}`}
           onDragOver={handleDragOver}
@@ -281,6 +331,7 @@ function Dashboard({ darkMode, setDarkMode }) {
             </div>
             <p>
               {useAI ? 'Analyzing with AI enhancement...' : 'Fast rule-based analysis...'}
+              {verifyReport && ' + Verifying authenticity...'}
             </p>
           </div>
         )}
