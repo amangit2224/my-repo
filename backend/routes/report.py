@@ -167,6 +167,7 @@ def upload_report():
         print(f"AI Enhancement Toggle: {'ON' if use_ai else 'OFF'}")
 
         ai_enhanced_summary = None
+        ai_enhancement_success = False  # Track if AI actually worked
 
         if use_ai and rule_based_summary:
             try:
@@ -174,20 +175,27 @@ def upload_report():
                 from utils.ai_summarizer import enhance_summary_with_ai
                 
                 ai_enhanced_summary = enhance_summary_with_ai(rule_based_summary)
-                print(f"AI enhancement complete!")
+                
+                # Check if AI actually returned something different
+                if ai_enhanced_summary and ai_enhanced_summary != rule_based_summary:
+                    ai_enhancement_success = True
+                    print(f"AI enhancement SUCCESS!")
+                else:
+                    print(f"AI enhancement returned same content (likely failed)")
+                    ai_enhanced_summary = None
                 
             except Exception as e:
                 print(f"AI enhancement failed: {e}")
                 import traceback
                 traceback.print_exc()
-                # Not critical - rule-based summary still works
+                ai_enhanced_summary = None
 
-        # Use enhanced version if available, otherwise rule-based
-        final_summary = ai_enhanced_summary if ai_enhanced_summary else rule_based_summary
+        # Use enhanced version if available AND successful, otherwise rule-based
+        final_summary = ai_enhanced_summary if ai_enhancement_success else rule_based_summary
 
         print(f"\n{'='*60}")
         print(f"FINAL SUMMARY METHOD:")
-        print(f"   Using: {'AI Enhanced' if ai_enhanced_summary else 'Rule-based Only'}")
+        print(f"   Using: {'AI Enhanced' if ai_enhancement_success else 'Rule-based Only'}")
         print(f"   Length: {len(final_summary)} characters")
         print(f"{'='*60}\n")
 
@@ -225,11 +233,11 @@ def upload_report():
             'quick_summary': quick_summary,
             'status': 'success',
             'word_count': len(extracted_text.split()),
-            'method': 'rule_based_with_ai' if ai_enhanced_summary else 'rule_based_only',
+            'method': 'rule_based_with_ai' if ai_enhancement_success else 'rule_based_only',
             'extraction_method': extraction_method,
             'tests_found': parsed_data['total_tests'] if parsed_data else 0,
             'report_type': parsed_data['report_type'] if parsed_data else 'Unknown',
-            'ai_enhanced': bool(ai_enhanced_summary),
+            'ai_enhanced': ai_enhancement_success,
         }
 
         print(f"\n{'='*60}")
@@ -263,19 +271,20 @@ def upload_report():
         }
 
         result = reports_collection.insert_one(report_data)
+        report_id = str(result.inserted_id)
+        
+        print(f"Saved to database - Report ID: {report_id}\n")
 
         # Update user's reports array
         users_collection = db['users']
         users_collection.update_one(
             {'email': current_user},
-            {'$push': {'reports': str(result.inserted_id)}}
+            {'$push': {'reports': report_id}}
         )
-
-        print(f"Saved to database - Report ID: {result.inserted_id}\n")
 
         return jsonify({
             'message': 'Report processed successfully',
-            'report_id': str(result.inserted_id),
+            'report_id': report_id,  # FIXED: Use variable, not function call
             'filename': filename,
             'summary': summary_data,
             'plain_language_summary': final_summary,

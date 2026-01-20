@@ -10,7 +10,7 @@ function Dashboard({ darkMode, setDarkMode }) {
   const [uploadSuccess, setUploadSuccess] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [useAI, setUseAI] = useState(false);  // 🔥 NEW: AI Toggle State
+  const [useAI, setUseAI] = useState(false);  // AI Toggle State
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
   const username = localStorage.getItem('username');
@@ -104,7 +104,7 @@ function Dashboard({ darkMode, setDarkMode }) {
 
     const formData = new FormData();
     formData.append('file', selectedFile);
-    formData.append('use_ai', useAI);  // 🔥 NEW: Send AI toggle flag
+    formData.append('use_ai', useAI);  // Send AI toggle flag
 
     const interval = setInterval(() => {
       setUploadProgress(prev => {
@@ -115,19 +115,35 @@ function Dashboard({ darkMode, setDarkMode }) {
 
     try {
       const response = await reportAPI.upload(formData);
+      console.log('Upload response:', response.data);  // Debug log
+      
       setUploadProgress(100);
       
-      // 🔥 NEW: Show which method was used
-      const method = response.data.method_used;
-      const methodText = method === 'rule_based' ? 'Rule-based analysis' : 'Rule-based + AI enhancement';
+      // Show which method was used
+      const method = response.data.method_used || response.data.method || 'unknown';
+      const methodText = method === 'rule_based_only' ? 'Rule-based analysis' : 
+                        method === 'rule_based_with_ai' ? 'Rule-based + AI enhancement' : 
+                        'AI analysis';
       
       setUploadSuccess(`Report processed successfully using ${methodText}!`);
       setSelectedFile(null);
       setUseAI(false); // Reset toggle
       if (fileInputRef.current) fileInputRef.current.value = '';
       fetchReports();
-      setTimeout(() => navigate(`/report/${response.data.report_id}`), 800);
+      
+      // FIXED: Better navigation with validation
+      const reportId = response.data.report_id;
+      console.log('Navigating to report ID:', reportId);
+      
+      if (reportId && reportId !== 'undefined') {
+        setTimeout(() => navigate(`/report/${reportId}`), 800);
+      } else {
+        console.error('Invalid report ID!', response.data);
+        // Still show success but don't navigate
+        setUploadSuccess('Report processed! View it in History.');
+      }
     } catch (error) {
+      console.error('Upload error:', error);  // Debug log
       setUploadError(error.response?.data?.error || 'Upload failed');
     } finally {
       clearInterval(interval);
@@ -152,7 +168,7 @@ function Dashboard({ darkMode, setDarkMode }) {
         <div className="user-info">
           <span>Welcome, {username}!</span>
           <button onClick={toggleDarkMode} className="btn-secondary" style={{ marginRight: '12px' }}>
-            {darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}
+            {darkMode ? 'Light Mode' : 'Dark Mode'}
           </button>
           <button onClick={handleLogout} className="btn-logout">
             Logout
@@ -163,7 +179,7 @@ function Dashboard({ darkMode, setDarkMode }) {
       <div className="upload-section">
         <h2>Upload New Report</h2>
         
-        {/* 🔥 NEW: AI Toggle Checkbox */}
+        {/* AI Toggle Checkbox */}
         <div style={{
           marginBottom: '20px',
           padding: '16px',
@@ -191,7 +207,7 @@ function Dashboard({ darkMode, setDarkMode }) {
             />
             <div>
               <span style={{ color: 'var(--text-primary)' }}>
-                ✨ Enhance with AI (Gemini)
+                Enhance with AI (Gemini)
               </span>
               <div style={{
                 fontSize: '14px',
@@ -199,7 +215,7 @@ function Dashboard({ darkMode, setDarkMode }) {
                 marginTop: '4px'
               }}>
                 Adds conversational polish to the rule-based summary. 
-                {useAI ? ' ⚡ AI enhancement enabled' : ' 🔧 Pure rule-based analysis (faster)'}
+                {useAI ? ' AI enhancement enabled' : ' Pure rule-based analysis (faster)'}
               </div>
             </div>
           </label>
@@ -260,7 +276,7 @@ function Dashboard({ darkMode, setDarkMode }) {
               <div className="progress-fill" style={{ width: `${uploadProgress}%` }}></div>
             </div>
             <p>
-              {useAI ? '🤖 Analyzing with AI enhancement...' : '⚡ Fast rule-based analysis...'}
+              {useAI ? 'Analyzing with AI enhancement...' : 'Fast rule-based analysis...'}
             </p>
           </div>
         )}
@@ -273,19 +289,19 @@ function Dashboard({ darkMode, setDarkMode }) {
         <h2>Quick Actions</h2>
         <div className="action-cards">
           <div className="action-card" onClick={() => navigate('/history')}>
-            <h3>📋 View History</h3>
+            <h3>View History</h3>
             <p>See all your uploaded reports</p>
             <span className="action-arrow">→</span>
           </div>
           
           <div className="action-card" onClick={() => navigate('/health')}>
-            <h3>📊 Health Trends</h3>
+            <h3>Health Trends</h3>
             <p>Track your health over time</p>
             <span className="action-arrow">→</span>
           </div>
 
           <div className="action-card" onClick={() => navigate('/jargon')}>
-            <h3>💡 Jargon Buster</h3>
+            <h3>Jargon Buster</h3>
             <p>Understand medical terms</p>
             <span className="action-arrow">→</span>
           </div>

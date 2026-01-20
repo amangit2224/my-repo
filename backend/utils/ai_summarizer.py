@@ -179,7 +179,8 @@ Enhanced version (keep it similar length, just more conversational, no emojis):"
             }]
         }
         
-        response = requests.post(url, headers=headers, json=payload, timeout=20)
+        # FIXED: Increased timeout from 20 to 30 seconds
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
         
         if response.status_code == 200:
             result = response.json()
