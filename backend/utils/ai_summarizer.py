@@ -3,6 +3,7 @@ import requests
 import os
 from dotenv import load_dotenv
 import base64
+import time
 
 load_dotenv()
 
@@ -11,51 +12,108 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 def extract_text_from_pdf_with_ai(filepath):
     """
     Extract text from PDF using Gemini 2.5 Flash API
-    REDUCED TIMEOUT FOR FASTER RESPONSE
+    INCREASED TIMEOUT + RETRY LOGIC for scanned PDFs
     """
-    try:
-        # Read PDF and convert to base64
-        with open(filepath, 'rb') as f:
-            pdf_bytes = f.read()
-            pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
-        
-        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
-        
-        headers = {
-            "Content-Type": "application/json"
-        }
-        
-        payload = {
-            "contents": [{
-                "parts": [
-                    {
-                        "text": "Extract all text from this medical report PDF. Include test names, values, units, and reference ranges. Output plain text only."
-                    },
-                    {
-                        "inline_data": {
-                            "mime_type": "application/pdf",
-                            "data": pdf_base64
-                        }
-                    }
-                ]
-            }]
-        }
-        
-        # REDUCED TIMEOUT: 15 seconds instead of 60
-        response = requests.post(url, headers=headers, json=payload, timeout=15)
-        
-        if response.status_code == 200:
-            result = response.json()
-            extracted_text = result['candidates'][0]['content']['parts'][0]['text']
-            return extracted_text.strip()
-        else:
-            error_detail = response.json() if response.text else response.text
-            raise Exception(f"Gemini API Error {response.status_code}: {error_detail}")
+    max_retries = 2
+    retry_delay = 2  # seconds
+    
+    for attempt in range(max_retries):
+        try:
+            print(f"\n{'='*60}")
+            print(f"🤖 GEMINI AI OCR - Attempt {attempt + 1}/{max_retries}")
+            print(f"{'='*60}")
             
-    except requests.Timeout:
-        raise Exception("Gemini API timeout - PDF too large or slow response")
-    except Exception as e:
-        raise Exception(f"PDF extraction failed: {str(e)}")
+            # Read PDF and convert to base64
+            print("📄 Reading PDF file...")
+            with open(filepath, 'rb') as f:
+                pdf_bytes = f.read()
+                pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
+            
+            file_size_kb = len(pdf_bytes) / 1024
+            print(f"📦 File size: {file_size_kb:.2f} KB")
+            
+            url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-exp:generateContent?key={GEMINI_API_KEY}"
+            
+            headers = {
+                "Content-Type": "application/json"
+            }
+            
+            payload = {
+                "contents": [{
+                    "parts": [
+                        {
+                            "text": "Extract all text from this medical report PDF. Include test names, values, units, and reference ranges. Output plain text only, no formatting."
+                        },
+                        {
+                            "inline_data": {
+                                "mime_type": "application/pdf",
+                                "data": pdf_base64
+                            }
+                        }
+                    ]
+                }],
+                "generationConfig": {
+                    "temperature": 0.1,
+                    "maxOutputTokens": 4096
+                }
+            }
+            
+            # ✅ INCREASED TIMEOUT: 45 seconds (was 15)
+            print(f"🚀 Sending request to Gemini API (45s timeout)...")
+            start_time = time.time()
+            
+            response = requests.post(url, headers=headers, json=payload, timeout=45)
+            
+            elapsed = time.time() - start_time
+            print(f"⏱️ API response time: {elapsed:.2f}s")
+            
+            if response.status_code == 200:
+                result = response.json()
+                
+                # Check if we got a valid response
+                if 'candidates' in result and len(result['candidates']) > 0:
+                    extracted_text = result['candidates'][0]['content']['parts'][0]['text']
+                    
+                    if extracted_text and len(extracted_text.strip()) > 50:
+                        print(f"✅ SUCCESS! Extracted {len(extracted_text)} characters")
+                        print(f"{'='*60}\n")
+                        return extracted_text.strip()
+                    else:
+                        print(f"⚠️ Response too short: {len(extracted_text or '')} chars")
+                else:
+                    print(f"⚠️ Invalid response structure: {result}")
+                
+            else:
+                error_detail = response.json() if response.text else response.text
+                print(f"❌ API Error {response.status_code}: {error_detail}")
+                
+                # Don't retry on 400 errors (bad request)
+                if response.status_code == 400:
+                    raise Exception(f"Gemini API Bad Request: {error_detail}")
+            
+            # If we got here, retry
+            if attempt < max_retries - 1:
+                print(f"🔄 Retrying in {retry_delay}s...")
+                time.sleep(retry_delay)
+            
+        except requests.Timeout:
+            print(f"⏰ Request timeout after 45s")
+            if attempt < max_retries - 1:
+                print(f"🔄 Retrying in {retry_delay}s...")
+                time.sleep(retry_delay)
+            else:
+                raise Exception("Gemini API timeout - PDF OCR took too long after 2 attempts")
+                
+        except Exception as e:
+            print(f"❌ Error: {str(e)}")
+            if attempt < max_retries - 1 and "timeout" not in str(e).lower():
+                print(f"🔄 Retrying in {retry_delay}s...")
+                time.sleep(retry_delay)
+            else:
+                raise Exception(f"PDF extraction failed: {str(e)}")
+    
+    # If all retries failed
+    raise Exception("Gemini API OCR failed after all retry attempts")
 
 
 def generate_medical_summary(text):
@@ -64,7 +122,7 @@ def generate_medical_summary(text):
     OPTIONAL - Only used if rule-based system fails
     """
     try:
-        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-exp:generateContent?key={GEMINI_API_KEY}"
         
         headers = {
             "Content-Type": "application/json"
@@ -79,11 +137,14 @@ Medical Report:
         payload = {
             "contents": [{
                 "parts": [{"text": prompt}]
-            }]
+            }],
+            "generationConfig": {
+                "temperature": 0.7,
+                "maxOutputTokens": 2048
+            }
         }
         
-        # REDUCED TIMEOUT
-        response = requests.post(url, headers=headers, json=payload, timeout=20)
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
         
         if response.status_code == 200:
             result = response.json()
@@ -103,7 +164,7 @@ def generate_quick_summary(text):
     OPTIONAL - Only used if rule-based system fails
     """
     try:
-        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-exp:generateContent?key={GEMINI_API_KEY}"
         
         headers = {
             "Content-Type": "application/json"
@@ -118,11 +179,14 @@ Medical Report:
         payload = {
             "contents": [{
                 "parts": [{"text": prompt}]
-            }]
+            }],
+            "generationConfig": {
+                "temperature": 0.5,
+                "maxOutputTokens": 512
+            }
         }
         
-        # REDUCED TIMEOUT
-        response = requests.post(url, headers=headers, json=payload, timeout=15)
+        response = requests.post(url, headers=headers, json=payload, timeout=20)
         
         if response.status_code == 200:
             result = response.json()
@@ -144,9 +208,9 @@ def enhance_summary_with_ai(rule_based_summary):
     This is the OPTIONAL layer - only used when toggle is ON
     """
     try:
-        print("Enhancing summary with AI...")
+        print("\n🎨 AI Enhancement - Polishing summary...")
         
-        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-exp:generateContent?key={GEMINI_API_KEY}"
         
         headers = {
             "Content-Type": "application/json"
@@ -176,21 +240,24 @@ Enhanced version (keep it similar length, just more conversational, no emojis):"
         payload = {
             "contents": [{
                 "parts": [{"text": prompt}]
-            }]
+            }],
+            "generationConfig": {
+                "temperature": 0.5,
+                "maxOutputTokens": 4096
+            }
         }
         
-        # FIXED: Increased timeout from 20 to 30 seconds
         response = requests.post(url, headers=headers, json=payload, timeout=30)
         
         if response.status_code == 200:
             result = response.json()
             enhanced = result['candidates'][0]['content']['parts'][0]['text']
-            print(f"AI enhancement complete! ({len(enhanced)} chars)")
+            print(f"✅ AI enhancement complete! ({len(enhanced)} chars)")
             return enhanced
         else:
-            print(f"AI enhancement failed: {response.status_code}")
+            print(f"⚠️ AI enhancement failed: {response.status_code}")
             return rule_based_summary  # Fallback to original
             
     except Exception as e:
-        print(f"AI enhancement error: {e}")
+        print(f"⚠️ AI enhancement error: {e}")
         return rule_based_summary  # Fallback to original
