@@ -6,7 +6,7 @@ import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 
 function ReportDetails() {
-  const { id } = useParams();
+  const { reportId } = useParams();  // 🔥 FIXED: Changed from 'id' to 'reportId'
   const navigate = useNavigate();
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -14,15 +14,29 @@ function ReportDetails() {
   const printRef = useRef();
 
   useEffect(() => {
-    reportAPI.getDetails(id)
-      .then(res => setReport(res.data))
-      .catch(() => alert('Failed to load report'))
+    console.log('Loading report with ID:', reportId);  // 🔥 Debug log
+    
+    if (!reportId || reportId === 'undefined') {
+      console.error('Invalid report ID!');
+      setLoading(false);
+      return;
+    }
+    
+    reportAPI.getDetails(reportId)  // 🔥 FIXED: Using reportId
+      .then(res => {
+        console.log('Report loaded successfully:', res.data);
+        setReport(res.data);
+      })
+      .catch((err) => {
+        console.error('Failed to load report:', err);
+        alert('Failed to load report');
+      })
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [reportId]);  // 🔥 FIXED: Dependency changed to reportId
 
   const speakSummary = () => {
     if (!report?.plain_language_summary || isSpeaking) return;
-    const text = report.plain_language_summary.replace(/[*→]/g, '');
+    const text = report.plain_language_summary.replace(/[*→#]/g, '');
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = 0.9;
     utterance.onstart = () => setIsSpeaking(true);
@@ -36,58 +50,66 @@ function ReportDetails() {
   };
 
   const exportToPDF = async () => {
-  const element = printRef.current;
-  if (!element) return;
+    const element = printRef.current;
+    if (!element) return;
 
-  // render element to a high-res canvas
-  const canvas = await html2canvas(element, {
-    scale: 2,
-    useCORS: true,
-    backgroundColor: getComputedStyle(document.body).getPropertyValue('--bg').trim() || '#FFFFFF',
-  });
+    const canvas = await html2canvas(element, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: getComputedStyle(document.body).getPropertyValue('--bg').trim() || '#FFFFFF',
+    });
 
-  // Create a PDF in "pt" (points) which makes pixel math easier
-  const pdf = new jsPDF('p', 'pt', 'a4');
-  const pageWidthPt = pdf.internal.pageSize.getWidth();   // points
-  const pageHeightPt = pdf.internal.pageSize.getHeight(); // points
+    const pdf = new jsPDF('p', 'pt', 'a4');
+    const pageWidthPt = pdf.internal.pageSize.getWidth();
+    const pageHeightPt = pdf.internal.pageSize.getHeight();
 
-  // Map canvas pixels -> PDF pts
-  const pxPerPt = canvas.width / pageWidthPt;           // canvas px per PDF point
-  const pageHeightPx = Math.floor(pageHeightPt * pxPerPt); // how many canvas px fit into one PDF page
+    const pxPerPt = canvas.width / pageWidthPt;
+    const pageHeightPx = Math.floor(pageHeightPt * pxPerPt);
 
-  let y = 0;
-  let pageCount = 0;
+    let y = 0;
+    let pageCount = 0;
 
-  while (y < canvas.height) {
-    // slice a portion of the canvas
-    const sliceHeightPx = Math.min(pageHeightPx, canvas.height - y);
-    const tmpCanvas = document.createElement('canvas');
-    tmpCanvas.width = canvas.width;
-    tmpCanvas.height = sliceHeightPx;
-    const tmpCtx = tmpCanvas.getContext('2d');
+    while (y < canvas.height) {
+      const sliceHeightPx = Math.min(pageHeightPx, canvas.height - y);
+      const tmpCanvas = document.createElement('canvas');
+      tmpCanvas.width = canvas.width;
+      tmpCanvas.height = sliceHeightPx;
+      const tmpCtx = tmpCanvas.getContext('2d');
 
-    // draw the slice from the big canvas onto temporary canvas
-    tmpCtx.drawImage(canvas, 0, y, canvas.width, sliceHeightPx, 0, 0, canvas.width, sliceHeightPx);
+      tmpCtx.drawImage(canvas, 0, y, canvas.width, sliceHeightPx, 0, 0, canvas.width, sliceHeightPx);
 
-    const imgData = tmpCanvas.toDataURL('image/png');
+      const imgData = tmpCanvas.toDataURL('image/png');
+      const imgHeightPt = sliceHeightPx / pxPerPt;
 
-    // Convert slice height (px) to PDF points for the image height on page
-    const imgHeightPt = sliceHeightPx / pxPerPt;
+      if (pageCount > 0) pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 10, 10, pageWidthPt - 20, imgHeightPt);
+      y += sliceHeightPx;
+      pageCount += 1;
+    }
 
-    if (pageCount > 0) pdf.addPage();
-    // optional: add a small top margin (10pt)
-    pdf.addImage(imgData, 'PNG', 10, 10, pageWidthPt - 20, imgHeightPt - 0);
-    y += sliceHeightPx;
-    pageCount += 1;
+    pdf.save(`${report.filename.replace(/\.[^/.]+$/, '')}_summary.pdf`);
+  };
+
+  if (loading) {
+    return (
+      <div className="loading-state">
+        <div className="spinner"></div>
+        <p>Loading report...</p>
+      </div>
+    );
   }
 
-  pdf.save(`${report.filename.replace(/\.[^/.]+$/, '')}_summary.pdf`);
-};
-
-
-
-  if (loading) return <div className="loading-state"><div className="spinner"></div><p>Loading report...</p></div>;
-  if (!report) return <div className="error-message">Report not found</div>;
+  if (!report) {
+    return (
+      <div className="error-message">
+        <h2>Report not found</h2>
+        <p>The report you're looking for doesn't exist or has been deleted.</p>
+        <button onClick={() => navigate('/dashboard')} className="btn-primary">
+          Back to Dashboard
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="report-details-container">
@@ -101,19 +123,21 @@ function ReportDetails() {
             className="btn-primary"
             style={{ padding: '10px 20px', fontSize: '14px' }}
           >
-            {isSpeaking ? 'Stop Reading' : 'Read Aloud'}
+            {isSpeaking ? '🔇 Stop Reading' : '🔊 Read Aloud'}
           </button>
           <button onClick={exportToPDF} className="btn-primary" style={{ padding: '10px 20px', fontSize: '14px' }}>
-            Export to PDF
+            📄 Export to PDF
           </button>
         </div>
       </div>
 
       <div ref={printRef} className="report-print-area">
         <div className="report-header">
-          <h1 style={{ fontSize: '28px', margin: '0 0 8px', fontWeight: 600 }}>{report.filename}</h1>
+          <h1 style={{ fontSize: '28px', margin: '0 0 8px', fontWeight: 600 }}>
+            {report.filename}
+          </h1>
           <p className="report-date">
-            Uploaded: {new Date(report.uploaded_at).toLocaleString()}
+            Uploaded: {report.uploaded_at}
           </p>
         </div>
 
@@ -121,7 +145,7 @@ function ReportDetails() {
           <h2 style={{ fontSize: '20px', margin: '0 0 16px', fontWeight: 600 }}>
             Plain Language Summary
           </h2>
-          <div className="summary-box">
+          <div className="summary-box" style={{ whiteSpace: 'pre-wrap' }}>
             {report.plain_language_summary}
           </div>
         </div>
@@ -132,9 +156,9 @@ function ReportDetails() {
           </h2>
           <details style={{ marginTop: '8px' }}>
             <summary style={{ cursor: 'pointer', color: 'var(--primary)', fontWeight: 500 }}>
-              Click to expand
+              ▼ Click to expand
             </summary>
-            <div className="original-text-box">
+            <div className="original-text-box" style={{ whiteSpace: 'pre-wrap', marginTop: '12px' }}>
               {report.extracted_text}
             </div>
           </details>
