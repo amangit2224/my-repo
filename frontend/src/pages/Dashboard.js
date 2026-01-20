@@ -10,6 +10,7 @@ function Dashboard({ darkMode, setDarkMode }) {
   const [uploadSuccess, setUploadSuccess] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [useAI, setUseAI] = useState(false);  // 🔥 NEW: AI Toggle State
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
   const username = localStorage.getItem('username');
@@ -103,6 +104,7 @@ function Dashboard({ darkMode, setDarkMode }) {
 
     const formData = new FormData();
     formData.append('file', selectedFile);
+    formData.append('use_ai', useAI);  // 🔥 NEW: Send AI toggle flag
 
     const interval = setInterval(() => {
       setUploadProgress(prev => {
@@ -114,8 +116,14 @@ function Dashboard({ darkMode, setDarkMode }) {
     try {
       const response = await reportAPI.upload(formData);
       setUploadProgress(100);
-      setUploadSuccess('Report uploaded and processed successfully!');
+      
+      // 🔥 NEW: Show which method was used
+      const method = response.data.method_used;
+      const methodText = method === 'rule_based' ? 'Rule-based analysis' : 'Rule-based + AI enhancement';
+      
+      setUploadSuccess(`Report processed successfully using ${methodText}!`);
       setSelectedFile(null);
+      setUseAI(false); // Reset toggle
       if (fileInputRef.current) fileInputRef.current.value = '';
       fetchReports();
       setTimeout(() => navigate(`/report/${response.data.report_id}`), 800);
@@ -144,7 +152,7 @@ function Dashboard({ darkMode, setDarkMode }) {
         <div className="user-info">
           <span>Welcome, {username}!</span>
           <button onClick={toggleDarkMode} className="btn-secondary" style={{ marginRight: '12px' }}>
-            {darkMode ? 'Light Mode' : 'Dark Mode'}
+            {darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}
           </button>
           <button onClick={handleLogout} className="btn-logout">
             Logout
@@ -154,6 +162,49 @@ function Dashboard({ darkMode, setDarkMode }) {
 
       <div className="upload-section">
         <h2>Upload New Report</h2>
+        
+        {/* 🔥 NEW: AI Toggle Checkbox */}
+        <div style={{
+          marginBottom: '20px',
+          padding: '16px',
+          background: 'var(--bg-gray)',
+          borderRadius: '12px',
+          border: '2px solid var(--border)'
+        }}>
+          <label style={{
+            display: 'flex',
+            alignItems: 'center',
+            cursor: 'pointer',
+            fontSize: '16px',
+            fontWeight: '500'
+          }}>
+            <input
+              type="checkbox"
+              checked={useAI}
+              onChange={(e) => setUseAI(e.target.checked)}
+              style={{
+                width: '20px',
+                height: '20px',
+                marginRight: '12px',
+                cursor: 'pointer'
+              }}
+            />
+            <div>
+              <span style={{ color: 'var(--text-primary)' }}>
+                ✨ Enhance with AI (Gemini)
+              </span>
+              <div style={{
+                fontSize: '14px',
+                color: 'var(--text-secondary)',
+                marginTop: '4px'
+              }}>
+                Adds conversational polish to the rule-based summary. 
+                {useAI ? ' ⚡ AI enhancement enabled' : ' 🔧 Pure rule-based analysis (faster)'}
+              </div>
+            </div>
+          </label>
+        </div>
+
         <div
           className={`upload-box ${isDragging ? 'drag-over' : ''}`}
           onDragOver={handleDragOver}
@@ -171,7 +222,7 @@ function Dashboard({ darkMode, setDarkMode }) {
 
           {!selectedFile ? (
             <>
-              <span className="upload-icon">Document</span>
+              <span className="upload-icon">📄</span>
               <h3>Drop document here to upload</h3>
               <p className="file-types">
                 Up to 10MB for PDF • Up to 5MB for images (JPG, PNG)
@@ -189,7 +240,7 @@ function Dashboard({ darkMode, setDarkMode }) {
           ) : (
             <div className="selected-file" onClick={(e) => e.stopPropagation()}>
               <div className="selected-file-name">
-                <span>Document</span>
+                <span>📄</span>
                 <span>{selectedFile.name}</span>
               </div>
               <button className="btn-remove-file" onClick={handleRemoveFile}>×</button>
@@ -199,7 +250,7 @@ function Dashboard({ darkMode, setDarkMode }) {
 
         {selectedFile && (
           <button onClick={handleUpload} disabled={uploading} className="btn-upload">
-            {uploading ? 'Processing...' : 'Upload & Process'}
+            {uploading ? 'Processing...' : `Upload & ${useAI ? 'Analyze with AI' : 'Analyze'}`}
           </button>
         )}
 
@@ -208,7 +259,9 @@ function Dashboard({ darkMode, setDarkMode }) {
             <div className="progress-bar">
               <div className="progress-fill" style={{ width: `${uploadProgress}%` }}></div>
             </div>
-            <p>Analyzing your report...</p>
+            <p>
+              {useAI ? '🤖 Analyzing with AI enhancement...' : '⚡ Fast rule-based analysis...'}
+            </p>
           </div>
         )}
 
@@ -220,19 +273,19 @@ function Dashboard({ darkMode, setDarkMode }) {
         <h2>Quick Actions</h2>
         <div className="action-cards">
           <div className="action-card" onClick={() => navigate('/history')}>
-            <h3>View History</h3>
+            <h3>📋 View History</h3>
             <p>See all your uploaded reports</p>
             <span className="action-arrow">→</span>
           </div>
           
           <div className="action-card" onClick={() => navigate('/health')}>
-            <h3>Health Trends</h3>
+            <h3>📊 Health Trends</h3>
             <p>Track your health over time</p>
             <span className="action-arrow">→</span>
-        </div>
+          </div>
 
           <div className="action-card" onClick={() => navigate('/jargon')}>
-            <h3>Jargon Buster</h3>
+            <h3>💡 Jargon Buster</h3>
             <p>Understand medical terms</p>
             <span className="action-arrow">→</span>
           </div>
