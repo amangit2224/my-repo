@@ -11,7 +11,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 def extract_text_from_pdf_with_ai(filepath):
     """
-    Extract text from PDF using Gemini 1.5 Flash API
+    Extract text from PDF using Gemini 2.5 Flash API
     INCREASED TIMEOUT + RETRY LOGIC for scanned PDFs
     """
     max_retries = 2
@@ -32,8 +32,8 @@ def extract_text_from_pdf_with_ai(filepath):
             file_size_kb = len(pdf_bytes) / 1024
             print(f"📦 File size: {file_size_kb:.2f} KB")
             
-            # ✅ FIXED: Using gemini-1.5-flash (stable model)
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+            # ✅ USING YOUR ORIGINAL WORKING MODEL: gemini-2.5-flash
+            url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
             
             headers = {
                 "Content-Type": "application/json"
@@ -52,18 +52,14 @@ def extract_text_from_pdf_with_ai(filepath):
                             }
                         }
                     ]
-                }],
-                "generationConfig": {
-                    "temperature": 0.1,
-                    "maxOutputTokens": 8192
-                }
+                }]
             }
             
-            # ✅ INCREASED TIMEOUT: 45 seconds
-            print(f"🚀 Sending request to Gemini API (45s timeout)...")
+            # ✅ INCREASED TIMEOUT: 60 seconds (was 15)
+            print(f"🚀 Sending request to Gemini API (60s timeout)...")
             start_time = time.time()
             
-            response = requests.post(url, headers=headers, json=payload, timeout=45)
+            response = requests.post(url, headers=headers, json=payload, timeout=60)
             
             elapsed = time.time() - start_time
             print(f"⏱️ API response time: {elapsed:.2f}s")
@@ -98,7 +94,7 @@ def extract_text_from_pdf_with_ai(filepath):
                 time.sleep(retry_delay)
             
         except requests.Timeout:
-            print(f"⏰ Request timeout after 45s")
+            print(f"⏰ Request timeout after 60s")
             if attempt < max_retries - 1:
                 print(f"🔄 Retrying in {retry_delay}s...")
                 time.sleep(retry_delay)
@@ -119,11 +115,11 @@ def extract_text_from_pdf_with_ai(filepath):
 
 def generate_medical_summary(text):
     """
-    Generate patient-friendly summary using Gemini 1.5 Flash
+    Generate patient-friendly summary using Gemini 2.5 Flash
     OPTIONAL - Only used if rule-based system fails
     """
     try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
         
         headers = {
             "Content-Type": "application/json"
@@ -138,11 +134,7 @@ Medical Report:
         payload = {
             "contents": [{
                 "parts": [{"text": prompt}]
-            }],
-            "generationConfig": {
-                "temperature": 0.7,
-                "maxOutputTokens": 2048
-            }
+            }]
         }
         
         response = requests.post(url, headers=headers, json=payload, timeout=30)
@@ -161,11 +153,11 @@ Medical Report:
 
 def generate_quick_summary(text):
     """
-    Generate 3-bullet summary using Gemini 1.5 Flash
+    Generate 3-bullet summary using Gemini 2.5 Flash
     OPTIONAL - Only used if rule-based system fails
     """
     try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
         
         headers = {
             "Content-Type": "application/json"
@@ -180,11 +172,7 @@ Medical Report:
         payload = {
             "contents": [{
                 "parts": [{"text": prompt}]
-            }],
-            "generationConfig": {
-                "temperature": 0.5,
-                "maxOutputTokens": 512
-            }
+            }]
         }
         
         response = requests.post(url, headers=headers, json=payload, timeout=20)
@@ -211,7 +199,7 @@ def enhance_summary_with_ai(rule_based_summary):
     try:
         print("\n🎨 AI Enhancement - Polishing summary...")
         
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
         
         headers = {
             "Content-Type": "application/json"
@@ -241,11 +229,7 @@ Enhanced version (keep it similar length, just more conversational, no emojis):"
         payload = {
             "contents": [{
                 "parts": [{"text": prompt}]
-            }],
-            "generationConfig": {
-                "temperature": 0.5,
-                "maxOutputTokens": 4096
-            }
+            }]
         }
         
         response = requests.post(url, headers=headers, json=payload, timeout=30)
