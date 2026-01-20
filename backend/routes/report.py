@@ -24,9 +24,9 @@ try:
     from utils.report_parser import MedicalReportParser
     from utils.template_summarizer import TemplateSummarizer
     RULE_BASED_AVAILABLE = True
-    print("✅ Rule-based system loaded successfully")
+    print("Rule-based system loaded successfully")
 except Exception as e:
-    print(f"⚠️  Rule-based system not available: {e}")
+    print(f"Rule-based system not available: {e}")
     import traceback
     traceback.print_exc()  # Print full error for debugging
     RULE_BASED_AVAILABLE = False
@@ -34,9 +34,9 @@ except Exception as e:
 # Import OCR
 try:
     from utils.ocr import process_file
-    print("✅ OCR (PyPDF2) loaded successfully")
+    print("OCR (PyPDF2) loaded successfully")
 except Exception as e:
-    print(f"⚠️  OCR not available: {e}")
+    print(f"OCR not available: {e}")
     process_file = None
 
 
@@ -76,7 +76,7 @@ def upload_report():
         file.save(filepath)
 
         print(f"\n{'='*60}")
-        print(f"📁 FILE UPLOADED: {filename}")
+        print(f"FILE UPLOADED: {filename}")
         print(f"{'='*60}")
 
         # ============================================
@@ -88,27 +88,27 @@ def upload_report():
         # Try PyPDF2 first (FASTEST - instant!)
         if callable(process_file):
             try:
-                print("⚡ Trying PyPDF2 (fast local extraction)...")
+                print("Trying PyPDF2 (fast local extraction)...")
                 extracted_text = process_file(filepath)
                 if extracted_text and len(extracted_text.strip()) > 50:
                     extraction_method = "PyPDF2 (local)"
-                    print(f"✅ PyPDF2 SUCCESS! Extracted {len(extracted_text)} chars in <1 second")
+                    print(f"PyPDF2 SUCCESS! Extracted {len(extracted_text)} chars in <1 second")
             except Exception as e:
-                print(f"⚠️  PyPDF2 failed: {e}")
+                print(f"PyPDF2 failed: {e}")
 
         # Fallback to AI (only if PyPDF2 failed - for scanned images)
         if not extracted_text:
             try:
-                print("🤖 PyPDF2 failed, trying Gemini AI (15 sec timeout)...")
+                print("PyPDF2 failed, trying Gemini AI (15 sec timeout)...")
                 from utils.ai_summarizer import extract_text_from_pdf_with_ai
                 extracted_text = extract_text_from_pdf_with_ai(filepath)
                 
                 if extracted_text:
                     extraction_method = "Gemini AI (fallback)"
-                    print(f"✅ Gemini AI SUCCESS! Extracted {len(extracted_text)} chars")
+                    print(f"Gemini AI SUCCESS! Extracted {len(extracted_text)} chars")
                     
             except Exception as e:
-                print(f"❌ Gemini AI failed: {e}")
+                print(f"Gemini AI failed: {e}")
 
         # If still no text, fail clearly
         if not extracted_text or len(extracted_text.strip()) < 50:
@@ -118,7 +118,7 @@ def upload_report():
             }), 400
 
         print(f"\n{'='*60}")
-        print(f"✅ TEXT EXTRACTION COMPLETE")
+        print(f"TEXT EXTRACTION COMPLETE")
         print(f"Method: {extraction_method}")
         print(f"Text length: {len(extracted_text)} characters")
         print(f"{'='*60}\n")
@@ -131,7 +131,7 @@ def upload_report():
         
         if RULE_BASED_AVAILABLE and extracted_text:
             try:
-                print("🔥 RUNNING RULE-BASED SYSTEM (YOUR CODE)...")
+                print("RUNNING RULE-BASED SYSTEM (YOUR CODE)...")
                 
                 # Parse the report
                 parser = MedicalReportParser()
@@ -141,48 +141,82 @@ def upload_report():
                     age=50  # TODO: Get from user profile
                 )
                 
-                print(f"📊 Parsed {parsed_data['total_tests']} tests from report")
-                print(f"📋 Report type: {parsed_data['report_type']}")
+                print(f"Parsed {parsed_data['total_tests']} tests from report")
+                print(f"Report type: {parsed_data['report_type']}")
                 
                 # Generate summary using YOUR template system
                 summarizer = TemplateSummarizer()
                 rule_based_summary = summarizer.generate_summary(parsed_data)
                 
-                print(f"✅ RULE-BASED SUMMARY GENERATED! ({len(rule_based_summary)} chars)")
+                print(f"RULE-BASED SUMMARY GENERATED! ({len(rule_based_summary)} chars)")
                 print(f"{'='*60}\n")
                 
             except Exception as e:
-                print(f"⚠️  Rule-based system error: {e}")
+                print(f"Rule-based system error: {e}")
                 import traceback
                 traceback.print_exc()
 
         # ============================================
-        # STEP 3: AI SUMMARY (ONLY IF RULE-BASED FAILED)
+        # STEP 3: AI ENHANCEMENT (OPTIONAL - only if toggle ON)
+        # ============================================
+
+        # Get use_ai flag from request
+        use_ai_str = request.form.get('use_ai', 'false')
+        use_ai = use_ai_str.lower() in ['true', '1', 'yes']
+
+        print(f"AI Enhancement Toggle: {'ON' if use_ai else 'OFF'}")
+
+        ai_enhanced_summary = None
+
+        if use_ai and rule_based_summary:
+            try:
+                print("AI ENHANCEMENT ENABLED - Polishing summary...")
+                from utils.ai_summarizer import enhance_summary_with_ai
+                
+                ai_enhanced_summary = enhance_summary_with_ai(rule_based_summary)
+                print(f"AI enhancement complete!")
+                
+            except Exception as e:
+                print(f"AI enhancement failed: {e}")
+                import traceback
+                traceback.print_exc()
+                # Not critical - rule-based summary still works
+
+        # Use enhanced version if available, otherwise rule-based
+        final_summary = ai_enhanced_summary if ai_enhanced_summary else rule_based_summary
+
+        print(f"\n{'='*60}")
+        print(f"FINAL SUMMARY METHOD:")
+        print(f"   Using: {'AI Enhanced' if ai_enhanced_summary else 'Rule-based Only'}")
+        print(f"   Length: {len(final_summary)} characters")
+        print(f"{'='*60}\n")
+
+        # ============================================
+        # STEP 4: AI FALLBACK (ONLY IF RULE-BASED FAILED)
         # ============================================
         ai_summary = None
         quick_summary = None
         
         if not rule_based_summary:
-            print("⚠️  Rule-based failed, using AI fallback...")
+            print("Rule-based failed, using AI fallback...")
             try:
                 from utils.ai_summarizer import generate_medical_summary, generate_quick_summary
                 ai_summary = generate_medical_summary(extracted_text)
                 quick_summary = generate_quick_summary(extracted_text)
-                print("✅ AI summary generated (fallback)")
+                print("AI summary generated (fallback)")
             except Exception as e:
-                print(f"❌ AI summary also failed: {e}")
+                print(f"AI summary also failed: {e}")
                 return jsonify({'error': 'Summary generation failed completely'}), 500
         else:
-            print("✅ Using rule-based summary (AI skipped)")
+            print("Using rule-based summary")
             # Create a simple quick summary from rule-based
-            quick_summary = f"Rule-based analysis of {parsed_data['report_type']} - {parsed_data['total_tests']} tests analyzed"
+            quick_summary = f"Analysis of {parsed_data['report_type']} - {parsed_data['total_tests']} tests analyzed"
 
         # ============================================
-        # STEP 4: PREPARE FINAL SUMMARY
+        # STEP 5: PREPARE FINAL SUMMARY
         # ============================================
         
-        final_summary = rule_based_summary if rule_based_summary else ai_summary
-        
+        # final_summary already set above (either ai_enhanced_summary or rule_based_summary)
         if not final_summary:
             return jsonify({'error': 'Summary generation failed'}), 500
 
@@ -191,21 +225,22 @@ def upload_report():
             'quick_summary': quick_summary,
             'status': 'success',
             'word_count': len(extracted_text.split()),
-            'method': 'rule_based' if rule_based_summary else 'ai_fallback',
+            'method': 'rule_based_with_ai' if ai_enhanced_summary else 'rule_based_only',
             'extraction_method': extraction_method,
             'tests_found': parsed_data['total_tests'] if parsed_data else 0,
-            'report_type': parsed_data['report_type'] if parsed_data else 'Unknown'
+            'report_type': parsed_data['report_type'] if parsed_data else 'Unknown',
+            'ai_enhanced': bool(ai_enhanced_summary),
         }
 
         print(f"\n{'='*60}")
-        print(f"📝 FINAL SUMMARY PREPARED")
+        print(f"FINAL SUMMARY PREPARED")
         print(f"Method: {summary_data['method']}")
         print(f"Extraction: {extraction_method}")
         print(f"Tests found: {summary_data['tests_found']}")
         print(f"{'='*60}\n")
 
         # ============================================
-        # STEP 5: SAVE TO DATABASE
+        # STEP 6: SAVE TO DATABASE
         # ============================================
         reports_collection = db['reports']
 
@@ -219,7 +254,9 @@ def upload_report():
             'summary': summary_data,
             'plain_language_summary': final_summary,
             'rule_based_summary': rule_based_summary,
+            'ai_enhanced_summary': ai_enhanced_summary,
             'ai_summary': ai_summary,
+            'use_ai': use_ai,
             'parsed_data': parsed_data,
             'uploaded_at': datetime.now(IST).strftime("%Y-%m-%d %I:%M %p"),
             'processed': True
@@ -234,7 +271,7 @@ def upload_report():
             {'$push': {'reports': str(result.inserted_id)}}
         )
 
-        print(f"💾 Saved to database - Report ID: {result.inserted_id}\n")
+        print(f"Saved to database - Report ID: {result.inserted_id}\n")
 
         return jsonify({
             'message': 'Report processed successfully',
@@ -244,11 +281,12 @@ def upload_report():
             'plain_language_summary': final_summary,
             'method_used': summary_data['method'],
             'extraction_method': extraction_method,
-            'tests_analyzed': summary_data['tests_found']
+            'tests_analyzed': summary_data['tests_found'],
+            'ai_enhanced': summary_data['ai_enhanced']
         }), 200
 
     except Exception as e:
-        print(f"\n❌ ERROR in upload_report:")
+        print(f"\nERROR in upload_report:")
         print(f"{'='*60}")
         import traceback
         traceback.print_exc()
@@ -276,7 +314,9 @@ def get_history():
                 'plain_summary': report.get('plain_language_summary', 'No summary available'),
                 'method': report.get('summary', {}).get('method', 'unknown'),
                 'extraction_method': report.get('extraction_method', 'unknown'),
-                'report_type': report.get('summary', {}).get('report_type', 'Unknown')
+                'report_type': report.get('summary', {}).get('report_type', 'Unknown'),
+                'ai_enhanced': report.get('summary', {}).get('ai_enhanced', False),
+                'use_ai': report.get('use_ai', False)
             })
 
         return jsonify({
@@ -315,6 +355,10 @@ def get_report_details(report_id):
             'method_used': report.get('summary', {}).get('method', 'unknown'),
             'extraction_method': report.get('extraction_method', 'unknown'),
             'parsed_data': report.get('parsed_data'),
+            'ai_enhanced': report.get('summary', {}).get('ai_enhanced', False),
+            'use_ai': report.get('use_ai', False),
+            'rule_based_summary': report.get('rule_based_summary'),
+            'ai_enhanced_summary': report.get('ai_enhanced_summary')
         }), 200
 
     except Exception as e:
