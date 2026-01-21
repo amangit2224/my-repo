@@ -680,33 +680,30 @@ def extract_test_results(text):
     # ============================================
     valid_units = {
         # Blood count units
-        'cells/cumm', 'thou/cumm', 'mill/cumm', 'cells/mcL', 'K/uL', 'M/uL',
+        'cells/cumm', 'thou/cumm', 'mill/cumm', 'cells/mcl', 'k/ul', 'm/ul',
         # Chemistry units
-        'mg/dL', 'mg/dl', 'g/dL', 'g/dl', 'mmol/L', 'mEq/L', 'IU/L', 'U/L',
+        'mg/dl', 'g/dl', 'mmol/l', 'meq/l', 'iu/l', 'u/l',
         # Percentage and ratio
         '%', 'percent', 'ratio',
         # Hormone units
-        'ng/mL', 'ng/ml', 'pg/mL', 'pg/ml', 'mIU/mL', 'uIU/mL', 'pmol/L',
+        'ng/ml', 'pg/ml', 'miu/ml', 'uiu/ml', 'pmol/l',
         # Other common units
-        'sec', 'seconds', 'mm/hr', 'fL', 'pg', 'mcg/dL', 'umol/L',
+        'sec', 'seconds', 'mm/hr', 'fl', 'pg', 'mcg/dl', 'umol/l',
         # Misc
-        'g/L', 'mg/L', 'ug/L', 'nmol/L'
+        'g/l', 'mg/l', 'ug/l', 'nmol/l'
     }
     
     # ============================================
-    # BLACKLIST: Terms to ignore
+    # BLACKLIST: Terms to ignore (REDUCED!)
     # ============================================
     ignore_terms = [
-        'floor', 'street', 'apartment', 'building', 'road', 'town', 'city',
-        'pincode', 'zip', 'address', 'phone', 'email', 'fax',
-        'page', 'ref', 'barcode', 'invoice', 'receipt', 'bill',
-        'ready', 'processing', 'pending', 'cancelled', 'cancellation',
-        'method', 'instrument', 'analyzer', 'technology', 'technologies',
-        'ltd', 'inc', 'pvt', 'limited', 'company', 'corp',
-        'date', 'time', 'collected', 'reported', 'registered',
-        'patient', 'doctor', 'physician', 'lab', 'laboratory',
-        'sample', 'specimen', 'kit', 'validation', 'reference',
-        'precision', 'control', 'calculated'
+        'floor no', 'street', 'apartment', 'building', 'road bangalore', 'town bangalore',
+        'pincode', 'zip code', 'phone', 'email', 'fax',
+        'page', 'barcode', 'labcode', 'invoice', 'receipt', 'bill',
+        'processing', 'cancelled', 'cancellation',
+        'technologies ltd', 'pvt ltd', 'limited', 'company name',
+        'sample type', 'specimen', 'collected on', 'received on', 'released on',
+        'patient name', 'doctor name', 'physician name'
     ]
     
     # Multiple regex patterns to catch different formats
@@ -716,7 +713,7 @@ def extract_test_results(text):
         # Pattern 2: Test Name - value unit
         r'([A-Z][A-Za-z0-9\s\-/()]+?)\s*[-–]\s*([\d.]+)\s*([a-zA-Z/%]+)',
         # Pattern 3: Test Name value unit (tab or space separated)
-        r'([A-Z][A-Za-z0-9\s\-/()]+?)\s+([\d.]+)\s+([a-zA-Z/%]+)',
+        r'([A-Z][A-Za-z0-9\s\-/()]+?)\s{2,}([\d.]+)\s+([a-zA-Z/%]+)',
     ]
     
     for pattern in patterns:
@@ -731,41 +728,45 @@ def extract_test_results(text):
             # ============================================
             
             # 1. Skip if test name is too short or too long
-            if len(test_name) < 3 or len(test_name) > 50:
+            if len(test_name) < 3 or len(test_name) > 60:
                 continue
             
             # 2. Skip if it looks like a sentence (too many words)
-            if test_name.count(' ') > 5:
+            if test_name.count(' ') > 7:
                 continue
             
-            # 3. Check if unit is valid medical unit
+            # 3. Check if unit is valid medical unit (case insensitive)
             unit_lower = unit.lower()
-            is_valid_unit = any(valid_unit.lower() in unit_lower or unit_lower in valid_unit.lower() 
+            is_valid_unit = any(valid_unit.lower() == unit_lower or unit_lower in valid_unit.lower() 
                                for valid_unit in valid_units)
             if not is_valid_unit:
                 continue
             
-            # 4. Skip if test name contains blacklisted terms
+            # 4. Skip if test name contains blacklisted phrases (must match exact phrase)
             test_name_lower = test_name.lower()
             is_blacklisted = any(ignore_term in test_name_lower for ignore_term in ignore_terms)
             if is_blacklisted:
                 continue
             
-            # 5. Skip if test name is just numbers or looks like a code
-            if test_name.replace(' ', '').replace('-', '').isdigit():
+            # 5. Skip if test name is ONLY numbers
+            if test_name.replace(' ', '').replace('-', '').replace('/', '').isdigit():
                 continue
             
-            # 6. Skip if test name starts with common non-medical words
-            bad_starts = ['the', 'a', 'an', 'this', 'that', 'for', 'with', 'from', 'to']
-            first_word = test_name.split()[0].lower()
-            if first_word in bad_starts:
+            # 6. Skip common non-medical starting words
+            bad_starts = ['the ', 'a ', 'an ', 'this ', 'that ', 'for ', 'with ', 'from ', 'to ']
+            if any(test_name_lower.startswith(bad) for bad in bad_starts):
+                continue
+            
+            # 7. Skip if it's clearly an address component
+            address_indicators = ['560025', 'richmond road', 'serpentine', 'ground floor']
+            if any(indicator in test_name_lower for indicator in address_indicators):
                 continue
             
             try:
                 value = float(value_str)
                 
                 # Skip unrealistic values (likely parsing errors)
-                if value > 1000000 or value < 0:
+                if value > 10000000 or value < 0:
                     continue
                 
                 # Check if test already exists (avoid duplicates)
