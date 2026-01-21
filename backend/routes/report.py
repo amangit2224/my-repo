@@ -4,6 +4,7 @@ from werkzeug.utils import secure_filename
 from app import db
 import os
 import sys
+import re
 from datetime import datetime
 from pytz import timezone
 
@@ -490,3 +491,265 @@ def get_report_details(report_id):
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+# ============================================
+# 🔥 NEW FEATURE: COMPARE TWO REPORTS 🔥
+# ============================================
+
+@report_bp.route('/compare', methods=['POST'])
+@jwt_required()
+def compare_reports():
+    """
+    Compare two uploaded medical reports
+    Returns matching tests with their values and changes
+    """
+    try:
+        current_user = get_jwt_identity()
+        
+        # Get uploaded files
+        if 'report1' not in request.files or 'report2' not in request.files:
+            return jsonify({'error': 'Both reports are required'}), 400
+        
+        file1 = request.files['report1']
+        file2 = request.files['report2']
+        
+        if not file1.filename or not file2.filename:
+            return jsonify({'error': 'Both files must have filenames'}), 400
+        
+        # Validate file types
+        if not (file1.filename.endswith('.pdf') and file2.filename.endswith('.pdf')):
+            return jsonify({'error': 'Only PDF files are allowed'}), 400
+        
+        # Save files temporarily
+        upload_folder = os.path.join(os.getcwd(), 'uploads', 'temp')
+        os.makedirs(upload_folder, exist_ok=True)
+        
+        filename1 = secure_filename(f"temp1_{current_user}_{file1.filename}")
+        filename2 = secure_filename(f"temp2_{current_user}_{file2.filename}")
+        
+        filepath1 = os.path.join(upload_folder, filename1)
+        filepath2 = os.path.join(upload_folder, filename2)
+        
+        file1.save(filepath1)
+        file2.save(filepath2)
+        
+        print(f"\n{'='*60}")
+        print(f"COMPARING REPORTS:")
+        print(f"Report 1: {file1.filename}")
+        print(f"Report 2: {file2.filename}")
+        print(f"{'='*60}\n")
+        
+        # Extract text from both PDFs
+        text1 = None
+        text2 = None
+        
+        # Try PyPDF2 first for both
+        if callable(process_file):
+            try:
+                text1 = process_file(filepath1)
+                if not text1 or len(text1.strip()) < 50:
+                    text1 = None
+            except:
+                text1 = None
+            
+            try:
+                text2 = process_file(filepath2)
+                if not text2 or len(text2.strip()) < 50:
+                    text2 = None
+            except:
+                text2 = None
+        
+        # Fallback to AI OCR if needed
+        if not text1:
+            try:
+                from utils.ai_summarizer import extract_text_from_pdf_with_ai
+                text1 = extract_text_from_pdf_with_ai(filepath1)
+            except Exception as e:
+                print(f"Failed to extract text from report 1: {e}")
+        
+        if not text2:
+            try:
+                from utils.ai_summarizer import extract_text_from_pdf_with_ai
+                text2 = extract_text_from_pdf_with_ai(filepath2)
+            except Exception as e:
+                print(f"Failed to extract text from report 2: {e}")
+        
+        if not text1 or not text2:
+            return jsonify({'error': 'Failed to extract text from one or both reports'}), 400
+        
+        print(f"✅ Text extracted from both reports")
+        print(f"Report 1: {len(text1)} chars")
+        print(f"Report 2: {len(text2)} chars\n")
+        
+        # Extract test results from both
+        tests1 = extract_test_results(text1)
+        tests2 = extract_test_results(text2)
+        
+        print(f"Found {len(tests1)} tests in Report 1")
+        print(f"Found {len(tests2)} tests in Report 2\n")
+        
+        # Find matching tests
+        comparisons = []
+        test_names1 = {test['name']: test for test in tests1}
+        test_names2 = {test['name']: test for test in tests2}
+        
+        for test_name in test_names1:
+            if test_name in test_names2:
+                test1 = test_names1[test_name]
+                test2 = test_names2[test_name]
+                
+                # Only compare if units match
+                if test1['unit'] == test2['unit']:
+                    comparisons.append({
+                        'name': test_name,
+                        'value1': test1['value'],
+                        'value2': test2['value'],
+                        'unit': test1['unit']
+                    })
+        
+        print(f"✅ Found {len(comparisons)} matching tests\n")
+        
+        # Calculate summary statistics
+        improved = 0
+        worsened = 0
+        stable = 0
+        
+        # Tests where lower is better
+        lower_is_better = ['cholesterol', 'ldl', 'triglycerides', 'glucose', 'hba1c', 'creatinine', 'urea', 'bilirubin']
+        
+        for comp in comparisons:
+            change = comp['value2'] - comp['value1']
+            is_lower_better = any(term in comp['name'].lower() for term in lower_is_better)
+            
+            if abs(change) < 0.01:  # Essentially no change
+                stable += 1
+            elif (change < 0 and is_lower_better) or (change > 0 and not is_lower_better):
+                improved += 1
+            else:
+                worsened += 1
+        
+        # Extract dates from reports
+        date1 = extract_date_from_text(text1)
+        date2 = extract_date_from_text(text2)
+        
+        print(f"Summary:")
+        print(f"  Improved: {improved}")
+        print(f"  Worsened: {worsened}")
+        print(f"  Stable: {stable}")
+        print(f"{'='*60}\n")
+        
+        # Clean up temporary files
+        try:
+            os.remove(filepath1)
+            os.remove(filepath2)
+        except:
+            pass
+        
+        return jsonify({
+            'success': True,
+            'comparisons': comparisons,
+            'summary': {
+                'total_tests': len(comparisons),
+                'improved_count': improved,
+                'worsened_count': worsened,
+                'stable_count': stable
+            },
+            'report1_date': date1,
+            'report2_date': date2
+        }), 200
+        
+    except Exception as e:
+        print(f"\nERROR in compare_reports:")
+        print(f"{'='*60}")
+        import traceback
+        traceback.print_exc()
+        print(f"{'='*60}\n")
+        return jsonify({'error': f'Failed to compare reports: {str(e)}'}), 500
+
+
+def extract_test_results(text):
+    """
+    Extract test results from medical report text
+    Returns list of {name, value, unit}
+    """
+    tests = []
+    
+    # Multiple regex patterns to catch different formats
+    patterns = [
+        # Pattern 1: Test Name: value unit
+        r'([A-Z][A-Za-z0-9\s\-/()]+?):\s*([\d.]+)\s*([a-zA-Z/%]+)',
+        # Pattern 2: Test Name - value unit
+        r'([A-Z][A-Za-z0-9\s\-/()]+?)\s*[-–]\s*([\d.]+)\s*([a-zA-Z/%]+)',
+        # Pattern 3: Test Name value unit (tab or space separated)
+        r'([A-Z][A-Za-z0-9\s\-/()]+?)\s+([\d.]+)\s+([a-zA-Z/%]+)',
+    ]
+    
+    for pattern in patterns:
+        matches = re.finditer(pattern, text)
+        for match in matches:
+            test_name = match.group(1).strip()
+            value_str = match.group(2).strip()
+            unit = match.group(3).strip()
+            
+            # Skip if test name is too short or too long
+            if len(test_name) < 3 or len(test_name) > 50:
+                continue
+            
+            # Skip if it looks like a sentence
+            if test_name.count(' ') > 5:
+                continue
+            
+            try:
+                value = float(value_str)
+                
+                # Check if test already exists (avoid duplicates)
+                if not any(t['name'] == test_name for t in tests):
+                    tests.append({
+                        'name': test_name,
+                        'value': value,
+                        'unit': unit
+                    })
+            except ValueError:
+                continue
+    
+    return tests
+
+
+def extract_date_from_text(text):
+    """
+    Try to extract a date from the report text
+    Returns ISO format date string or None
+    """
+    # Common date patterns
+    date_patterns = [
+        r'(\d{1,2})[/-](\d{1,2})[/-](\d{4})',  # DD/MM/YYYY or DD-MM-YYYY
+        r'(\d{4})[/-](\d{1,2})[/-](\d{1,2})',  # YYYY/MM/DD or YYYY-MM-DD
+        r'(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+(\d{1,2}),?\s+(\d{4})',  # Month DD, YYYY
+    ]
+    
+    for pattern in date_patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            try:
+                groups = match.groups()
+                if len(groups) == 3:
+                    if pattern.startswith(r'(\d{1,2})'):
+                        # DD/MM/YYYY format
+                        day, month, year = groups
+                        date_obj = datetime(int(year), int(month), int(day))
+                    elif pattern.startswith(r'(\d{4})'):
+                        # YYYY/MM/DD format
+                        year, month, day = groups
+                        date_obj = datetime(int(year), int(month), int(day))
+                    else:
+                        # Month name format
+                        month_name, day, year = groups
+                        month_num = datetime.strptime(month_name[:3], '%b').month
+                        date_obj = datetime(int(year), month_num, int(day))
+                    
+                    return date_obj.isoformat()
+            except:
+                continue
+    
+    return None
