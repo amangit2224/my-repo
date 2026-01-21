@@ -1,21 +1,20 @@
 """
-Template-Based Medical Report Summarizer - PROFESSIONAL VERSION
-Generates GEMINI-QUALITY summaries WITHOUT AI
-Clean, detailed, educational explanations
+Template-based Summary Generator
+Generates patient-friendly summaries using rule-based templates
+NO AI REQUIRED - Pure template logic
 """
 
 import sys
 import os
+
+# Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 try:
-    from utils.medical_knowledge import MedicalKnowledgeBase
+    from medical_knowledge import MedicalKnowledgeBase
 except ImportError:
-    try:
-        from medical_knowledge import MedicalKnowledgeBase
-    except ImportError:
-        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-        from medical_knowledge import MedicalKnowledgeBase
+    from utils.medical_knowledge import MedicalKnowledgeBase
+
 
 class TemplateSummarizer:
     
@@ -24,19 +23,17 @@ class TemplateSummarizer:
     
     def generate_summary(self, parsed_report):
         """
-        Generate PROFESSIONAL, DETAILED summary
-        Quality matches Gemini but 100% rule-based
+        Generate a comprehensive summary from parsed report data
         """
-        
         summary_parts = []
         
-        # Friendly introduction
-        summary_parts.append(self._generate_introduction(parsed_report))
+        # Introduction
+        summary_parts.append(self._generate_introduction())
         
-        # What is this report?
-        summary_parts.append(self._generate_report_overview(parsed_report))
+        # Report overview
+        summary_parts.append(self._generate_overview(parsed_report))
         
-        # Detailed explanation of EACH test
+        # Detailed test explanations
         summary_parts.append(self._generate_detailed_test_explanations(parsed_report))
         
         # Overall summary
@@ -45,245 +42,253 @@ class TemplateSummarizer:
         # Next steps
         summary_parts.append(self._generate_next_steps(parsed_report))
         
+        # Combine all parts
         return "\n\n".join(summary_parts)
     
-    def _generate_introduction(self, parsed_report):
-        """Friendly, welcoming introduction"""
-        intro = "Looking at a medical report can feel overwhelming with all the technical terms and numbers. "
-        intro += "Don't worry - I'm here to help you understand what everything means in plain, simple language.\n\n"
-        intro += "Let's go through your test results together, step by step."
-        return intro
+    def _generate_introduction(self):
+        """Generate friendly introduction"""
+        return """Looking at a medical report can feel overwhelming with all the technical terms and numbers. Don't worry - I'm here to help you understand what everything means in plain, simple language.
+
+Let's go through your test results together, step by step."""
     
-    def _generate_report_overview(self, parsed_report):
-        """Explain what this report is"""
-        report_type = parsed_report['report_type']
-        total_tests = parsed_report['total_tests']
+    def _generate_overview(self, parsed_report):
+        """Generate report overview"""
+        report_type = parsed_report.get('report_type', 'Medical Report')
+        total_tests = parsed_report.get('total_tests', 0)
         
-        overview = f"## What is this report?\n\n"
-        overview += f"This is a **{report_type}** from a medical laboratory. "
-        
-        # Explain what each report type tests
-        if "Lipid" in report_type:
-            overview += "These tests measure the fats (lipids) in your blood, including cholesterol and triglycerides. "
-            overview += "These values help assess your risk for heart disease and stroke."
-        elif "CBC" in report_type or "Blood Count" in report_type:
-            overview += "These tests count different types of cells in your blood. "
-            overview += "They help detect infections, anemia, and other blood disorders."
-        elif "Thyroid" in report_type:
-            overview += "These tests check how well your thyroid gland is working. "
-            overview += "The thyroid controls your metabolism and energy levels."
-        elif "Liver" in report_type:
-            overview += "These tests check how well your liver is functioning. "
-            overview += "The liver filters your blood and helps with digestion."
-        elif "Diabetes" in report_type:
-            overview += "These tests measure your blood sugar levels. "
-            overview += "They help detect diabetes or prediabetes."
-        else:
-            overview += "These tests provide important information about your health."
-        
-        overview += f"\n\n**Total tests performed:** {total_tests}"
-        
-        return overview
-    
-    def _generate_detailed_test_explanations(self, parsed_report):
-        """Explain EVERY test in detail (like Gemini does)"""
-        
-        section = "## Let's look at your results:\n\n"
-        
-        all_results = parsed_report['all_results']
-        
-        if not all_results:
-            return section + "No test results were detected in the report."
-        
-        # Group by category for better organization
-        categories = {}
-        for result in all_results:
-            term_info = self.kb.get_term_info(result['term'])
-            if term_info:
-                category = term_info.get('category', 'Other Tests')
-                if category not in categories:
-                    categories[category] = []
-                categories[category].append(result)
-        
-        # Generate detailed explanation for each category
-        for category, results in categories.items():
-            section += f"### {category}\n\n"
-            
-            # Explain what this category means
-            section += self._get_category_explanation(category) + "\n\n"
-            
-            # Explain each test in this category
-            for result in results:
-                section += self._explain_single_test(result) + "\n\n"
-        
-        return section
-    
-    def _get_category_explanation(self, category):
-        """Educational explanation of what each category tests"""
-        explanations = {
-            "Lipid Profile": "**What this tests:** Your cholesterol and fat levels. These affect your heart health and risk of cardiovascular disease.",
-            
-            "Complete Blood Count": "**What this tests:** The number and types of cells in your blood. This helps detect infections, anemia, and blood disorders.",
-            
-            "Thyroid Function": "**What this tests:** How well your thyroid gland works. The thyroid controls your metabolism, energy, and body temperature.",
-            
-            "Liver Function": "**What this tests:** How well your liver is working. The liver filters toxins, makes proteins, and helps with digestion.",
-            
-            "Kidney Function": "**What this tests:** How well your kidneys filter waste from your blood. Healthy kidneys are essential for overall health.",
-            
-            "Metabolic Panel": "**What this tests:** Your blood sugar and kidney function. This helps detect diabetes and metabolic disorders.",
-            
-            "Cardiac Markers": "**What this tests:** Markers that indicate heart damage or stress. Useful for detecting heart attacks and heart disease.",
-            
-            "Inflammation": "**What this tests:** Levels of inflammation in your body. High inflammation can indicate infection or chronic disease.",
+        # Get category description
+        category_descriptions = {
+            'Lipid Profile': 'These tests measure the fats (lipids) in your blood, including cholesterol and triglycerides. These values help assess your risk for heart disease and stroke.',
+            'Complete Blood Count (CBC)': 'These tests measure different components of your blood, including red blood cells, white blood cells, and platelets. They help detect anemia, infections, and blood disorders.',
+            'Thyroid Function Test': 'These tests measure thyroid hormone levels to assess how well your thyroid gland is working. The thyroid controls your metabolism.',
+            'Liver Function Test': 'These tests check how well your liver is working. The liver filters toxins, makes proteins, and helps with digestion.',
+            'Kidney Function Test': 'These tests evaluate how well your kidneys are filtering waste from your blood.',
+            'Diabetes Screening / Lipid Profile': 'These tests check your blood sugar levels and cholesterol to assess diabetes risk and heart health.',
+            'Metabolic Panel': 'These tests measure various substances in your blood to evaluate overall metabolism and organ function.',
         }
         
-        return explanations.get(category, f"**What this tests:** Important health markers in the {category} category.")
+        description = category_descriptions.get(report_type, 'This medical report contains various laboratory tests to assess your health.')
+        
+        return f"""## What is this report?
+
+This is a **{report_type}** from a medical laboratory. {description}
+
+**Total tests performed:** {total_tests}"""
     
-    def _explain_single_test(self, result):
-        """Detailed explanation of a SINGLE test (Gemini-quality)"""
+    def _generate_detailed_test_explanations(self, parsed_report):
+        """Generate detailed explanation for each test result"""
+        categorized = parsed_report.get('categorized', {})
+        all_results = parsed_report.get('all_results', [])
+        gender = parsed_report.get('patient_info', {}).get('gender', 'female')
+        age = parsed_report.get('patient_info', {}).get('age', 50)
+        
+        # Group tests by category
+        tests_by_category = {}
+        for result in all_results:
+            term = result['term']
+            
+            # ✅ FIX: Use get_interpretation instead of get_term_info
+            interpretation = self.kb.get_interpretation(term, result['value'], gender, age)
+            
+            if interpretation and 'category' in interpretation:
+                category = interpretation['category']
+                if category not in tests_by_category:
+                    tests_by_category[category] = []
+                tests_by_category[category].append((result, interpretation))
+        
+        # Generate output
+        output = ["## Let's look at your results:"]
+        
+        # Category descriptions
+        category_intros = {
+            'Metabolic Panel': "**What this tests:** Your blood sugar and kidney function. This helps detect diabetes and metabolic disorders.",
+            'Complete Blood Count (CBC)': "**What this tests:** Your blood cell counts. This helps detect anemia, infections, and blood disorders.",
+            'Lipid Profile': "**What this tests:** Your cholesterol and fat levels. These affect your heart health and risk of cardiovascular disease.",
+            'Liver Function': "**What this tests:** How well your liver is working. The liver filters toxins, makes proteins, and helps with digestion.",
+            'Kidney Function': "**What this tests:** How well your kidneys are filtering waste from your blood.",
+            'Thyroid Function': "**What this tests:** Thyroid hormone levels that control your metabolism.",
+            'Cardiac Markers': "**What this tests:** Markers that indicate heart damage or stress. Useful for detecting heart attacks and heart disease.",
+            'Vitamins & Minerals': "**What this tests:** Essential nutrients needed for various body functions.",
+            'Electrolytes': "**What this tests:** Minerals that regulate fluid balance and nerve/muscle function.",
+            'Hormones': "**What this tests:** Hormone levels that regulate various body processes.",
+        }
+        
+        for category, tests in sorted(tests_by_category.items()):
+            output.append(f"\n### {category}")
+            
+            # Add category intro if available
+            if category in category_intros:
+                output.append(f"\n{category_intros[category]}")
+            
+            for result, interpretation in tests:
+                output.append(self._format_test_result(result, interpretation, gender, age))
+        
+        return "\n".join(output)
+    
+    def _format_test_result(self, result, interpretation, gender, age):
+        """Format a single test result with interpretation"""
         term = result['term']
         value = result['value']
-        unit = result['unit']
-        interp = result['interpretation']
-        status = interp['status']
+        unit = result.get('unit', '')
+        status = interpretation.get('status', 'unknown')
         
-        # Start with test name
-        explanation = f"#### {term}\n\n"
-        
-        # Show the result with visual indicator
+        # Status emoji
         if status == 'normal':
-            explanation += f"✅ **Your result:** {value} {unit} **(Normal)**\n\n"
+            emoji = "✅"
+            status_text = "**(Normal)**"
         elif status == 'high':
-            explanation += f"⚠️ **Your result:** {value} {unit} **(Higher than normal)**\n\n"
+            emoji = "⚠️"
+            status_text = "**(Higher than normal)**"
         elif status == 'low':
-            explanation += f"⚠️ **Your result:** {value} {unit} **(Lower than normal)**\n\n"
-        
-        # Show normal range
-        explanation += f"**Normal range:** {interp['normal_range']}\n\n"
-        
-        # What is this test?
-        explanation += f"**What is {term}?**\n\n"
-        explanation += f"{interp['explanation']}\n\n"
-        
-        # What does YOUR result mean?
-        if status == 'normal':
-            explanation += f"**What this means for you:**\n\n"
-            explanation += f"Your {term} level is within the healthy range. This is excellent! "
-            explanation += f"It suggests this aspect of your health is functioning well.\n\n"
+            emoji = "⚠️"
+            status_text = "**(Lower than normal)**"
         else:
-            explanation += f"**What this means for you:**\n\n"
-            condition = interp.get('condition', f'{status} {term}')
-            explanation += f"Your {term} level indicates: **{condition}**.\n\n"
-            
-            # Why this might happen
-            causes = interp.get('possible_causes', [])
-            if causes:
-                explanation += f"**Common reasons for this:**\n"
-                for cause in causes[:3]:  # Top 3 causes
-                    explanation += f"• {cause}\n"
-                explanation += "\n"
-            
-            # What symptoms to watch for
-            symptoms = interp.get('symptoms', [])
-            if symptoms:
-                explanation += f"**Symptoms that might occur:**\n"
-                for symptom in symptoms[:3]:  # Top 3 symptoms
-                    explanation += f"• {symptom}\n"
-                explanation += "\n"
-            
-            # What to do
-            next_steps = interp.get('next_steps', 'Discuss with your doctor')
-            explanation += f"**Recommended action:** {next_steps}\n\n"
+            emoji = "❓"
+            status_text = ""
         
-        explanation += "---\n"
+        # Build output
+        lines = [
+            f"\n#### {term}",
+            f"\n{emoji} **Your result:** {value} {unit} {status_text}",
+        ]
         
-        return explanation
+        # Add normal range
+        if 'normal_range' in interpretation:
+            lines.append(f"\n**Normal range:** {interpretation['normal_range']}")
+        
+        # Add description
+        if 'description' in interpretation:
+            lines.append(f"\n**What is {term}?**\n\n{interpretation['description']}")
+        
+        # Add interpretation for abnormal values
+        if status != 'normal':
+            lines.append(f"\n**What this means for you:**\n")
+            
+            if 'condition' in interpretation:
+                lines.append(f"\nYour {term} level indicates: **{interpretation['condition']}**.")
+            
+            if 'causes' in interpretation and interpretation['causes']:
+                causes_text = "\n".join([f"• {cause}" for cause in interpretation['causes'][:3]])
+                lines.append(f"\n**Common reasons for this:**\n{causes_text}")
+            
+            if 'symptoms' in interpretation and interpretation['symptoms']:
+                symptoms_text = "\n".join([f"• {symptom}" for symptom in interpretation['symptoms'][:3]])
+                lines.append(f"\n**Symptoms that might occur:**\n{symptoms_text}")
+            
+            if 'action' in interpretation:
+                lines.append(f"\n**Recommended action:** {interpretation['action']}")
+        else:
+            # Normal value
+            lines.append(f"\n**What this means for you:**\n")
+            lines.append(f"\nYour {term} level is within the healthy range. This is excellent! It suggests this aspect of your health is functioning well.")
+        
+        lines.append("\n---\n")
+        
+        return "\n".join(lines)
     
     def _generate_overall_summary(self, parsed_report):
-        """Big picture summary of all results"""
-        summary = "## Overall Summary\n\n"
+        """Generate overall health summary"""
+        categorized = parsed_report.get('categorized', {})
         
-        categorized = parsed_report['categorized']
-        total = parsed_report['total_tests']
-        normal_count = len(categorized['normal'])
-        abnormal_count = len(categorized['high']) + len(categorized['low'])
-        critical_count = len(categorized['critical'])
+        normal_count = len(categorized.get('normal', []))
+        high_count = len(categorized.get('high', []))
+        low_count = len(categorized.get('low', []))
+        critical_count = len(categorized.get('critical', []))
+        total = normal_count + high_count + low_count + critical_count
         
-        # Overall health status
+        abnormal_count = high_count + low_count + critical_count
+        
+        output = ["## Overall Summary"]
+        
         if critical_count > 0:
-            summary += "⚠️ **Important:** Some values require immediate medical attention.\n\n"
-        elif abnormal_count == 0:
-            summary += "✅ **Excellent news!** All your test results are within normal ranges.\n\n"
-        elif normal_count > abnormal_count:
-            summary += "✓ **Good news overall!** Most of your results are normal, with a few that need attention.\n\n"
+            output.append("\n⚠️ **Important:** Some values require immediate medical attention.")
+        elif abnormal_count > 0:
+            output.append("\n⚠️ **Note:** Some values are outside the normal range and need attention.")
         else:
-            summary += "⚠️ **Attention needed:** Several values are outside normal range.\n\n"
+            output.append("\n✅ **Great news:** All your test results are within normal ranges!")
         
-        # Summary breakdown
-        summary += f"**Results breakdown:**\n"
-        summary += f"• Normal values: {normal_count} out of {total}\n"
+        output.append(f"\n**Results breakdown:**")
+        output.append(f"• Normal values: {normal_count} out of {total}")
         if abnormal_count > 0:
-            summary += f"• Values needing attention: {abnormal_count}\n"
+            output.append(f"• Values needing attention: {high_count + low_count}")
         if critical_count > 0:
-            summary += f"• Critical values: {critical_count}\n"
+            output.append(f"• Critical values: {critical_count}")
         
-        summary += "\n"
+        # Add specific insights
+        insights = self._generate_insights(categorized)
+        if insights:
+            output.append(f"\n{insights}")
         
-        # Specific health insights
-        if any(r['term'] in ['HbA1c', 'Glucose'] for r in categorized['high']):
-            summary += "**Blood sugar:** Your blood sugar levels are higher than normal. "
-            summary += "This may indicate prediabetes or diabetes. Lifestyle changes and medical guidance can help.\n\n"
+        return "\n".join(output)
+    
+    def _generate_insights(self, categorized):
+        """Generate specific health insights"""
+        insights = []
         
-        if any(r['term'] in ['Total Cholesterol', 'LDL', 'Triglycerides'] for r in categorized['high']):
-            summary += "**Heart health:** Your cholesterol levels show some elevation. "
-            summary += "This increases cardiovascular risk. Diet, exercise, and potentially medication can improve these values.\n\n"
+        # Check for common patterns
+        high_tests = categorized.get('high', [])
+        low_tests = categorized.get('low', [])
         
-        if any(r['term'] == 'HDL' for r in categorized['low']):
-            summary += "**HDL cholesterol:** Your 'good' cholesterol is lower than ideal. "
-            summary += "Increasing HDL through exercise and healthy fats can benefit heart health.\n\n"
+        # Cholesterol insights
+        high_ldl = any(r['term'] == 'LDL' for r in high_tests)
+        low_hdl = any(r['term'] == 'HDL' for r in low_tests)
         
-        return summary
+        if high_ldl and low_hdl:
+            insights.append("**Cholesterol pattern:** You have high 'bad' cholesterol (LDL) and low 'good' cholesterol (HDL). This combination increases heart disease risk. Focus on exercise, healthy fats, and reducing saturated fats.")
+        elif high_ldl:
+            insights.append("**LDL cholesterol:** Your 'bad' cholesterol is elevated. Reducing saturated fats and increasing exercise can help.")
+        elif low_hdl:
+            insights.append("**HDL cholesterol:** Your 'good' cholesterol is lower than ideal. Increasing HDL through exercise and healthy fats can benefit heart health.")
+        
+        # Diabetes risk
+        high_hba1c = any(r['term'] == 'HbA1c' for r in high_tests)
+        high_glucose = any(r['term'] == 'Glucose' for r in high_tests)
+        
+        if high_hba1c or high_glucose:
+            insights.append("**Blood sugar:** Your blood sugar levels suggest prediabetes or diabetes risk. Lifestyle changes (diet, exercise, weight loss) are crucial.")
+        
+        # Liver function
+        high_alt = any(r['term'] == 'ALT' for r in high_tests)
+        high_ast = any(r['term'] == 'AST' for r in high_tests)
+        
+        if high_alt or high_ast:
+            insights.append("**Liver enzymes:** Elevated liver enzymes may indicate liver stress. Avoid alcohol, maintain healthy weight, and follow up with your doctor.")
+        
+        return "\n\n".join(insights) if insights else ""
     
     def _generate_next_steps(self, parsed_report):
-        """What to do with these results"""
-        steps = "## What to do next:\n\n"
+        """Generate recommended next steps"""
+        categorized = parsed_report.get('categorized', {})
+        critical_count = len(categorized.get('critical', []))
+        abnormal_count = len(categorized.get('high', [])) + len(categorized.get('low', []))
         
-        categorized = parsed_report['categorized']
+        output = ["## What to do next:"]
         
-        # Critical values
-        if categorized['critical']:
-            steps += "🚨 **URGENT:** Contact your doctor today about critical values.\n\n"
+        if critical_count > 0:
+            output.append("\n🚨 **URGENT:** Contact your doctor today about critical values.")
         
-        # General guidance
-        steps += "1. **Schedule a doctor's appointment** to discuss these results in detail.\n\n"
-        steps += "2. **Bring this report** to your appointment so your doctor can review it.\n\n"
+        output.append("\n1. **Schedule a doctor's appointment** to discuss these results in detail.")
+        output.append("\n2. **Bring this report** to your appointment so your doctor can review it.")
         
-        # Specific recommendations
-        if categorized['high'] or categorized['low']:
-            steps += "3. **Ask your doctor about:**\n"
-            steps += "   • What's causing these abnormal values\n"
-            steps += "   • Whether you need additional tests\n"
-            steps += "   • Lifestyle changes that can help\n"
-            steps += "   • Whether medication is needed\n\n"
+        output.append("\n3. **Ask your doctor about:**")
+        output.append("   • What's causing these abnormal values")
+        output.append("   • Whether you need additional tests")
+        output.append("   • Lifestyle changes that can help")
+        output.append("   • Whether medication is needed")
         
-        steps += "4. **Maintain healthy habits:**\n"
-        steps += "   • Eat a balanced diet rich in fruits and vegetables\n"
-        steps += "   • Exercise regularly (at least 30 minutes daily)\n"
-        steps += "   • Get adequate sleep (7-8 hours)\n"
-        steps += "   • Manage stress through relaxation techniques\n"
-        steps += "   • Stay hydrated\n\n"
+        output.append("\n4. **Maintain healthy habits:**")
+        output.append("   • Eat a balanced diet rich in fruits and vegetables")
+        output.append("   • Exercise regularly (at least 30 minutes daily)")
+        output.append("   • Get adequate sleep (7-8 hours)")
+        output.append("   • Manage stress through relaxation techniques")
+        output.append("   • Stay hydrated")
         
-        # Follow-up
-        if categorized['high'] or categorized['low']:
-            steps += "5. **Plan for retesting** in 3-6 months to track your progress.\n\n"
+        if abnormal_count > 0:
+            output.append("\n5. **Plan for retesting** in 3-6 months to track your progress.")
         
-        # Important note
-        steps += "**Remember:** This summary is for educational purposes. "
-        steps += "Your doctor will interpret these results in the context of your overall health, "
-        steps += "symptoms, and medical history to provide personalized care."
+        output.append("\n**Remember:** This summary is for educational purposes. Your doctor will interpret these results in the context of your overall health, symptoms, and medical history to provide personalized care.")
         
-        return steps
+        return "\n".join(output)
 
 
 # ============================================
@@ -291,30 +296,42 @@ class TemplateSummarizer:
 # ============================================
 
 if __name__ == "__main__":
-    from report_parser import MedicalReportParser
+    # Test data
+    test_data = {
+        'report_type': 'Lipid Profile',
+        'total_tests': 5,
+        'all_results': [
+            {'term': 'Total Cholesterol', 'value': 220, 'unit': 'mg/dL'},
+            {'term': 'HDL', 'value': 35, 'unit': 'mg/dL'},
+            {'term': 'LDL', 'value': 150, 'unit': 'mg/dL'},
+            {'term': 'Triglycerides', 'value': 200, 'unit': 'mg/dL'},
+            {'term': 'HbA1c', 'value': 6.2, 'unit': '%'},
+        ],
+        'categorized': {
+            'normal': [],
+            'high': [
+                {'term': 'Total Cholesterol', 'value': 220},
+                {'term': 'LDL', 'value': 150},
+                {'term': 'Triglycerides', 'value': 200},
+                {'term': 'HbA1c', 'value': 6.2},
+            ],
+            'low': [
+                {'term': 'HDL', 'value': 35},
+            ],
+            'critical': []
+        },
+        'patient_info': {
+            'gender': 'female',
+            'age': 50
+        }
+    }
     
-    # Sample report text
-    sample_text = """
-    HbA1c - (HPLC)
-    H.P.L.C 5.9 %
-    
-    TOTAL CHOLESTEROL 195 mg/dL
-    HDL CHOLESTEROL - DIRECT 46 mg/dL
-    LDL CHOLESTEROL - DIRECT 118 mg/dL
-    TRIGLYCERIDES 210 mg/dL
-    """
-    
-    # Parse the report
-    parser = MedicalReportParser()
-    parsed = parser.parse_report(sample_text, gender="female", age=50)
-    
-    # Generate summary
     summarizer = TemplateSummarizer()
+    summary = summarizer.generate_summary(test_data)
     
-    print("=" * 70)
-    print("PROFESSIONAL SUMMARY (100% RULE-BASED - GEMINI QUALITY):")
-    print("=" * 70)
-    print()
-    
-    full_summary = summarizer.generate_summary(parsed)
-    print(full_summary)
+    print("="*60)
+    print("GENERATED SUMMARY:")
+    print("="*60)
+    print(summary)
+    print("="*60)
+    print(f"\nSummary length: {len(summary)} characters")
