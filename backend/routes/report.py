@@ -674,96 +674,110 @@ def extract_test_results(text):
     Returns list of {name, value, unit}
     """
     tests = []
-    seen_names = set()
     
-    # Valid medical units (lowercase for comparison)
-    valid_units = [
+    # ============================================
+    # WHITELIST: Valid medical units only
+    # ============================================
+    valid_units = {
+        # Blood count units
+        'cells/cumm', 'thou/cumm', 'mill/cumm', 'cells/mcl', 'k/ul', 'm/ul',
+        # Chemistry units
         'mg/dl', 'g/dl', 'mmol/l', 'meq/l', 'iu/l', 'u/l',
+        # Percentage and ratio
         '%', 'percent', 'ratio',
+        # Hormone units
         'ng/ml', 'pg/ml', 'miu/ml', 'uiu/ml', 'pmol/l',
-        'cells/cumm', 'thou/cumm', 'mill/cumm',
-        'sec', 'seconds', 'mm/hr', 'fl', 'mcg/dl', 'umol/l',
+        # Other common units
+        'sec', 'seconds', 'mm/hr', 'fl', 'pg', 'mcg/dl', 'umol/l',
+        # Misc
         'g/l', 'mg/l', 'ug/l', 'nmol/l'
+    }
+    
+    # ============================================
+    # BLACKLIST: Terms to ignore (REDUCED!)
+    # ============================================
+    ignore_terms = [
+        'floor no', 'street', 'apartment', 'building', 'road bangalore', 'town bangalore',
+        'pincode', 'zip code', 'phone', 'email', 'fax',
+        'page', 'barcode', 'labcode', 'invoice', 'receipt', 'bill',
+        'processing', 'cancelled', 'cancellation',
+        'technologies ltd', 'pvt ltd', 'limited', 'company name',
+        'sample type', 'specimen', 'collected on', 'received on', 'released on',
+        'patient name', 'doctor name', 'physician name'
     ]
     
-    # Strict blacklist - only obvious non-medical terms
-    blacklist = [
-        'floor no', 'street name', 'apartment', 'building name',
-        'pincode', 'zip code', 
-        'barcode', 'labcode', 'page',
-        'sample collected', 'sample received', 'report released',
-        'patient name', 'ref. by', 'test asked',
-        'technologies ltd', 'pvt ltd',
-        '560025', 'richmond', 'bangalore', 'serpentine'
+    # Multiple regex patterns to catch different formats
+    patterns = [
+        # Pattern 1: Test Name: value unit
+        r'([A-Z][A-Za-z0-9\s\-/()]+?):\s*([\d.]+)\s*([a-zA-Z/%]+)',
+        # Pattern 2: Test Name - value unit
+        r'([A-Z][A-Za-z0-9\s\-/()]+?)\s*[-–]\s*([\d.]+)\s*([a-zA-Z/%]+)',
+        # Pattern 3: Test Name value unit (tab or space separated)
+        r'([A-Z][A-Za-z0-9\s\-/()]+?)\s{2,}([\d.]+)\s+([a-zA-Z/%]+)',
     ]
     
-    # Pattern: TEST_NAME value unit
-    # Looking for lines with this structure
-    lines = text.split('\n')
-    
-    for line in lines:
-        # Skip very short lines
-        if len(line) < 15:
-            continue
-        
-        # Try to find: word(s) followed by number followed by unit
-        # Use multiple patterns
-        patterns = [
-            # Pattern 1: TEST NAME TECH value unit
-            r'([A-Z][A-Za-z0-9\s\-/()]+?)\s+[A-Z\.]+\s+([\d.]+)\s+([a-zA-Z/%]+)',
-            # Pattern 2: TEST NAME value unit  
-            r'^([A-Z][A-Za-z0-9\s\-/()]+?)\s+([\d.]+)\s+([a-zA-Z/%]+)\s*$',
-            # Pattern 3: TEST NAME: value unit
-            r'([A-Z][A-Za-z0-9\s\-/()]+?):\s+([\d.]+)\s+([a-zA-Z/%]+)',
-        ]
-        
-        for pattern in patterns:
-            match = re.search(pattern, line)
-            if match:
-                test_name = match.group(1).strip()
-                value_str = match.group(2).strip()
-                unit = match.group(3).strip()
+    for pattern in patterns:
+        matches = re.finditer(pattern, text)
+        for match in matches:
+            test_name = match.group(1).strip()
+            value_str = match.group(2).strip()
+            unit = match.group(3).strip()
+            
+            # ============================================
+            # VALIDATION CHECKS
+            # ============================================
+            
+            # 1. Skip if test name is too short or too long
+            if len(test_name) < 3 or len(test_name) > 60:
+                continue
+            
+            # 2. Skip if it looks like a sentence (too many words)
+            if test_name.count(' ') > 7:
+                continue
+            
+            # 3. Check if unit is valid medical unit (case insensitive)
+            unit_lower = unit.lower()
+            is_valid_unit = any(valid_unit.lower() == unit_lower or unit_lower in valid_unit.lower() 
+                               for valid_unit in valid_units)
+            if not is_valid_unit:
+                continue
+            
+            # 4. Skip if test name contains blacklisted phrases (must match exact phrase)
+            test_name_lower = test_name.lower()
+            is_blacklisted = any(ignore_term in test_name_lower for ignore_term in ignore_terms)
+            if is_blacklisted:
+                continue
+            
+            # 5. Skip if test name is ONLY numbers
+            if test_name.replace(' ', '').replace('-', '').replace('/', '').isdigit():
+                continue
+            
+            # 6. Skip common non-medical starting words
+            bad_starts = ['the ', 'a ', 'an ', 'this ', 'that ', 'for ', 'with ', 'from ', 'to ']
+            if any(test_name_lower.startswith(bad) for bad in bad_starts):
+                continue
+            
+            # 7. Skip if it's clearly an address component
+            address_indicators = ['560025', 'richmond road', 'serpentine', 'ground floor']
+            if any(indicator in test_name_lower for indicator in address_indicators):
+                continue
+            
+            try:
+                value = float(value_str)
                 
-                # Basic validation
-                if len(test_name) < 3 or len(test_name) > 60:
+                # Skip unrealistic values (likely parsing errors)
+                if value > 10000000 or value < 0:
                     continue
                 
-                # Check if unit is valid
-                unit_lower = unit.lower()
-                if not any(valid_unit in unit_lower or unit_lower in valid_unit for valid_unit in valid_units):
-                    continue
-                
-                # Check blacklist (only exact phrases)
-                test_lower = test_name.lower()
-                if any(black in test_lower for black in blacklist):
-                    continue
-                
-                # Skip if test name is all numbers
-                if test_name.replace(' ', '').replace('-', '').isdigit():
-                    continue
-                
-                # Skip duplicates
-                if test_name in seen_names:
-                    continue
-                
-                try:
-                    value = float(value_str)
-                    
-                    # Skip unrealistic values
-                    if value < 0 or value > 500000:
-                        continue
-                    
+                # Check if test already exists (avoid duplicates)
+                if not any(t['name'] == test_name for t in tests):
                     tests.append({
                         'name': test_name,
                         'value': value,
                         'unit': unit
                     })
-                    seen_names.add(test_name)
-                    
-                except ValueError:
-                    continue
-                
-                break  # Found match, move to next line
+            except ValueError:
+                continue
     
     return tests
 
