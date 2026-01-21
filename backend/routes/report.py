@@ -675,6 +675,40 @@ def extract_test_results(text):
     """
     tests = []
     
+    # ============================================
+    # WHITELIST: Valid medical units only
+    # ============================================
+    valid_units = {
+        # Blood count units
+        'cells/cumm', 'thou/cumm', 'mill/cumm', 'cells/mcL', 'K/uL', 'M/uL',
+        # Chemistry units
+        'mg/dL', 'mg/dl', 'g/dL', 'g/dl', 'mmol/L', 'mEq/L', 'IU/L', 'U/L',
+        # Percentage and ratio
+        '%', 'percent', 'ratio',
+        # Hormone units
+        'ng/mL', 'ng/ml', 'pg/mL', 'pg/ml', 'mIU/mL', 'uIU/mL', 'pmol/L',
+        # Other common units
+        'sec', 'seconds', 'mm/hr', 'fL', 'pg', 'mcg/dL', 'umol/L',
+        # Misc
+        'g/L', 'mg/L', 'ug/L', 'nmol/L'
+    }
+    
+    # ============================================
+    # BLACKLIST: Terms to ignore
+    # ============================================
+    ignore_terms = [
+        'floor', 'street', 'apartment', 'building', 'road', 'town', 'city',
+        'pincode', 'zip', 'address', 'phone', 'email', 'fax',
+        'page', 'ref', 'barcode', 'invoice', 'receipt', 'bill',
+        'ready', 'processing', 'pending', 'cancelled', 'cancellation',
+        'method', 'instrument', 'analyzer', 'technology', 'technologies',
+        'ltd', 'inc', 'pvt', 'limited', 'company', 'corp',
+        'date', 'time', 'collected', 'reported', 'registered',
+        'patient', 'doctor', 'physician', 'lab', 'laboratory',
+        'sample', 'specimen', 'kit', 'validation', 'reference',
+        'precision', 'control', 'calculated'
+    ]
+    
     # Multiple regex patterns to catch different formats
     patterns = [
         # Pattern 1: Test Name: value unit
@@ -692,16 +726,47 @@ def extract_test_results(text):
             value_str = match.group(2).strip()
             unit = match.group(3).strip()
             
-            # Skip if test name is too short or too long
+            # ============================================
+            # VALIDATION CHECKS
+            # ============================================
+            
+            # 1. Skip if test name is too short or too long
             if len(test_name) < 3 or len(test_name) > 50:
                 continue
             
-            # Skip if it looks like a sentence
+            # 2. Skip if it looks like a sentence (too many words)
             if test_name.count(' ') > 5:
+                continue
+            
+            # 3. Check if unit is valid medical unit
+            unit_lower = unit.lower()
+            is_valid_unit = any(valid_unit.lower() in unit_lower or unit_lower in valid_unit.lower() 
+                               for valid_unit in valid_units)
+            if not is_valid_unit:
+                continue
+            
+            # 4. Skip if test name contains blacklisted terms
+            test_name_lower = test_name.lower()
+            is_blacklisted = any(ignore_term in test_name_lower for ignore_term in ignore_terms)
+            if is_blacklisted:
+                continue
+            
+            # 5. Skip if test name is just numbers or looks like a code
+            if test_name.replace(' ', '').replace('-', '').isdigit():
+                continue
+            
+            # 6. Skip if test name starts with common non-medical words
+            bad_starts = ['the', 'a', 'an', 'this', 'that', 'for', 'with', 'from', 'to']
+            first_word = test_name.split()[0].lower()
+            if first_word in bad_starts:
                 continue
             
             try:
                 value = float(value_str)
+                
+                # Skip unrealistic values (likely parsing errors)
+                if value > 1000000 or value < 0:
+                    continue
                 
                 # Check if test already exists (avoid duplicates)
                 if not any(t['name'] == test_name for t in tests):
