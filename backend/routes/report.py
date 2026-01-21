@@ -670,138 +670,100 @@ def compare_reports():
 
 def extract_test_results(text):
     """
-    Extract test results from medical report text using the existing parser
+    Extract test results from medical report text
     Returns list of {name, value, unit}
     """
     tests = []
+    seen_names = set()
     
-    try:
-        # Use your existing MedicalReportParser (already imports at top)
-        if RULE_BASED_AVAILABLE:
-            parser = MedicalReportParser()
-            parsed_data = parser.parse_report(text, gender="female", age=50)
-            
-            # Extract tests from parsed data
-            if parsed_data and 'tests' in parsed_data:
-                for test in parsed_data['tests']:
-                    # Get test name
-                    test_name = test.get('name', '')
-                    
-                    # Get value and unit
-                    value = test.get('value')
-                    unit = test.get('unit', '')
-                    
-                    # Only include if we have all required fields
-                    if test_name and value is not None and unit:
-                        try:
-                            # Convert value to float
-                            numeric_value = float(value)
-                            
-                            tests.append({
-                                'name': test_name,
-                                'value': numeric_value,
-                                'unit': unit
-                            })
-                        except (ValueError, TypeError):
-                            continue
-            
-            return tests
-    except Exception as e:
-        print(f"Parser extraction failed: {e}")
+    # Valid medical units (lowercase for comparison)
+    valid_units = [
+        'mg/dl', 'g/dl', 'mmol/l', 'meq/l', 'iu/l', 'u/l',
+        '%', 'percent', 'ratio',
+        'ng/ml', 'pg/ml', 'miu/ml', 'uiu/ml', 'pmol/l',
+        'cells/cumm', 'thou/cumm', 'mill/cumm',
+        'sec', 'seconds', 'mm/hr', 'fl', 'mcg/dl', 'umol/l',
+        'g/l', 'mg/l', 'ug/l', 'nmol/l'
+    ]
     
-    # Fallback to simple regex if parser fails
-    return extract_test_results_fallback(text)
-
-
-def extract_test_results_fallback(text):
-    """
-    Fallback method using simple patterns for common test formats
-    Only extracts obvious test results
-    """
-    tests = []
-    seen_tests = set()
+    # Strict blacklist - only obvious non-medical terms
+    blacklist = [
+        'floor no', 'street name', 'apartment', 'building name',
+        'pincode', 'zip code', 
+        'barcode', 'labcode', 'page',
+        'sample collected', 'sample received', 'report released',
+        'patient name', 'ref. by', 'test asked',
+        'technologies ltd', 'pvt ltd',
+        '560025', 'richmond', 'bangalore', 'serpentine'
+    ]
     
-    # Common test name patterns (very specific to avoid junk)
-    # Format: TEST_NAME TECHNOLOGY VALUE UNITS
+    # Pattern: TEST_NAME value unit
+    # Looking for lines with this structure
     lines = text.split('\n')
     
     for line in lines:
-        line = line.strip()
-        
-        # Skip empty lines or very short lines
-        if len(line) < 10:
+        # Skip very short lines
+        if len(line) < 15:
             continue
         
-        # Pattern: TEST NAME followed by value and unit on same line
-        # Example: "HbA1c H.P.L.C 5.9 %"
-        # Example: "TOTAL CHOLESTEROL PHOTOMETRY 195 mg/dL"
+        # Try to find: word(s) followed by number followed by unit
+        # Use multiple patterns
+        patterns = [
+            # Pattern 1: TEST NAME TECH value unit
+            r'([A-Z][A-Za-z0-9\s\-/()]+?)\s+[A-Z\.]+\s+([\d.]+)\s+([a-zA-Z/%]+)',
+            # Pattern 2: TEST NAME value unit  
+            r'^([A-Z][A-Za-z0-9\s\-/()]+?)\s+([\d.]+)\s+([a-zA-Z/%]+)\s*$',
+            # Pattern 3: TEST NAME: value unit
+            r'([A-Z][A-Za-z0-9\s\-/()]+?):\s+([\d.]+)\s+([a-zA-Z/%]+)',
+        ]
         
-        # Look for lines with test patterns
-        parts = line.split()
-        
-        # Need at least: TEST_NAME VALUE UNIT
-        if len(parts) < 3:
-            continue
-        
-        # Try to find value (number) and unit
-        for i in range(len(parts) - 1):
-            try:
-                value = float(parts[i])
-                unit = parts[i + 1]
+        for pattern in patterns:
+            match = re.search(pattern, line)
+            if match:
+                test_name = match.group(1).strip()
+                value_str = match.group(2).strip()
+                unit = match.group(3).strip()
                 
-                # Check if unit looks valid
-                unit_lower = unit.lower().strip(',:;.')
-                valid_unit_indicators = ['mg/dl', 'g/dl', '%', 'ratio', 'ng/ml', 'pg/ml', 
-                                        'mmol/l', 'iu/l', 'u/l', 'cells/cumm']
-                
-                if not any(ind in unit_lower for ind in valid_unit_indicators):
+                # Basic validation
+                if len(test_name) < 3 or len(test_name) > 60:
                     continue
                 
-                # Get test name (everything before the value)
-                test_name_parts = parts[:i]
-                
-                # Filter out technology/method names
-                filtered_name_parts = [p for p in test_name_parts 
-                                      if p.upper() not in ['PHOTOMETRY', 'H.P.L.C', 'CALCULATED', 
-                                                           'DERIVED', 'C.M.I.A', 'DIRECT', 'ENZYMATIC']]
-                
-                if not filtered_name_parts:
+                # Check if unit is valid
+                unit_lower = unit.lower()
+                if not any(valid_unit in unit_lower or unit_lower in valid_unit for valid_unit in valid_units):
                     continue
                 
-                test_name = ' '.join(filtered_name_parts)
-                
-                # Skip if test name is too short
-                if len(test_name) < 3:
+                # Check blacklist (only exact phrases)
+                test_lower = test_name.lower()
+                if any(black in test_lower for black in blacklist):
                     continue
                 
-                # Skip blacklisted names
-                test_name_lower = test_name.lower()
-                blacklist = ['bio. ref', 'control', 'reference', 'interval', 'method', 
-                            'sample', 'barcode', 'page', 'report', 'collected', 'normal',
-                            'desirable', 'borderline', 'optimal', 'high risk', 'low risk']
-                
-                if any(black in test_name_lower for black in blacklist):
+                # Skip if test name is all numbers
+                if test_name.replace(' ', '').replace('-', '').isdigit():
                     continue
                 
-                # Skip if already seen
-                if test_name in seen_tests:
+                # Skip duplicates
+                if test_name in seen_names:
                     continue
                 
-                # Skip unrealistic values
-                if value < 0 or value > 100000:
+                try:
+                    value = float(value_str)
+                    
+                    # Skip unrealistic values
+                    if value < 0 or value > 500000:
+                        continue
+                    
+                    tests.append({
+                        'name': test_name,
+                        'value': value,
+                        'unit': unit
+                    })
+                    seen_names.add(test_name)
+                    
+                except ValueError:
                     continue
                 
-                tests.append({
-                    'name': test_name,
-                    'value': value,
-                    'unit': unit
-                })
-                seen_tests.add(test_name)
-                
-                break  # Found value for this line, move to next
-                
-            except (ValueError, IndexError):
-                continue
+                break  # Found match, move to next line
     
     return tests
 
