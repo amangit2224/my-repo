@@ -54,6 +54,12 @@ export const reportAPI = {
     }),
   getHistory: () => api.get('/api/report/history'),
   getDetails: (reportId) => api.get(`/api/report/details/${reportId}`),
+  
+  // 🔥 NEW: Compare two reports
+  compareReports: (formData) =>
+    api.post('/api/report/compare', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
 };
 
 // JARGON API

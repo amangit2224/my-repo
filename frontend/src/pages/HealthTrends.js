@@ -2,6 +2,7 @@
 // 🔥 NEW HEALTH TRENDS - Compare 2 Reports Side-by-Side!
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { reportAPI } from '../utils/api';
 import { Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -80,21 +81,9 @@ function HealthTrends() {
       formData.append('report1', report1);
       formData.append('report2', report2);
 
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/reports/compare', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to compare reports');
-      }
-
-      const data = await response.json();
-      setComparisonData(data);
+      // Use your existing API utility
+      const response = await reportAPI.compareReports(formData);
+      setComparisonData(response.data);
     } catch (err) {
       console.error('Comparison error:', err);
       setError('Failed to compare reports. Please try again.');
