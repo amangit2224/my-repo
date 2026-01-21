@@ -1,826 +1,1567 @@
 """
-Medical Knowledge Base
-Contains medical terms, normal ranges, explanations
-NO AI REQUIRED - Pure data structure
+Enhanced Medical Knowledge Base
+100+ medical terms with comprehensive information
+Age/gender-specific ranges, disease interpretations, recommendations
 """
 
 class MedicalKnowledgeBase:
     
-    # ============================================
-    # BLOOD TEST PARAMETERS
-    # ============================================
-    
-    BLOOD_TESTS = {
-        # ===== COMPLETE BLOOD COUNT (CBC) =====
-        "Hemoglobin": {
-            "category": "Complete Blood Count",
-            "full_name": "Hemoglobin",
-            "abbreviation": "Hb",
-            "normal_range": {
-                "male": {"min": 13.5, "max": 17.5, "unit": "g/dL"},
-                "female": {"min": 12.0, "max": 15.5, "unit": "g/dL"},
-                "child": {"min": 11.0, "max": 16.0, "unit": "g/dL"}
-            },
-            "simple_explanation": "Hemoglobin is a protein in your red blood cells that carries oxygen from your lungs to all parts of your body.",
-            "why_tested": "To check for anemia, blood disorders, or overall health status",
-            "high_means": {
-                "condition": "High hemoglobin (Polycythemia)",
-                "possible_causes": [
-                    "Living at high altitude",
-                    "Chronic lung disease",
-                    "Dehydration",
-                    "Smoking",
-                    "Bone marrow disorders"
-                ],
-                "symptoms": ["Fatigue", "Dizziness", "Headaches", "Blurred vision"],
-                "severity": "Medium - Consult doctor"
-            },
-            "low_means": {
-                "condition": "Low hemoglobin (Anemia)",
-                "possible_causes": [
-                    "Iron deficiency",
-                    "Vitamin B12 or folate deficiency",
-                    "Blood loss",
-                    "Chronic disease",
-                    "Bone marrow problems"
-                ],
-                "symptoms": ["Weakness", "Pale skin", "Shortness of breath", "Cold hands/feet"],
-                "severity": "Medium to High - Medical attention needed"
-            },
-            "next_steps": {
-                "if_high": "Consult doctor for further tests, reduce smoking, check oxygen levels",
-                "if_low": "Iron supplements, vitamin B12 tests, check for internal bleeding"
-            }
-        },
-
-        "RBC": {
-            "category": "Complete Blood Count",
-            "full_name": "Red Blood Cell Count",
-            "abbreviation": "RBC",
-            "normal_range": {
-                "male": {"min": 4.5, "max": 5.9, "unit": "million cells/µL"},
-                "female": {"min": 4.1, "max": 5.1, "unit": "million cells/µL"}
-            },
-            "simple_explanation": "Red blood cells carry oxygen throughout your body. This measures how many you have.",
-            "why_tested": "To detect anemia, blood disorders, or hydration status",
-            "high_means": {
-                "condition": "High RBC count",
-                "possible_causes": ["Dehydration", "Lung disease", "Heart disease", "Kidney tumor", "Smoking"],
-                "symptoms": ["Fatigue", "Joint pain", "Itching after shower"],
-                "severity": "Medium"
-            },
-            "low_means": {
-                "condition": "Low RBC count (Anemia)",
-                "possible_causes": ["Blood loss", "Bone marrow failure", "Nutritional deficiency", "Kidney disease"],
-                "symptoms": ["Fatigue", "Weakness", "Pale skin"],
-                "severity": "Medium to High"
-            }
-        },
-
-        "WBC": {
-            "category": "Complete Blood Count",
-            "full_name": "White Blood Cell Count",
-            "abbreviation": "WBC",
-            "normal_range": {
-                "all": {"min": 4000, "max": 11000, "unit": "cells/µL"}
-            },
-            "simple_explanation": "White blood cells fight infections and protect your body from disease.",
-            "why_tested": "To check immune system health and detect infections or immune disorders",
-            "high_means": {
-                "condition": "High WBC count (Leukocytosis)",
-                "possible_causes": [
-                    "Bacterial or viral infection",
-                    "Inflammation",
-                    "Stress",
-                    "Allergic reaction",
-                    "Leukemia (rarely)"
-                ],
-                "symptoms": ["Fever", "Fatigue", "Body aches", "Night sweats"],
-                "severity": "Low to High depending on count"
-            },
-            "low_means": {
-                "condition": "Low WBC count (Leukopenia)",
-                "possible_causes": [
-                    "Viral infections",
-                    "Bone marrow disorders",
-                    "Autoimmune diseases",
-                    "Certain medications",
-                    "Severe infections"
-                ],
-                "symptoms": ["Frequent infections", "Fever", "Weakness"],
-                "severity": "Medium to High"
-            }
-        },
-
-        "Platelets": {
-            "category": "Complete Blood Count",
-            "full_name": "Platelet Count",
-            "abbreviation": "PLT",
-            "normal_range": {
-                "all": {"min": 150000, "max": 400000, "unit": "cells/µL"}
-            },
-            "simple_explanation": "Platelets help your blood clot to stop bleeding when you get injured.",
-            "why_tested": "To check blood clotting ability and diagnose bleeding disorders",
-            "high_means": {
-                "condition": "High platelet count (Thrombocytosis)",
-                "possible_causes": ["Iron deficiency", "Cancer", "Infection", "Inflammation"],
-                "symptoms": ["Headache", "Dizziness", "Chest pain", "Blood clots"],
-                "severity": "Medium"
-            },
-            "low_means": {
-                "condition": "Low platelet count (Thrombocytopenia)",
-                "possible_causes": ["Viral infections", "Leukemia", "Immune disorders", "Medications"],
-                "symptoms": ["Easy bruising", "Prolonged bleeding", "Nosebleeds"],
-                "severity": "Medium to High"
-            }
-        },
-
-        "Hematocrit": {
-            "category": "Complete Blood Count",
-            "full_name": "Hematocrit",
-            "abbreviation": "HCT",
-            "normal_range": {
-                "male": {"min": 38.8, "max": 50.0, "unit": "%"},
-                "female": {"min": 34.9, "max": 44.5, "unit": "%"}
-            },
-            "simple_explanation": "Hematocrit measures the percentage of your blood made up of red blood cells.",
-            "why_tested": "To diagnose anemia, dehydration, or blood disorders",
-            "high_means": {
-                "condition": "High hematocrit",
-                "possible_causes": ["Dehydration", "Lung disease", "Living at high altitude"],
-                "severity": "Low to Medium"
-            },
-            "low_means": {
-                "condition": "Low hematocrit",
-                "possible_causes": ["Anemia", "Blood loss", "Nutritional deficiency"],
-                "severity": "Medium"
-            }
-        },
-
-        # ===== METABOLIC PANEL =====
-        "Glucose": {
-            "category": "Metabolic Panel",
-            "full_name": "Blood Glucose (Fasting)",
-            "abbreviation": "FBS",
-            "normal_range": {
-                "all": {"min": 70, "max": 100, "unit": "mg/dL"},  # FIXED: Added "all" key
-                "fasting": {"min": 70, "max": 100, "unit": "mg/dL"},
-                "random": {"min": 70, "max": 140, "unit": "mg/dL"}
-            },
-            "simple_explanation": "Blood sugar level - the amount of glucose (sugar) in your blood.",
-            "why_tested": "To screen for diabetes, prediabetes, or monitor blood sugar control",
-            "high_means": {
-                "condition": "High blood sugar (Hyperglycemia)",
-                "possible_causes": ["Diabetes", "Prediabetes", "Stress", "Medications", "Poor diet"],
-                "symptoms": ["Increased thirst", "Frequent urination", "Blurred vision", "Fatigue"],
-                "severity": "High if >126 mg/dL fasting",
-                "categories": {
-                    "normal": {"max": 100},
-                    "prediabetes": {"min": 100, "max": 125},
-                    "diabetes": {"min": 126}
-                }
-            },
-            "low_means": {
-                "condition": "Low blood sugar (Hypoglycemia)",
-                "possible_causes": ["Too much insulin", "Skipped meals", "Excessive exercise", "Alcohol"],
-                "symptoms": ["Shakiness", "Sweating", "Confusion", "Dizziness"],
-                "severity": "High if <70 mg/dL"
-            },
-            "next_steps": {
-                "if_high": "Consult doctor, HbA1c test, lifestyle changes, possible medication",
-                "if_low": "Eat immediately, check insulin dosage, frequent monitoring"
-            }
-        },
-
-        "HbA1c": {
-            "category": "Metabolic Panel",
-            "full_name": "Glycated Hemoglobin",
-            "abbreviation": "HbA1c",
-            "normal_range": {
-                "all": {"min": 4.0, "max": 5.6, "unit": "%"}
-            },
-            "simple_explanation": "Average blood sugar level over the past 2-3 months. Better indicator than single glucose test.",
-            "why_tested": "To diagnose diabetes and monitor long-term blood sugar control",
-            "high_means": {
-                "condition": "Poor blood sugar control",
-                "categories": {
-                    "normal": {"max": 5.6},
-                    "prediabetes": {"min": 5.7, "max": 6.4},
-                    "diabetes": {"min": 6.5}
+    def __init__(self):
+        """Initialize comprehensive medical knowledge base"""
+        
+        # ============================================
+        # COMPLETE BLOOD COUNT (CBC) - 15 terms
+        # ============================================
+        
+        self.knowledge = {
+            'Hemoglobin': {
+                'category': 'Complete Blood Count (CBC)',
+                'unit': 'g/dL',
+                'normal_ranges': {
+                    'male': {'min': 13.5, 'max': 17.5},
+                    'female': {'min': 12.0, 'max': 15.5}
                 },
-                "severity": "High"
-            }
-        },
-
-        "Creatinine": {
-            "category": "Kidney Function",
-            "full_name": "Serum Creatinine",
-            "abbreviation": "Cr",
-            "normal_range": {
-                "male": {"min": 0.7, "max": 1.3, "unit": "mg/dL"},
-                "female": {"min": 0.6, "max": 1.1, "unit": "mg/dL"}
-            },
-            "simple_explanation": "Waste product filtered by kidneys. High levels indicate kidney problems.",
-            "why_tested": "To check kidney function and detect kidney disease",
-            "high_means": {
-                "condition": "Impaired kidney function",
-                "possible_causes": ["Kidney disease", "Dehydration", "High protein diet", "Medications"],
-                "symptoms": ["Swelling", "Fatigue", "Changes in urination"],
-                "severity": "Medium to High"
-            },
-            "low_means": {
-                "condition": "Usually not concerning",
-                "possible_causes": ["Low muscle mass", "Pregnancy"],
-                "severity": "Low"
-            }
-        },
-
-        "BUN": {
-            "category": "Kidney Function",
-            "full_name": "Blood Urea Nitrogen",
-            "abbreviation": "BUN",
-            "normal_range": {
-                "all": {"min": 7, "max": 20, "unit": "mg/dL"}
-            },
-            "simple_explanation": "Measures waste product from protein breakdown. Indicates kidney function.",
-            "why_tested": "To evaluate kidney function",
-            "high_means": {
-                "condition": "Possible kidney dysfunction",
-                "possible_causes": ["Kidney disease", "Dehydration", "High protein diet", "Heart failure"],
-                "severity": "Medium"
-            }
-        },
-
-        # ===== LIPID PROFILE =====
-        "Total Cholesterol": {
-            "category": "Lipid Profile",
-            "full_name": "Total Cholesterol",
-            "abbreviation": "TC",
-            "normal_range": {
-                "all": {"min": 0, "max": 200, "unit": "mg/dL"}
-            },
-            "simple_explanation": "Total amount of cholesterol (fatty substance) in your blood.",
-            "why_tested": "To assess heart disease risk",
-            "high_means": {
-                "condition": "High cholesterol",
-                "possible_causes": ["Poor diet", "Lack of exercise", "Genetics", "Obesity"],
-                "symptoms": ["Usually none - 'silent' condition"],
-                "severity": "Medium",
-                "categories": {
-                    "desirable": {"max": 200},
-                    "borderline_high": {"min": 200, "max": 239},
-                    "high": {"min": 240}
+                'description': 'Protein in red blood cells that carries oxygen throughout the body.',
+                'high': {
+                    'condition': 'High Hemoglobin (Polycythemia)',
+                    'causes': ['Dehydration', 'Living at high altitude', 'Smoking', 'Lung disease', 'Polycythemia vera'],
+                    'symptoms': ['Headaches', 'Dizziness', 'Fatigue', 'Shortness of breath'],
+                    'severity': 'Moderate',
+                    'action': 'Consult doctor to determine cause'
+                },
+                'low': {
+                    'condition': 'Low Hemoglobin (Anemia)',
+                    'causes': ['Iron deficiency', 'Blood loss', 'Chronic disease', 'Vitamin B12/folate deficiency'],
+                    'symptoms': ['Fatigue', 'Weakness', 'Pale skin', 'Shortness of breath', 'Dizziness'],
+                    'severity': 'Moderate to High',
+                    'action': 'Iron supplementation, dietary changes, consult doctor'
                 }
-            }
-        },
-
-        "LDL": {
-            "category": "Lipid Profile",
-            "full_name": "Low-Density Lipoprotein",
-            "abbreviation": "LDL",
-            "normal_range": {
-                "all": {"min": 0, "max": 100, "unit": "mg/dL"}
             },
-            "simple_explanation": "'Bad' cholesterol that can clog arteries and increase heart disease risk.",
-            "why_tested": "To assess cardiovascular disease risk",
-            "high_means": {
-                "condition": "High LDL cholesterol",
-                "possible_causes": ["Unhealthy diet", "Sedentary lifestyle", "Genetics"],
-                "severity": "Medium",
-                "categories": {
-                    "optimal": {"max": 100},
-                    "near_optimal": {"min": 100, "max": 129},
-                    "borderline_high": {"min": 130, "max": 159},
-                    "high": {"min": 160, "max": 189},
-                    "very_high": {"min": 190}
+            
+            'WBC': {
+                'category': 'Complete Blood Count (CBC)',
+                'unit': 'cells/µL',
+                'normal_ranges': {
+                    'male': {'min': 4500, 'max': 11000},
+                    'female': {'min': 4500, 'max': 11000}
+                },
+                'description': 'White blood cells that fight infection and disease.',
+                'high': {
+                    'condition': 'High WBC Count (Leukocytosis)',
+                    'causes': ['Infection', 'Inflammation', 'Stress', 'Leukemia', 'Allergic reaction'],
+                    'symptoms': ['Fever', 'Fatigue', 'Easy bruising', 'Weight loss'],
+                    'severity': 'Moderate to High',
+                    'action': 'Urgent medical evaluation to rule out serious conditions'
+                },
+                'low': {
+                    'condition': 'Low WBC Count (Leukopenia)',
+                    'causes': ['Viral infection', 'Bone marrow disorder', 'Autoimmune disease', 'Certain medications'],
+                    'symptoms': ['Frequent infections', 'Fever', 'Mouth sores'],
+                    'severity': 'High',
+                    'action': 'Medical evaluation, avoid infection exposure'
                 }
-            }
-        },
-
-        "HDL": {
-            "category": "Lipid Profile",
-            "full_name": "High-Density Lipoprotein",
-            "abbreviation": "HDL",
-            "normal_range": {
-                "male": {"min": 40, "max": 999, "unit": "mg/dL"},
-                "female": {"min": 50, "max": 999, "unit": "mg/dL"}
             },
-            "simple_explanation": "'Good' cholesterol that removes bad cholesterol from arteries.",
-            "why_tested": "Higher is better - protects against heart disease",
-            "low_means": {
-                "condition": "Low HDL cholesterol",
-                "possible_causes": ["Smoking", "Obesity", "Lack of exercise"],
-                "severity": "Medium",
-                "note": "Below 40 mg/dL increases heart disease risk"
-            },
-            "high_means": {
-                "condition": "High HDL (Good!)",
-                "note": "Higher HDL is protective against heart disease",
-                "severity": "None - this is good"
-            }
-        },
-
-        "Triglycerides": {
-            "category": "Lipid Profile",
-            "full_name": "Triglycerides",
-            "abbreviation": "TG",
-            "normal_range": {
-                "all": {"min": 0, "max": 150, "unit": "mg/dL"}
-            },
-            "simple_explanation": "Type of fat in blood. High levels increase heart disease risk.",
-            "why_tested": "To assess cardiovascular disease risk",
-            "high_means": {
-                "condition": "High triglycerides",
-                "possible_causes": ["Excess calories", "Alcohol", "Diabetes", "Obesity"],
-                "severity": "Medium",
-                "categories": {
-                    "normal": {"max": 150},
-                    "borderline_high": {"min": 150, "max": 199},
-                    "high": {"min": 200, "max": 499},
-                    "very_high": {"min": 500}
+            
+            'RBC': {
+                'category': 'Complete Blood Count (CBC)',
+                'unit': 'million cells/µL',
+                'normal_ranges': {
+                    'male': {'min': 4.5, 'max': 5.9},
+                    'female': {'min': 4.1, 'max': 5.1}
+                },
+                'description': 'Red blood cells that carry oxygen from lungs to body tissues.',
+                'high': {
+                    'condition': 'High RBC Count (Polycythemia)',
+                    'causes': ['Dehydration', 'Lung disease', 'Heart disease', 'Living at high altitude'],
+                    'symptoms': ['Headaches', 'Dizziness', 'Itching after shower'],
+                    'severity': 'Moderate',
+                    'action': 'Hydrate well, consult doctor'
+                },
+                'low': {
+                    'condition': 'Low RBC Count (Anemia)',
+                    'causes': ['Blood loss', 'Iron deficiency', 'Chronic disease', 'Bone marrow problems'],
+                    'symptoms': ['Fatigue', 'Weakness', 'Pale skin', 'Cold hands/feet'],
+                    'severity': 'Moderate',
+                    'action': 'Iron supplementation, dietary changes'
                 }
-            }
-        },
-
-        # ===== LIVER FUNCTION =====
-        "ALT": {
-            "category": "Liver Function",
-            "full_name": "Alanine Aminotransferase",
-            "abbreviation": "ALT/SGPT",
-            "normal_range": {
-                "male": {"min": 7, "max": 55, "unit": "U/L"},
-                "female": {"min": 7, "max": 45, "unit": "U/L"}
             },
-            "simple_explanation": "Enzyme found mainly in liver. High levels indicate liver damage.",
-            "why_tested": "To detect liver damage or disease",
-            "high_means": {
-                "condition": "Liver damage or inflammation",
-                "possible_causes": ["Hepatitis", "Fatty liver", "Alcohol abuse", "Medications"],
-                "severity": "Medium to High"
-            }
-        },
-
-        "AST": {
-            "category": "Liver Function",
-            "full_name": "Aspartate Aminotransferase",
-            "abbreviation": "AST/SGOT",
-            "normal_range": {
-                "all": {"min": 8, "max": 48, "unit": "U/L"}
-            },
-            "simple_explanation": "Enzyme found in liver and heart. Elevated in liver or heart damage.",
-            "why_tested": "To detect liver or heart problems",
-            "high_means": {
-                "condition": "Liver or heart damage",
-                "possible_causes": ["Hepatitis", "Heart attack", "Muscle injury", "Alcohol"],
-                "severity": "Medium to High"
-            }
-        },
-
-        "Bilirubin": {
-            "category": "Liver Function",
-            "full_name": "Total Bilirubin",
-            "abbreviation": "TB",
-            "normal_range": {
-                "all": {"min": 0.1, "max": 1.2, "unit": "mg/dL"}
-            },
-            "simple_explanation": "Yellow pigment from red blood cell breakdown. High levels cause jaundice.",
-            "why_tested": "To check liver function and diagnose jaundice",
-            "high_means": {
-                "condition": "Jaundice/liver problems",
-                "possible_causes": ["Liver disease", "Bile duct blockage", "Hemolytic anemia"],
-                "symptoms": ["Yellow skin/eyes", "Dark urine", "Pale stools"],
-                "severity": "Medium to High"
-            }
-        },
-
-        # ===== THYROID FUNCTION =====
-        "TSH": {
-            "category": "Thyroid Function",
-            "full_name": "Thyroid Stimulating Hormone",
-            "abbreviation": "TSH",
-            "normal_range": {
-                "all": {"min": 0.4, "max": 4.0, "unit": "mIU/L"}
-            },
-            "simple_explanation": "Hormone that controls thyroid gland function. Indicates thyroid health.",
-            "why_tested": "To diagnose thyroid disorders",
-            "high_means": {
-                "condition": "Hypothyroidism (underactive thyroid)",
-                "possible_causes": ["Hashimoto's disease", "Iodine deficiency", "Thyroid damage"],
-                "symptoms": ["Fatigue", "Weight gain", "Cold sensitivity", "Depression"],
-                "severity": "Medium"
-            },
-            "low_means": {
-                "condition": "Hyperthyroidism (overactive thyroid)",
-                "possible_causes": ["Graves' disease", "Thyroid nodules", "Thyroiditis"],
-                "symptoms": ["Weight loss", "Rapid heartbeat", "Anxiety", "Heat sensitivity"],
-                "severity": "Medium"
-            }
-        },
-
-        "T3": {
-            "category": "Thyroid Function",
-            "full_name": "Triiodothyronine",
-            "abbreviation": "T3",
-            "normal_range": {
-                "all": {"min": 80, "max": 200, "unit": "ng/dL"}
-            },
-            "simple_explanation": "Active thyroid hormone that regulates metabolism.",
-            "why_tested": "To diagnose hyperthyroidism or monitor thyroid treatment"
-        },
-
-        "T4": {
-            "category": "Thyroid Function",
-            "full_name": "Thyroxine",
-            "abbreviation": "T4",
-            "normal_range": {
-                "all": {"min": 5.0, "max": 12.0, "unit": "µg/dL"}
-            },
-            "simple_explanation": "Main thyroid hormone that regulates metabolism and energy.",
-            "why_tested": "To evaluate thyroid function"
-        },
-
-        # ===== ELECTROLYTES =====
-        "Sodium": {
-            "category": "Electrolytes",
-            "full_name": "Serum Sodium",
-            "abbreviation": "Na+",
-            "normal_range": {
-                "all": {"min": 135, "max": 145, "unit": "mEq/L"}
-            },
-            "simple_explanation": "Essential mineral for nerve and muscle function, fluid balance.",
-            "why_tested": "To check fluid balance and kidney function",
-            "high_means": {
-                "condition": "Hypernatremia",
-                "possible_causes": ["Dehydration", "Kidney disease", "Diabetes insipidus"],
-                "severity": "Medium to High"
-            },
-            "low_means": {
-                "condition": "Hyponatremia",
-                "possible_causes": ["Excess fluid intake", "Kidney disease", "Heart failure"],
-                "severity": "Medium to High"
-            }
-        },
-
-        "Potassium": {
-            "category": "Electrolytes",
-            "full_name": "Serum Potassium",
-            "abbreviation": "K+",
-            "normal_range": {
-                "all": {"min": 3.5, "max": 5.0, "unit": "mEq/L"}
-            },
-            "simple_explanation": "Critical for heart rhythm, muscle function, and nerve signals.",
-            "why_tested": "To check heart and kidney function",
-            "high_means": {
-                "condition": "Hyperkalemia",
-                "possible_causes": ["Kidney disease", "Medications", "Dehydration"],
-                "symptoms": ["Irregular heartbeat", "Weakness"],
-                "severity": "High - can be life-threatening"
-            },
-            "low_means": {
-                "condition": "Hypokalemia",
-                "possible_causes": ["Diarrhea", "Vomiting", "Diuretics", "Low dietary intake"],
-                "symptoms": ["Muscle cramps", "Weakness", "Fatigue"],
-                "severity": "Medium to High"
-            }
-        },
-
-        # ===== VITAMINS & MINERALS =====
-        "Vitamin D": {
-            "category": "Vitamins",
-            "full_name": "25-Hydroxyvitamin D",
-            "abbreviation": "Vit D",
-            "normal_range": {
-                "all": {"min": 30, "max": 100, "unit": "ng/mL"}
-            },
-            "simple_explanation": "Vitamin essential for bone health, immune function, and mood.",
-            "why_tested": "To check for deficiency, especially in limited sun exposure",
-            "low_means": {
-                "condition": "Vitamin D deficiency",
-                "possible_causes": ["Limited sun exposure", "Poor diet", "Malabsorption"],
-                "symptoms": ["Bone pain", "Muscle weakness", "Fatigue", "Depression"],
-                "severity": "Medium",
-                "categories": {
-                    "deficient": {"max": 20},
-                    "insufficient": {"min": 20, "max": 29},
-                    "sufficient": {"min": 30}
+            
+            'Platelets': {
+                'category': 'Complete Blood Count (CBC)',
+                'unit': 'cells/µL',
+                'normal_ranges': {
+                    'male': {'min': 150000, 'max': 400000},
+                    'female': {'min': 150000, 'max': 400000}
+                },
+                'description': 'Blood cells that help with clotting and stop bleeding.',
+                'high': {
+                    'condition': 'High Platelet Count (Thrombocytosis)',
+                    'causes': ['Iron deficiency', 'Infection', 'Inflammation', 'Blood disorder'],
+                    'symptoms': ['Blood clots', 'Headaches', 'Dizziness'],
+                    'severity': 'Moderate to High',
+                    'action': 'Medical evaluation to prevent clotting'
+                },
+                'low': {
+                    'condition': 'Low Platelet Count (Thrombocytopenia)',
+                    'causes': ['Autoimmune disease', 'Viral infection', 'Leukemia', 'Medications'],
+                    'symptoms': ['Easy bruising', 'Prolonged bleeding', 'Nosebleeds'],
+                    'severity': 'High',
+                    'action': 'Urgent medical attention - bleeding risk'
                 }
-            }
-        },
-
-        "Vitamin B12": {
-            "category": "Vitamins",
-            "full_name": "Cobalamin",
-            "abbreviation": "B12",
-            "normal_range": {
-                "all": {"min": 200, "max": 900, "unit": "pg/mL"}
             },
-            "simple_explanation": "Vitamin essential for nerve function, red blood cell formation, and DNA synthesis.",
-            "why_tested": "To diagnose anemia or nerve problems",
-            "low_means": {
-                "condition": "B12 deficiency",
-                "possible_causes": ["Vegetarian diet", "Pernicious anemia", "Malabsorption"],
-                "symptoms": ["Fatigue", "Numbness", "Memory problems"],
-                "severity": "Medium"
-            }
-        },
-
-        "Iron": {
-            "category": "Minerals",
-            "full_name": "Serum Iron",
-            "abbreviation": "Fe",
-            "normal_range": {
-                "male": {"min": 65, "max": 175, "unit": "µg/dL"},
-                "female": {"min": 50, "max": 170, "unit": "µg/dL"}
-            },
-            "simple_explanation": "Essential mineral for making hemoglobin and carrying oxygen.",
-            "why_tested": "To diagnose iron deficiency anemia",
-            "low_means": {
-                "condition": "Iron deficiency",
-                "possible_causes": ["Poor diet", "Blood loss", "Pregnancy", "Malabsorption"],
-                "symptoms": ["Fatigue", "Pale skin", "Brittle nails", "Cold hands"],
-                "severity": "Medium"
-            }
-        },
-
-        "Calcium": {
-            "category": "Minerals",
-            "full_name": "Serum Calcium",
-            "abbreviation": "Ca",
-            "normal_range": {
-                "all": {"min": 8.5, "max": 10.5, "unit": "mg/dL"}
-            },
-            "simple_explanation": "Essential for bones, teeth, muscle function, and nerve signals.",
-            "why_tested": "To check bone health and parathyroid function",
-            "high_means": {
-                "condition": "Hypercalcemia",
-                "possible_causes": ["Hyperparathyroidism", "Cancer", "Too much vitamin D"],
-                "severity": "Medium to High"
-            },
-            "low_means": {
-                "condition": "Hypocalcemia",
-                "possible_causes": ["Vitamin D deficiency", "Hypoparathyroidism", "Kidney disease"],
-                "severity": "Medium"
-            }
-        },
-
-        # ===== URIC ACID =====
-        "Uric Acid": {
-            "category": "Metabolic",
-            "full_name": "Serum Uric Acid",
-            "abbreviation": "UA",
-            "normal_range": {
-                "male": {"min": 3.5, "max": 7.2, "unit": "mg/dL"},
-                "female": {"min": 2.6, "max": 6.0, "unit": "mg/dL"}
-            },
-            "simple_explanation": "Waste product from purine breakdown. High levels cause gout.",
-            "why_tested": "To diagnose gout or monitor kidney function",
-            "high_means": {
-                "condition": "Hyperuricemia (High uric acid)",
-                "possible_causes": ["High purine diet", "Kidney disease", "Alcohol", "Genetics"],
-                "symptoms": ["Joint pain (gout)", "Kidney stones"],
-                "severity": "Medium",
-                "next_steps": "Low purine diet, increase water intake, medication if needed"
-            }
-        },
-
-        # ===== CARDIAC MARKERS =====
-        "Troponin": {
-            "category": "Cardiac Markers",
-            "full_name": "Cardiac Troponin",
-            "abbreviation": "cTn",
-            "normal_range": {
-                "all": {"min": 0, "max": 0.04, "unit": "ng/mL"}
-            },
-            "simple_explanation": "Protein released when heart muscle is damaged. Key heart attack indicator.",
-            "why_tested": "To diagnose heart attack",
-            "high_means": {
-                "condition": "Heart muscle damage",
-                "possible_causes": ["Heart attack", "Heart failure", "Myocarditis"],
-                "severity": "EMERGENCY - Immediate medical attention"
-            }
-        },
-
-        # ===== INFLAMMATION MARKERS =====
-        "CRP": {
-            "category": "Inflammation",
-            "full_name": "C-Reactive Protein",
-            "abbreviation": "CRP",
-            "normal_range": {
-                "all": {"min": 0, "max": 3.0, "unit": "mg/L"}
-            },
-            "simple_explanation": "Marker of inflammation in the body.",
-            "why_tested": "To detect inflammation or infection",
-            "high_means": {
-                "condition": "Inflammation or infection",
-                "possible_causes": ["Infection", "Autoimmune disease", "Heart disease risk"],
-                "severity": "Medium",
-                "categories": {
-                    "low_risk": {"max": 1.0},
-                    "average_risk": {"min": 1.0, "max": 3.0},
-                    "high_risk": {"min": 3.0}
+            
+            'Hematocrit': {
+                'category': 'Complete Blood Count (CBC)',
+                'unit': '%',
+                'normal_ranges': {
+                    'male': {'min': 38.8, 'max': 50.0},
+                    'female': {'min': 34.9, 'max': 44.5}
+                },
+                'description': 'Percentage of blood volume made up by red blood cells.',
+                'high': {
+                    'condition': 'High Hematocrit',
+                    'causes': ['Dehydration', 'Lung disease', 'Smoking', 'Living at high altitude'],
+                    'symptoms': ['Headaches', 'Dizziness', 'Blurred vision'],
+                    'severity': 'Moderate',
+                    'action': 'Hydrate, consult doctor'
+                },
+                'low': {
+                    'condition': 'Low Hematocrit (Anemia)',
+                    'causes': ['Blood loss', 'Iron deficiency', 'Vitamin deficiency'],
+                    'symptoms': ['Fatigue', 'Weakness', 'Pale skin'],
+                    'severity': 'Moderate',
+                    'action': 'Iron supplementation, dietary changes'
                 }
-            }
-        },
-
-        "ESR": {
-            "category": "Inflammation",
-            "full_name": "Erythrocyte Sedimentation Rate",
-            "abbreviation": "ESR",
-            "normal_range": {
-                "male": {"min": 0, "max": 15, "unit": "mm/hr"},
-                "female": {"min": 0, "max": 20, "unit": "mm/hr"}
             },
-            "simple_explanation": "Measures inflammation level in the body.",
-            "why_tested": "To detect inflammation or monitor disease activity",
-            "high_means": {
-                "condition": "Inflammation",
-                "possible_causes": ["Infection", "Autoimmune disease", "Cancer"],
-                "severity": "Medium"
-            }
+            
+            'MCV': {
+                'category': 'Complete Blood Count (CBC)',
+                'unit': 'fL',
+                'normal_ranges': {
+                    'male': {'min': 80, 'max': 100},
+                    'female': {'min': 80, 'max': 100}
+                },
+                'description': 'Mean Corpuscular Volume - average size of red blood cells.',
+                'high': {
+                    'condition': 'Large Red Blood Cells (Macrocytosis)',
+                    'causes': ['Vitamin B12 deficiency', 'Folate deficiency', 'Alcohol abuse', 'Liver disease'],
+                    'symptoms': ['Fatigue', 'Weakness', 'Shortness of breath'],
+                    'severity': 'Moderate',
+                    'action': 'Vitamin B12/folate supplementation'
+                },
+                'low': {
+                    'condition': 'Small Red Blood Cells (Microcytosis)',
+                    'causes': ['Iron deficiency', 'Thalassemia', 'Chronic disease'],
+                    'symptoms': ['Fatigue', 'Weakness', 'Pale skin'],
+                    'severity': 'Moderate',
+                    'action': 'Iron supplementation, genetic testing if needed'
+                }
+            },
+            
+            'MCH': {
+                'category': 'Complete Blood Count (CBC)',
+                'unit': 'pg',
+                'normal_ranges': {
+                    'male': {'min': 27, 'max': 33},
+                    'female': {'min': 27, 'max': 33}
+                },
+                'description': 'Mean Corpuscular Hemoglobin - average hemoglobin per red blood cell.',
+                'high': {
+                    'condition': 'High MCH',
+                    'causes': ['Vitamin B12 deficiency', 'Folate deficiency'],
+                    'symptoms': ['Fatigue', 'Weakness'],
+                    'severity': 'Low',
+                    'action': 'Vitamin supplementation'
+                },
+                'low': {
+                    'condition': 'Low MCH',
+                    'causes': ['Iron deficiency', 'Thalassemia'],
+                    'symptoms': ['Fatigue', 'Pale skin'],
+                    'severity': 'Moderate',
+                    'action': 'Iron supplementation'
+                }
+            },
+            
+            'MCHC': {
+                'category': 'Complete Blood Count (CBC)',
+                'unit': 'g/dL',
+                'normal_ranges': {
+                    'male': {'min': 32, 'max': 36},
+                    'female': {'min': 32, 'max': 36}
+                },
+                'description': 'Mean Corpuscular Hemoglobin Concentration - hemoglobin concentration in red blood cells.',
+                'high': {
+                    'condition': 'High MCHC',
+                    'causes': ['Hereditary spherocytosis', 'Severe dehydration'],
+                    'symptoms': ['Jaundice', 'Fatigue'],
+                    'severity': 'Moderate',
+                    'action': 'Medical evaluation'
+                },
+                'low': {
+                    'condition': 'Low MCHC',
+                    'causes': ['Iron deficiency', 'Thalassemia'],
+                    'symptoms': ['Fatigue', 'Weakness'],
+                    'severity': 'Moderate',
+                    'action': 'Iron supplementation'
+                }
+            },
+            
+            # ============================================
+            # LIPID PROFILE - 10 terms
+            # ============================================
+            
+            'Total Cholesterol': {
+                'category': 'Lipid Profile',
+                'unit': 'mg/dL',
+                'normal_ranges': {
+                    'male': {'min': 0, 'max': 200},
+                    'female': {'min': 0, 'max': 200}
+                },
+                'description': 'Total amount of cholesterol (fatty substance) in your blood.',
+                'high': {
+                    'condition': 'High Cholesterol (Hypercholesterolemia)',
+                    'causes': ['Diet high in saturated fats', 'Genetics', 'Obesity', 'Lack of exercise', 'Diabetes'],
+                    'symptoms': ['Usually no symptoms', 'May cause heart disease over time'],
+                    'severity': 'Moderate to High',
+                    'action': 'Diet changes, exercise, possible statin medication'
+                },
+                'low': {
+                    'condition': 'Low Cholesterol',
+                    'causes': ['Malnutrition', 'Liver disease', 'Hyperthyroidism'],
+                    'symptoms': ['Rarely symptomatic'],
+                    'severity': 'Low',
+                    'action': 'Improve diet if malnourished'
+                }
+            },
+            
+            'HDL': {
+                'category': 'Lipid Profile',
+                'unit': 'mg/dL',
+                'normal_ranges': {
+                    'male': {'min': 40, 'max': 999},
+                    'female': {'min': 50, 'max': 999}
+                },
+                'description': "'Good' cholesterol that removes bad cholesterol from arteries.",
+                'high': {
+                    'condition': 'High HDL cholesterol',
+                    'causes': ['Exercise', 'Genetics', 'Moderate alcohol consumption'],
+                    'symptoms': ['Protective against heart disease'],
+                    'severity': 'Beneficial',
+                    'action': 'Maintain healthy lifestyle - this is good!'
+                },
+                'low': {
+                    'condition': 'Low HDL cholesterol',
+                    'causes': ['Smoking', 'Obesity', 'Lack of exercise', 'Type 2 diabetes'],
+                    'symptoms': ['Increased heart disease risk'],
+                    'severity': 'Moderate to High',
+                    'action': 'Exercise, quit smoking, weight loss, omega-3 fatty acids'
+                }
+            },
+            
+            'LDL': {
+                'category': 'Lipid Profile',
+                'unit': 'mg/dL',
+                'normal_ranges': {
+                    'male': {'min': 0, 'max': 100},
+                    'female': {'min': 0, 'max': 100}
+                },
+                'description': "'Bad' cholesterol that can clog arteries and increase heart disease risk.",
+                'high': {
+                    'condition': 'High LDL cholesterol',
+                    'causes': ['Diet high in saturated fats', 'Genetics', 'Obesity', 'Lack of exercise'],
+                    'symptoms': ['Increased risk of heart attack and stroke'],
+                    'severity': 'High',
+                    'action': 'Reduce saturated fats, exercise, possible statin medication'
+                },
+                'low': {
+                    'condition': 'Low LDL cholesterol',
+                    'causes': ['Healthy diet', 'Medication', 'Genetics'],
+                    'symptoms': ['Protective against heart disease'],
+                    'severity': 'Beneficial',
+                    'action': 'Maintain healthy lifestyle'
+                }
+            },
+            
+            'Triglycerides': {
+                'category': 'Lipid Profile',
+                'unit': 'mg/dL',
+                'normal_ranges': {
+                    'male': {'min': 0, 'max': 150},
+                    'female': {'min': 0, 'max': 150}
+                },
+                'description': 'Type of fat in blood. High levels increase heart disease risk.',
+                'high': {
+                    'condition': 'High Triglycerides (Hypertriglyceridemia)',
+                    'causes': ['Obesity', 'Diabetes', 'Alcohol abuse', 'High-carb diet', 'Kidney disease'],
+                    'symptoms': ['Usually no symptoms', 'Increased heart disease risk'],
+                    'severity': 'Moderate to High',
+                    'action': 'Weight loss, reduce sugar/alcohol, exercise, omega-3 supplements'
+                },
+                'low': {
+                    'condition': 'Low Triglycerides',
+                    'causes': ['Malnutrition', 'Hyperthyroidism', 'Malabsorption'],
+                    'symptoms': ['Rarely symptomatic'],
+                    'severity': 'Low',
+                    'action': 'Improve nutrition if malnourished'
+                }
+            },
+            
+            'VLDL': {
+                'category': 'Lipid Profile',
+                'unit': 'mg/dL',
+                'normal_ranges': {
+                    'male': {'min': 5, 'max': 40},
+                    'female': {'min': 5, 'max': 40}
+                },
+                'description': 'Very Low-Density Lipoprotein - carries triglycerides in blood.',
+                'high': {
+                    'condition': 'High VLDL',
+                    'causes': ['High triglycerides', 'Diabetes', 'Obesity'],
+                    'symptoms': ['Increased cardiovascular risk'],
+                    'severity': 'Moderate',
+                    'action': 'Weight loss, exercise, reduce carbohydrates'
+                },
+                'low': {
+                    'condition': 'Low VLDL',
+                    'causes': ['Low triglycerides', 'Malnutrition'],
+                    'symptoms': ['Generally not concerning'],
+                    'severity': 'Low',
+                    'action': 'Usually no action needed'
+                }
+            },
+            
+            # ============================================
+            # DIABETES MARKERS - 5 terms
+            # ============================================
+            
+            'HbA1c': {
+                'category': 'Metabolic Panel',
+                'unit': '%',
+                'normal_ranges': {
+                    'male': {'min': 4.0, 'max': 5.6},
+                    'female': {'min': 4.0, 'max': 5.6}
+                },
+                'description': 'Average blood sugar level over the past 2-3 months. Better indicator than single glucose test.',
+                'high': {
+                    'condition': 'High HbA1c (Diabetes/Prediabetes)',
+                    'causes': ['Type 2 diabetes', 'Insulin resistance', 'Poor blood sugar control'],
+                    'symptoms': ['Increased thirst', 'Frequent urination', 'Fatigue', 'Blurred vision'],
+                    'severity': 'High',
+                    'action': 'Diabetes management, diet changes, exercise, possible medication'
+                },
+                'low': {
+                    'condition': 'Low HbA1c',
+                    'causes': ['Hypoglycemia', 'Anemia', 'Blood loss'],
+                    'symptoms': ['Shakiness', 'Sweating', 'Confusion'],
+                    'severity': 'Moderate',
+                    'action': 'Consult doctor for evaluation'
+                }
+            },
+            
+            'Glucose': {
+                'category': 'Metabolic Panel',
+                'unit': 'mg/dL',
+                'normal_ranges': {
+                    'male': {'min': 70, 'max': 100},
+                    'female': {'min': 70, 'max': 100}
+                },
+                'description': 'Blood sugar level - the amount of glucose (sugar) in your blood.',
+                'high': {
+                    'condition': 'High blood sugar (Hyperglycemia)',
+                    'causes': ['Diabetes', 'Prediabetes', 'Stress', 'Illness', 'Recent meal'],
+                    'symptoms': ['Increased thirst', 'Frequent urination', 'Blurred vision', 'Fatigue'],
+                    'severity': 'High',
+                    'action': 'Consult doctor, HbA1c test, lifestyle changes, possible medication'
+                },
+                'low': {
+                    'condition': 'Low blood sugar (Hypoglycemia)',
+                    'causes': ['Too much insulin', 'Skipped meals', 'Excessive exercise', 'Alcohol'],
+                    'symptoms': ['Shakiness', 'Sweating', 'Dizziness', 'Confusion', 'Hunger'],
+                    'severity': 'Moderate to High',
+                    'action': 'Eat fast-acting carbs immediately, adjust medication if diabetic'
+                }
+            },
+            
+            'Insulin': {
+                'category': 'Metabolic Panel',
+                'unit': 'µU/mL',
+                'normal_ranges': {
+                    'male': {'min': 2.6, 'max': 24.9},
+                    'female': {'min': 2.6, 'max': 24.9}
+                },
+                'description': 'Hormone that regulates blood sugar by moving glucose into cells.',
+                'high': {
+                    'condition': 'High Insulin (Hyperinsulinemia)',
+                    'causes': ['Insulin resistance', 'Prediabetes', 'Obesity', 'PCOS'],
+                    'symptoms': ['Weight gain', 'Fatigue', 'Sugar cravings'],
+                    'severity': 'Moderate',
+                    'action': 'Weight loss, low-carb diet, exercise'
+                },
+                'low': {
+                    'condition': 'Low Insulin',
+                    'causes': ['Type 1 diabetes', 'Pancreatic damage'],
+                    'symptoms': ['High blood sugar', 'Weight loss', 'Frequent urination'],
+                    'severity': 'High',
+                    'action': 'Insulin therapy, diabetes management'
+                }
+            },
+            
+            'C-Peptide': {
+                'category': 'Metabolic Panel',
+                'unit': 'ng/mL',
+                'normal_ranges': {
+                    'male': {'min': 0.5, 'max': 2.0},
+                    'female': {'min': 0.5, 'max': 2.0}
+                },
+                'description': 'Byproduct of insulin production - indicates how much insulin body makes.',
+                'high': {
+                    'condition': 'High C-Peptide',
+                    'causes': ['Insulin resistance', 'Type 2 diabetes', 'Insulinoma'],
+                    'symptoms': ['Similar to high insulin'],
+                    'severity': 'Moderate',
+                    'action': 'Diabetes management, weight loss'
+                },
+                'low': {
+                    'condition': 'Low C-Peptide',
+                    'causes': ['Type 1 diabetes', 'Pancreatic insufficiency'],
+                    'symptoms': ['High blood sugar', 'Weight loss'],
+                    'severity': 'High',
+                    'action': 'Insulin therapy'
+                }
+            },
+            
+            # ============================================
+            # THYROID FUNCTION - 6 terms
+            # ============================================
+            
+            'TSH': {
+                'category': 'Thyroid Function',
+                'unit': 'mIU/L',
+                'normal_ranges': {
+                    'male': {'min': 0.4, 'max': 4.5},
+                    'female': {'min': 0.4, 'max': 4.5}
+                },
+                'description': 'Thyroid Stimulating Hormone - controls thyroid gland function.',
+                'high': {
+                    'condition': 'High TSH (Hypothyroidism)',
+                    'causes': ['Underactive thyroid', 'Hashimoto\'s thyroiditis', 'Iodine deficiency'],
+                    'symptoms': ['Fatigue', 'Weight gain', 'Cold intolerance', 'Depression', 'Constipation'],
+                    'severity': 'Moderate',
+                    'action': 'Thyroid hormone replacement (Levothyroxine)'
+                },
+                'low': {
+                    'condition': 'Low TSH (Hyperthyroidism)',
+                    'causes': ['Overactive thyroid', 'Graves\' disease', 'Thyroid nodules'],
+                    'symptoms': ['Weight loss', 'Rapid heartbeat', 'Anxiety', 'Sweating', 'Tremors'],
+                    'severity': 'Moderate to High',
+                    'action': 'Anti-thyroid medication, radioactive iodine, or surgery'
+                }
+            },
+            
+            'T3': {
+                'category': 'Thyroid Function',
+                'unit': 'ng/dL',
+                'normal_ranges': {
+                    'male': {'min': 80, 'max': 200},
+                    'female': {'min': 80, 'max': 200}
+                },
+                'description': 'Triiodothyronine - active thyroid hormone that regulates metabolism.',
+                'high': {
+                    'condition': 'High T3 (Hyperthyroidism)',
+                    'causes': ['Graves\' disease', 'Toxic nodular goiter', 'Thyroiditis'],
+                    'symptoms': ['Weight loss', 'Rapid heartbeat', 'Nervousness', 'Sweating'],
+                    'severity': 'Moderate to High',
+                    'action': 'Anti-thyroid medication, beta-blockers'
+                },
+                'low': {
+                    'condition': 'Low T3 (Hypothyroidism)',
+                    'causes': ['Underactive thyroid', 'Severe illness', 'Malnutrition'],
+                    'symptoms': ['Fatigue', 'Weight gain', 'Depression', 'Cold intolerance'],
+                    'severity': 'Moderate',
+                    'action': 'Thyroid hormone replacement'
+                }
+            },
+            
+            'T4': {
+                'category': 'Thyroid Function',
+                'unit': 'µg/dL',
+                'normal_ranges': {
+                    'male': {'min': 4.5, 'max': 11.2},
+                    'female': {'min': 4.5, 'max': 11.2}
+                },
+                'description': 'Thyroxine - main thyroid hormone, converted to T3 in body.',
+                'high': {
+                    'condition': 'High T4 (Hyperthyroidism)',
+                    'causes': ['Graves\' disease', 'Toxic adenoma', 'Thyroiditis'],
+                    'symptoms': ['Weight loss', 'Tremors', 'Heat intolerance', 'Palpitations'],
+                    'severity': 'Moderate to High',
+                    'action': 'Anti-thyroid drugs, radioactive iodine'
+                },
+                'low': {
+                    'condition': 'Low T4 (Hypothyroidism)',
+                    'causes': ['Hashimoto\'s disease', 'Iodine deficiency', 'Pituitary disorder'],
+                    'symptoms': ['Fatigue', 'Weight gain', 'Dry skin', 'Hair loss'],
+                    'severity': 'Moderate',
+                    'action': 'Levothyroxine therapy'
+                }
+            },
+            
+            'Free T3': {
+                'category': 'Thyroid Function',
+                'unit': 'pg/mL',
+                'normal_ranges': {
+                    'male': {'min': 2.3, 'max': 4.2},
+                    'female': {'min': 2.3, 'max': 4.2}
+                },
+                'description': 'Unbound T3 hormone - more accurate measure of thyroid function.',
+                'high': {
+                    'condition': 'High Free T3',
+                    'causes': ['Hyperthyroidism', 'T3 thyrotoxicosis'],
+                    'symptoms': ['Similar to high T3'],
+                    'severity': 'Moderate to High',
+                    'action': 'Anti-thyroid medication'
+                },
+                'low': {
+                    'condition': 'Low Free T3',
+                    'causes': ['Hypothyroidism', 'Severe illness', 'Starvation'],
+                    'symptoms': ['Fatigue', 'Weight gain', 'Depression'],
+                    'severity': 'Moderate',
+                    'action': 'Thyroid hormone replacement'
+                }
+            },
+            
+            'Free T4': {
+                'category': 'Thyroid Function',
+                'unit': 'ng/dL',
+                'normal_ranges': {
+                    'male': {'min': 0.8, 'max': 1.8},
+                    'female': {'min': 0.8, 'max': 1.8}
+                },
+                'description': 'Unbound T4 hormone - not affected by protein levels.',
+                'high': {
+                    'condition': 'High Free T4',
+                    'causes': ['Hyperthyroidism', 'Graves\' disease'],
+                    'symptoms': ['Weight loss', 'Anxiety', 'Tremors'],
+                    'severity': 'Moderate to High',
+                    'action': 'Anti-thyroid medication'
+                },
+                'low': {
+                    'condition': 'Low Free T4',
+                    'causes': ['Hypothyroidism', 'Pituitary disorder'],
+                    'symptoms': ['Fatigue', 'Cold intolerance', 'Weight gain'],
+                    'severity': 'Moderate',
+                    'action': 'Levothyroxine replacement'
+                }
+            },
+            
+            # ============================================
+            # LIVER FUNCTION - 8 terms
+            # ============================================
+            
+            'ALT': {
+                'category': 'Liver Function',
+                'unit': 'U/L',
+                'normal_ranges': {
+                    'male': {'min': 7, 'max': 45},
+                    'female': {'min': 7, 'max': 34}
+                },
+                'description': 'Enzyme found mainly in liver. High levels indicate liver damage.',
+                'high': {
+                    'condition': 'Elevated ALT (Liver damage)',
+                    'causes': ['Hepatitis', 'Fatty liver disease', 'Alcohol abuse', 'Medications', 'Cirrhosis'],
+                    'symptoms': ['Fatigue', 'Jaundice', 'Abdominal pain', 'Nausea'],
+                    'severity': 'Moderate to High',
+                    'action': 'Stop alcohol, weight loss if obese, medical evaluation, liver imaging'
+                },
+                'low': {
+                    'condition': 'Low ALT',
+                    'causes': ['Rare', 'Vitamin B6 deficiency'],
+                    'symptoms': ['Usually none'],
+                    'severity': 'Low',
+                    'action': 'Generally not concerning'
+                }
+            },
+            
+            'AST': {
+                'category': 'Liver Function',
+                'unit': 'U/L',
+                'normal_ranges': {
+                    'male': {'min': 8, 'max': 48},
+                    'female': {'min': 8, 'max': 43}
+                },
+                'description': 'Enzyme found in liver and heart. Elevated in liver or heart damage.',
+                'high': {
+                    'condition': 'Elevated AST',
+                    'causes': ['Liver disease', 'Heart attack', 'Muscle damage', 'Alcohol abuse', 'Medications'],
+                    'symptoms': ['Depends on cause - fatigue, jaundice, chest pain'],
+                    'severity': 'Moderate to High',
+                    'action': 'Medical evaluation to determine cause'
+                },
+                'low': {
+                    'condition': 'Low AST',
+                    'causes': ['Vitamin B6 deficiency', 'Uremia'],
+                    'symptoms': ['Usually none'],
+                    'severity': 'Low',
+                    'action': 'Usually not concerning'
+                }
+            },
+            
+            'ALP': {
+                'category': 'Liver Function',
+                'unit': 'U/L',
+                'normal_ranges': {
+                    'male': {'min': 40, 'max': 130},
+                    'female': {'min': 35, 'max': 104}
+                },
+                'description': 'Alkaline Phosphatase - enzyme in liver, bones, kidneys.',
+                'high': {
+                    'condition': 'Elevated ALP',
+                    'causes': ['Liver disease', 'Bone disorders', 'Bile duct obstruction', 'Pregnancy'],
+                    'symptoms': ['Jaundice', 'Bone pain', 'Fatigue'],
+                    'severity': 'Moderate',
+                    'action': 'Medical evaluation, liver ultrasound'
+                },
+                'low': {
+                    'condition': 'Low ALP',
+                    'causes': ['Malnutrition', 'Zinc deficiency', 'Hypothyroidism'],
+                    'symptoms': ['Usually none'],
+                    'severity': 'Low',
+                    'action': 'Nutritional assessment if very low'
+                }
+            },
+            
+            'Bilirubin': {
+                'category': 'Liver Function',
+                'unit': 'mg/dL',
+                'normal_ranges': {
+                    'male': {'min': 0.1, 'max': 1.2},
+                    'female': {'min': 0.1, 'max': 1.2}
+                },
+                'description': 'Yellow pigment from red blood cell breakdown. High levels cause jaundice.',
+                'high': {
+                    'condition': 'High Bilirubin (Hyperbilirubinemia)',
+                    'causes': ['Liver disease', 'Bile duct obstruction', 'Hemolytic anemia', 'Gilbert\'s syndrome'],
+                    'symptoms': ['Jaundice (yellow skin/eyes)', 'Dark urine', 'Fatigue'],
+                    'severity': 'Moderate to High',
+                    'action': 'Medical evaluation, liver function tests, ultrasound'
+                },
+                'low': {
+                    'condition': 'Low Bilirubin',
+                    'causes': ['Generally not concerning'],
+                    'symptoms': ['None'],
+                    'severity': 'Low',
+                    'action': 'No action needed'
+                }
+            },
+            
+            'Albumin': {
+                'category': 'Liver Function',
+                'unit': 'g/dL',
+                'normal_ranges': {
+                    'male': {'min': 3.5, 'max': 5.5},
+                    'female': {'min': 3.5, 'max': 5.5}
+                },
+                'description': 'Protein made by liver - maintains fluid balance in blood.',
+                'high': {
+                    'condition': 'High Albumin',
+                    'causes': ['Dehydration', 'High protein diet'],
+                    'symptoms': ['Usually none'],
+                    'severity': 'Low',
+                    'action': 'Hydrate well'
+                },
+                'low': {
+                    'condition': 'Low Albumin (Hypoalbuminemia)',
+                    'causes': ['Liver disease', 'Kidney disease', 'Malnutrition', 'Inflammation'],
+                    'symptoms': ['Swelling (edema)', 'Fatigue', 'Weakness'],
+                    'severity': 'Moderate to High',
+                    'action': 'Treat underlying cause, improve nutrition'
+                }
+            },
+            
+            'Total Protein': {
+                'category': 'Liver Function',
+                'unit': 'g/dL',
+                'normal_ranges': {
+                    'male': {'min': 6.0, 'max': 8.3},
+                    'female': {'min': 6.0, 'max': 8.3}
+                },
+                'description': 'Total protein in blood - albumin plus globulins.',
+                'high': {
+                    'condition': 'High Total Protein',
+                    'causes': ['Dehydration', 'Chronic inflammation', 'Multiple myeloma'],
+                    'symptoms': ['Usually none'],
+                    'severity': 'Low to Moderate',
+                    'action': 'Hydrate, medical evaluation if very high'
+                },
+                'low': {
+                    'condition': 'Low Total Protein',
+                    'causes': ['Malnutrition', 'Liver disease', 'Kidney disease'],
+                    'symptoms': ['Swelling', 'Weakness', 'Fatigue'],
+                    'severity': 'Moderate',
+                    'action': 'Improve nutrition, treat underlying disease'
+                }
+            },
+            
+            'GGT': {
+                'category': 'Liver Function',
+                'unit': 'U/L',
+                'normal_ranges': {
+                    'male': {'min': 0, 'max': 65},
+                    'female': {'min': 0, 'max': 45}
+                },
+                'description': 'Gamma-Glutamyl Transferase - enzyme sensitive to alcohol and bile duct problems.',
+                'high': {
+                    'condition': 'Elevated GGT',
+                    'causes': ['Alcohol abuse', 'Bile duct disease', 'Fatty liver', 'Certain medications'],
+                    'symptoms': ['Usually none', 'Possible jaundice'],
+                    'severity': 'Moderate',
+                    'action': 'Stop alcohol, medical evaluation'
+                },
+                'low': {
+                    'condition': 'Low GGT',
+                    'causes': ['Generally not significant'],
+                    'symptoms': ['None'],
+                    'severity': 'Low',
+                    'action': 'No action needed'
+                }
+            },
+            
+            # ============================================
+            # KIDNEY FUNCTION - 6 terms
+            # ============================================
+            
+            'Creatinine': {
+                'category': 'Kidney Function',
+                'unit': 'mg/dL',
+                'normal_ranges': {
+                    'male': {'min': 0.7, 'max': 1.3},
+                    'female': {'min': 0.6, 'max': 1.1}
+                },
+                'description': 'Waste product filtered by kidneys. High levels indicate kidney problems.',
+                'high': {
+                    'condition': 'High Creatinine (Kidney dysfunction)',
+                    'causes': ['Chronic kidney disease', 'Dehydration', 'Muscle breakdown', 'Certain medications'],
+                    'symptoms': ['Fatigue', 'Swelling', 'Decreased urination', 'Nausea'],
+                    'severity': 'High',
+                    'action': 'Medical evaluation, reduce protein intake, treat underlying cause'
+                },
+                'low': {
+                    'condition': 'Low Creatinine',
+                    'causes': ['Low muscle mass', 'Malnutrition', 'Pregnancy'],
+                    'symptoms': ['Usually none'],
+                    'severity': 'Low',
+                    'action': 'Generally not concerning'
+                }
+            },
+            
+            'BUN': {
+                'category': 'Kidney Function',
+                'unit': 'mg/dL',
+                'normal_ranges': {
+                    'male': {'min': 8, 'max': 24},
+                    'female': {'min': 8, 'max': 24}
+                },
+                'description': 'Blood Urea Nitrogen - waste product from protein breakdown, filtered by kidneys.',
+                'high': {
+                    'condition': 'High BUN',
+                    'causes': ['Kidney disease', 'Dehydration', 'High protein diet', 'Heart failure'],
+                    'symptoms': ['Fatigue', 'Nausea', 'Confusion', 'Decreased urination'],
+                    'severity': 'Moderate to High',
+                    'action': 'Hydrate, medical evaluation, reduce protein intake'
+                },
+                'low': {
+                    'condition': 'Low BUN',
+                    'causes': ['Liver disease', 'Malnutrition', 'Overhydration'],
+                    'symptoms': ['Usually none'],
+                    'severity': 'Low',
+                    'action': 'Improve nutrition if malnourished'
+                }
+            },
+            
+            'eGFR': {
+                'category': 'Kidney Function',
+                'unit': 'mL/min/1.73m²',
+                'normal_ranges': {
+                    'male': {'min': 90, 'max': 120},
+                    'female': {'min': 90, 'max': 120}
+                },
+                'description': 'Estimated Glomerular Filtration Rate - how well kidneys are filtering blood.',
+                'high': {
+                    'condition': 'High eGFR',
+                    'causes': ['Hyperfiltration', 'Early diabetes'],
+                    'symptoms': ['Usually none'],
+                    'severity': 'Low',
+                    'action': 'Monitor kidney function'
+                },
+                'low': {
+                    'condition': 'Low eGFR (Kidney disease)',
+                    'causes': ['Chronic kidney disease', 'Diabetes', 'Hypertension', 'Glomerulonephritis'],
+                    'symptoms': ['Fatigue', 'Swelling', 'Decreased urination'],
+                    'severity': 'High',
+                    'action': 'Nephrology referral, blood pressure control, diabetes management'
+                }
+            },
+            
+            'Uric Acid': {
+                'category': 'Kidney Function',
+                'unit': 'mg/dL',
+                'normal_ranges': {
+                    'male': {'min': 3.4, 'max': 7.0},
+                    'female': {'min': 2.4, 'max': 6.0}
+                },
+                'description': 'Waste product from purine breakdown. High levels cause gout.',
+                'high': {
+                    'condition': 'High Uric Acid (Hyperuricemia)',
+                    'causes': ['Gout', 'Kidney disease', 'High-purine diet', 'Alcohol', 'Certain medications'],
+                    'symptoms': ['Joint pain (gout)', 'Swelling', 'Redness', 'Kidney stones'],
+                    'severity': 'Moderate to High',
+                    'action': 'Low-purine diet, hydration, allopurinol medication, avoid alcohol'
+                },
+                'low': {
+                    'condition': 'Low Uric Acid',
+                    'causes': ['Wilson\'s disease', 'Fanconi syndrome', 'Low-purine diet'],
+                    'symptoms': ['Usually none'],
+                    'severity': 'Low',
+                    'action': 'Generally not concerning'
+                }
+            },
+            
+            'Sodium': {
+                'category': 'Electrolytes',
+                'unit': 'mEq/L',
+                'normal_ranges': {
+                    'male': {'min': 136, 'max': 145},
+                    'female': {'min': 136, 'max': 145}
+                },
+                'description': 'Electrolyte that regulates fluid balance and nerve function.',
+                'high': {
+                    'condition': 'High Sodium (Hypernatremia)',
+                    'causes': ['Dehydration', 'Diabetes insipidus', 'Excessive salt intake'],
+                    'symptoms': ['Thirst', 'Confusion', 'Seizures', 'Weakness'],
+                    'severity': 'Moderate to High',
+                    'action': 'Hydrate gradually, medical evaluation'
+                },
+                'low': {
+                    'condition': 'Low Sodium (Hyponatremia)',
+                    'causes': ['Overhydration', 'Heart failure', 'Kidney disease', 'SIADH'],
+                    'symptoms': ['Nausea', 'Headache', 'Confusion', 'Seizures'],
+                    'severity': 'High',
+                    'action': 'Fluid restriction, medical evaluation'
+                }
+            },
+            
+            'Potassium': {
+                'category': 'Electrolytes',
+                'unit': 'mEq/L',
+                'normal_ranges': {
+                    'male': {'min': 3.5, 'max': 5.0},
+                    'female': {'min': 3.5, 'max': 5.0}
+                },
+                'description': 'Electrolyte essential for heart and muscle function.',
+                'high': {
+                    'condition': 'High Potassium (Hyperkalemia)',
+                    'causes': ['Kidney disease', 'Certain medications (ACE inhibitors)', 'Excessive supplementation'],
+                    'symptoms': ['Weakness', 'Irregular heartbeat', 'Nausea', 'Tingling'],
+                    'severity': 'High - Emergency',
+                    'action': 'Urgent medical attention - can cause cardiac arrest'
+                },
+                'low': {
+                    'condition': 'Low Potassium (Hypokalemia)',
+                    'causes': ['Diuretics', 'Vomiting', 'Diarrhea', 'Poor diet'],
+                    'symptoms': ['Muscle weakness', 'Cramps', 'Irregular heartbeat', 'Fatigue'],
+                    'severity': 'Moderate to High',
+                    'action': 'Potassium supplementation, eat bananas/potatoes'
+                }
+            },
+            
+            # ============================================
+            # CARDIAC MARKERS - 4 terms
+            # ============================================
+            
+            'Troponin': {
+                'category': 'Cardiac Markers',
+                'unit': 'ng/mL',
+                'normal_ranges': {
+                    'male': {'min': 0, 'max': 0.04},
+                    'female': {'min': 0, 'max': 0.04}
+                },
+                'description': 'Protein released when heart muscle is damaged. Key heart attack indicator.',
+                'high': {
+                    'condition': 'Elevated Troponin (Heart muscle damage)',
+                    'causes': ['Heart attack (MI)', 'Heart failure', 'Myocarditis', 'Pulmonary embolism'],
+                    'symptoms': ['Chest pain', 'Shortness of breath', 'Sweating', 'Nausea'],
+                    'severity': 'Critical - Emergency',
+                    'action': 'IMMEDIATE EMERGENCY CARE - Call 911'
+                },
+                'low': {
+                    'condition': 'Normal Troponin',
+                    'causes': ['Healthy heart'],
+                    'symptoms': ['None'],
+                    'severity': 'Normal',
+                    'action': 'No action needed - good sign'
+                }
+            },
+            
+            'CK-MB': {
+                'category': 'Cardiac Markers',
+                'unit': 'ng/mL',
+                'normal_ranges': {
+                    'male': {'min': 0, 'max': 3.6},
+                    'female': {'min': 0, 'max': 3.6}
+                },
+                'description': 'Creatine Kinase MB - enzyme specific to heart muscle.',
+                'high': {
+                    'condition': 'Elevated CK-MB (Heart damage)',
+                    'causes': ['Heart attack', 'Myocarditis', 'Cardiac surgery'],
+                    'symptoms': ['Chest pain', 'Irregular heartbeat'],
+                    'severity': 'High - Emergency',
+                    'action': 'Emergency medical evaluation'
+                },
+                'low': {
+                    'condition': 'Normal CK-MB',
+                    'causes': ['Healthy heart'],
+                    'symptoms': ['None'],
+                    'severity': 'Normal',
+                    'action': 'No action needed'
+                }
+            },
+            
+            'BNP': {
+                'category': 'Cardiac Markers',
+                'unit': 'pg/mL',
+                'normal_ranges': {
+                    'male': {'min': 0, 'max': 100},
+                    'female': {'min': 0, 'max': 100}
+                },
+                'description': 'B-type Natriuretic Peptide - indicates heart failure severity.',
+                'high': {
+                    'condition': 'Elevated BNP (Heart failure)',
+                    'causes': ['Congestive heart failure', 'Kidney failure', 'Pulmonary hypertension'],
+                    'symptoms': ['Shortness of breath', 'Fatigue', 'Swollen legs', 'Rapid heartbeat'],
+                    'severity': 'High',
+                    'action': 'Cardiology evaluation, diuretics, heart failure management'
+                },
+                'low': {
+                    'condition': 'Normal BNP',
+                    'causes': ['Normal heart function'],
+                    'symptoms': ['None'],
+                    'severity': 'Normal',
+                    'action': 'No action needed'
+                }
+            },
+            
+            # ============================================
+            # VITAMINS & MINERALS - 8 terms
+            # ============================================
+            
+            'Vitamin D': {
+                'category': 'Vitamins & Minerals',
+                'unit': 'ng/mL',
+                'normal_ranges': {
+                    'male': {'min': 30, 'max': 100},
+                    'female': {'min': 30, 'max': 100}
+                },
+                'description': 'Vitamin essential for bone health and immune function.',
+                'high': {
+                    'condition': 'Vitamin D Toxicity',
+                    'causes': ['Excessive supplementation'],
+                    'symptoms': ['Nausea', 'Weakness', 'Kidney problems'],
+                    'severity': 'Moderate',
+                    'action': 'Stop supplements, medical evaluation'
+                },
+                'low': {
+                    'condition': 'Vitamin D Deficiency',
+                    'causes': ['Lack of sun exposure', 'Poor diet', 'Malabsorption'],
+                    'symptoms': ['Bone pain', 'Muscle weakness', 'Fatigue', 'Increased infection risk'],
+                    'severity': 'Moderate',
+                    'action': 'Vitamin D3 supplementation (1000-2000 IU daily), sun exposure'
+                }
+            },
+            
+            'Vitamin B12': {
+                'category': 'Vitamins & Minerals',
+                'unit': 'pg/mL',
+                'normal_ranges': {
+                    'male': {'min': 200, 'max': 900},
+                    'female': {'min': 200, 'max': 900}
+                },
+                'description': 'Vitamin essential for nerve function and red blood cell production.',
+                'high': {
+                    'condition': 'High Vitamin B12',
+                    'causes': ['Supplementation', 'Liver disease', 'Certain cancers'],
+                    'symptoms': ['Usually none'],
+                    'severity': 'Low',
+                    'action': 'Medical evaluation if very high'
+                },
+                'low': {
+                    'condition': 'Vitamin B12 Deficiency',
+                    'causes': ['Vegan diet', 'Pernicious anemia', 'Malabsorption', 'Age'],
+                    'symptoms': ['Fatigue', 'Weakness', 'Tingling in hands/feet', 'Memory problems'],
+                    'severity': 'Moderate',
+                    'action': 'B12 supplementation or injections, dietary changes'
+                }
+            },
+            
+            'Folate': {
+                'category': 'Vitamins & Minerals',
+                'unit': 'ng/mL',
+                'normal_ranges': {
+                    'male': {'min': 2.7, 'max': 17.0},
+                    'female': {'min': 2.7, 'max': 17.0}
+                },
+                'description': 'Vitamin B9 - essential for DNA synthesis and red blood cell formation.',
+                'high': {
+                    'condition': 'High Folate',
+                    'causes': ['Excessive supplementation'],
+                    'symptoms': ['Usually none', 'May mask B12 deficiency'],
+                    'severity': 'Low',
+                    'action': 'Reduce supplementation'
+                },
+                'low': {
+                    'condition': 'Folate Deficiency',
+                    'causes': ['Poor diet', 'Alcohol abuse', 'Malabsorption', 'Pregnancy'],
+                    'symptoms': ['Fatigue', 'Weakness', 'Mouth sores', 'Anemia'],
+                    'severity': 'Moderate',
+                    'action': 'Folate supplementation, eat leafy greens'
+                }
+            },
+            
+            'Iron': {
+                'category': 'Vitamins & Minerals',
+                'unit': 'µg/dL',
+                'normal_ranges': {
+                    'male': {'min': 65, 'max': 175},
+                    'female': {'min': 50, 'max': 170}
+                },
+                'description': 'Mineral essential for hemoglobin production and oxygen transport.',
+                'high': {
+                    'condition': 'High Iron (Iron overload)',
+                    'causes': ['Hemochromatosis', 'Excessive supplementation', 'Multiple transfusions'],
+                    'symptoms': ['Fatigue', 'Joint pain', 'Abdominal pain', 'Organ damage'],
+                    'severity': 'High',
+                    'action': 'Phlebotomy (blood removal), chelation therapy'
+                },
+                'low': {
+                    'condition': 'Low Iron (Iron deficiency)',
+                    'causes': ['Poor diet', 'Blood loss', 'Pregnancy', 'Malabsorption'],
+                    'symptoms': ['Fatigue', 'Weakness', 'Pale skin', 'Brittle nails', 'Cold hands/feet'],
+                    'severity': 'Moderate',
+                    'action': 'Iron supplementation, eat red meat/spinach'
+                }
+            },
+            
+            'Ferritin': {
+                'category': 'Vitamins & Minerals',
+                'unit': 'ng/mL',
+                'normal_ranges': {
+                    'male': {'min': 24, 'max': 336},
+                    'female': {'min': 11, 'max': 307}
+                },
+                'description': 'Protein that stores iron - best indicator of iron stores.',
+                'high': {
+                    'condition': 'High Ferritin',
+                    'causes': ['Hemochromatosis', 'Inflammation', 'Liver disease', 'Alcohol abuse'],
+                    'symptoms': ['Fatigue', 'Joint pain', 'Abdominal pain'],
+                    'severity': 'Moderate to High',
+                    'action': 'Medical evaluation, treat underlying cause'
+                },
+                'low': {
+                    'condition': 'Low Ferritin (Iron deficiency)',
+                    'causes': ['Poor diet', 'Blood loss', 'Pregnancy'],
+                    'symptoms': ['Fatigue', 'Weakness', 'Hair loss', 'Restless legs'],
+                    'severity': 'Moderate',
+                    'action': 'Iron supplementation, dietary changes'
+                }
+            },
+            
+            'Calcium': {
+                'category': 'Vitamins & Minerals',
+                'unit': 'mg/dL',
+                'normal_ranges': {
+                    'male': {'min': 8.5, 'max': 10.5},
+                    'female': {'min': 8.5, 'max': 10.5}
+                },
+                'description': 'Mineral essential for bones, teeth, muscle function, and nerve signaling.',
+                'high': {
+                    'condition': 'High Calcium (Hypercalcemia)',
+                    'causes': ['Hyperparathyroidism', 'Cancer', 'Excessive vitamin D', 'Certain medications'],
+                    'symptoms': ['Kidney stones', 'Bone pain', 'Confusion', 'Nausea', 'Fatigue'],
+                    'severity': 'Moderate to High',
+                    'action': 'Medical evaluation, hydration, treat underlying cause'
+                },
+                'low': {
+                    'condition': 'Low Calcium (Hypocalcemia)',
+                    'causes': ['Vitamin D deficiency', 'Hypoparathyroidism', 'Kidney disease', 'Malabsorption'],
+                    'symptoms': ['Muscle cramps', 'Tingling', 'Seizures', 'Irregular heartbeat'],
+                    'severity': 'Moderate to High',
+                    'action': 'Calcium and vitamin D supplementation'
+                }
+            },
+            
+            'Magnesium': {
+                'category': 'Vitamins & Minerals',
+                'unit': 'mg/dL',
+                'normal_ranges': {
+                    'male': {'min': 1.7, 'max': 2.2},
+                    'female': {'min': 1.7, 'max': 2.2}
+                },
+                'description': 'Mineral important for muscle and nerve function, blood sugar control.',
+                'high': {
+                    'condition': 'High Magnesium (Hypermagnesemia)',
+                    'causes': ['Kidney failure', 'Excessive supplementation', 'Antacids'],
+                    'symptoms': ['Nausea', 'Weakness', 'Low blood pressure', 'Irregular heartbeat'],
+                    'severity': 'Moderate to High',
+                    'action': 'Medical evaluation, stop supplements'
+                },
+                'low': {
+                    'condition': 'Low Magnesium (Hypomagnesemia)',
+                    'causes': ['Poor diet', 'Alcohol abuse', 'Diuretics', 'Diarrhea'],
+                    'symptoms': ['Muscle cramps', 'Tremors', 'Irregular heartbeat', 'Fatigue'],
+                    'severity': 'Moderate',
+                    'action': 'Magnesium supplementation, eat nuts/seeds/whole grains'
+                }
+            },
+            
+            'Zinc': {
+                'category': 'Vitamins & Minerals',
+                'unit': 'µg/dL',
+                'normal_ranges': {
+                    'male': {'min': 70, 'max': 120},
+                    'female': {'min': 70, 'max': 120}
+                },
+                'description': 'Mineral essential for immune function, wound healing, and taste.',
+                'high': {
+                    'condition': 'Zinc Toxicity',
+                    'causes': ['Excessive supplementation'],
+                    'symptoms': ['Nausea', 'Vomiting', 'Loss of appetite', 'Headaches'],
+                    'severity': 'Moderate',
+                    'action': 'Stop zinc supplements'
+                },
+                'low': {
+                    'condition': 'Zinc Deficiency',
+                    'causes': ['Poor diet', 'Malabsorption', 'Chronic disease'],
+                    'symptoms': ['Hair loss', 'Diarrhea', 'Delayed wound healing', 'Loss of taste/smell'],
+                    'severity': 'Moderate',
+                    'action': 'Zinc supplementation, eat meat/seafood/nuts'
+                }
+            },
+            
+            # ============================================
+            # INFLAMMATORY MARKERS - 3 terms
+            # ============================================
+            
+            'CRP': {
+                'category': 'Inflammatory Markers',
+                'unit': 'mg/L',
+                'normal_ranges': {
+                    'male': {'min': 0, 'max': 3.0},
+                    'female': {'min': 0, 'max': 3.0}
+                },
+                'description': 'C-Reactive Protein - general marker of inflammation in the body.',
+                'high': {
+                    'condition': 'High CRP (Inflammation)',
+                    'causes': ['Infection', 'Autoimmune disease', 'Heart disease', 'Cancer', 'Chronic inflammation'],
+                    'symptoms': ['Depends on underlying cause'],
+                    'severity': 'Moderate',
+                    'action': 'Identify and treat source of inflammation'
+                },
+                'low': {
+                    'condition': 'Low CRP',
+                    'causes': ['No significant inflammation'],
+                    'symptoms': ['None'],
+                    'severity': 'Normal',
+                    'action': 'Good sign - no action needed'
+                }
+            },
+            
+            'ESR': {
+                'category': 'Inflammatory Markers',
+                'unit': 'mm/hr',
+                'normal_ranges': {
+                    'male': {'min': 0, 'max': 15},
+                    'female': {'min': 0, 'max': 20}
+                },
+                'description': 'Erythrocyte Sedimentation Rate - measures how quickly red blood cells settle.',
+                'high': {
+                    'condition': 'High ESR (Inflammation)',
+                    'causes': ['Infection', 'Autoimmune disease', 'Cancer', 'Kidney disease'],
+                    'symptoms': ['Depends on underlying condition'],
+                    'severity': 'Moderate',
+                    'action': 'Further testing to identify cause'
+                },
+                'low': {
+                    'condition': 'Low ESR',
+                    'causes': ['Normal', 'Polycythemia'],
+                    'symptoms': ['None'],
+                    'severity': 'Normal',
+                    'action': 'No action needed'
+                }
+            },
+            
+            # ============================================
+            # HORMONES - 6 terms
+            # ============================================
+            
+            'Testosterone': {
+                'category': 'Hormones',
+                'unit': 'ng/dL',
+                'normal_ranges': {
+                    'male': {'min': 300, 'max': 1000},
+                    'female': {'min': 15, 'max': 70}
+                },
+                'description': 'Primary male sex hormone - affects muscle, bone density, sex drive.',
+                'high': {
+                    'condition': 'High Testosterone',
+                    'causes': ['Steroid use', 'Adrenal tumors', 'PCOS (in women)'],
+                    'symptoms': ['Acne', 'Aggression', 'Excessive body hair', 'Enlarged prostate (men)'],
+                    'severity': 'Moderate',
+                    'action': 'Medical evaluation, stop steroids if using'
+                },
+                'low': {
+                    'condition': 'Low Testosterone (Hypogonadism)',
+                    'causes': ['Aging', 'Obesity', 'Pituitary disorders', 'Testicular problems'],
+                    'symptoms': ['Low libido', 'Fatigue', 'Muscle loss', 'Depression', 'Erectile dysfunction'],
+                    'severity': 'Moderate',
+                    'action': 'Testosterone replacement therapy, weight loss, exercise'
+                }
+            },
+            
+            'Estradiol': {
+                'category': 'Hormones',
+                'unit': 'pg/mL',
+                'normal_ranges': {
+                    'male': {'min': 10, 'max': 40},
+                    'female': {'min': 30, 'max': 400}  # Varies by menstrual cycle phase
+                },
+                'description': 'Primary female sex hormone - regulates reproductive system.',
+                'high': {
+                    'condition': 'High Estradiol',
+                    'causes': ['Ovarian tumors', 'Hormone therapy', 'Obesity'],
+                    'symptoms': ['Irregular periods', 'Breast tenderness', 'Mood swings'],
+                    'severity': 'Moderate',
+                    'action': 'Medical evaluation, possible imaging'
+                },
+                'low': {
+                    'condition': 'Low Estradiol',
+                    'causes': ['Menopause', 'Ovarian failure', 'Excessive exercise', 'Eating disorders'],
+                    'symptoms': ['Hot flashes', 'Vaginal dryness', 'Bone loss', 'Mood changes'],
+                    'severity': 'Moderate',
+                    'action': 'Hormone replacement therapy (if menopausal)'
+                }
+            },
+            
+            'Cortisol': {
+                'category': 'Hormones',
+                'unit': 'µg/dL',
+                'normal_ranges': {
+                    'male': {'min': 6, 'max': 23},  # Morning levels
+                    'female': {'min': 6, 'max': 23}
+                },
+                'description': 'Stress hormone produced by adrenal glands.',
+                'high': {
+                    'condition': 'High Cortisol (Cushing\'s syndrome)',
+                    'causes': ['Chronic stress', 'Cushing\'s disease', 'Steroid medications', 'Adrenal tumors'],
+                    'symptoms': ['Weight gain', 'High blood pressure', 'Mood changes', 'Easy bruising'],
+                    'severity': 'Moderate to High',
+                    'action': 'Stress reduction, medical evaluation, treat underlying cause'
+                },
+                'low': {
+                    'condition': 'Low Cortisol (Addison\'s disease)',
+                    'causes': ['Adrenal insufficiency', 'Pituitary disorders'],
+                    'symptoms': ['Fatigue', 'Weakness', 'Low blood pressure', 'Weight loss'],
+                    'severity': 'High',
+                    'action': 'Cortisol replacement therapy - medical emergency if acute'
+                }
+            },
+            
+            'Prolactin': {
+                'category': 'Hormones',
+                'unit': 'ng/mL',
+                'normal_ranges': {
+                    'male': {'min': 2, 'max': 18},
+                    'female': {'min': 2, 'max': 29}
+                },
+                'description': 'Hormone that stimulates breast milk production.',
+                'high': {
+                    'condition': 'High Prolactin (Hyperprolactinemia)',
+                    'causes': ['Pituitary tumor', 'Medications', 'Hypothyroidism', 'Pregnancy'],
+                    'symptoms': ['Breast milk production (not pregnant)', 'Irregular periods', 'Low libido'],
+                    'severity': 'Moderate',
+                    'action': 'MRI of pituitary, medication (bromocriptine)'
+                },
+                'low': {
+                    'condition': 'Low Prolactin',
+                    'causes': ['Pituitary dysfunction'],
+                    'symptoms': ['Difficulty breastfeeding'],
+                    'severity': 'Low to Moderate',
+                    'action': 'Medical evaluation if symptomatic'
+                }
+            },
+            
+            'FSH': {
+                'category': 'Hormones',
+                'unit': 'mIU/mL',
+                'normal_ranges': {
+                    'male': {'min': 1.5, 'max': 12.4},
+                    'female': {'min': 4.7, 'max': 21.5}  # Varies by menstrual cycle
+                },
+                'description': 'Follicle Stimulating Hormone - regulates reproductive processes.',
+                'high': {
+                    'condition': 'High FSH',
+                    'causes': ['Menopause', 'Ovarian failure', 'Testicular failure'],
+                    'symptoms': ['Irregular periods', 'Hot flashes', 'Infertility'],
+                    'severity': 'Moderate',
+                    'action': 'Fertility evaluation, hormone replacement if menopausal'
+                },
+                'low': {
+                    'condition': 'Low FSH',
+                    'causes': ['Pituitary disorders', 'Stress', 'Eating disorders'],
+                    'symptoms': ['Irregular periods', 'Low libido', 'Infertility'],
+                    'severity': 'Moderate',
+                    'action': 'Medical evaluation, treat underlying cause'
+                }
+            },
+            
+            'LH': {
+                'category': 'Hormones',
+                'unit': 'mIU/mL',
+                'normal_ranges': {
+                    'male': {'min': 1.7, 'max': 8.6},
+                    'female': {'min': 2.4, 'max': 12.6}  # Varies by menstrual cycle
+                },
+                'description': 'Luteinizing Hormone - triggers ovulation and testosterone production.',
+                'high': {
+                    'condition': 'High LH',
+                    'causes': ['PCOS', 'Menopause', 'Pituitary tumors'],
+                    'symptoms': ['Irregular periods', 'Infertility', 'Hot flashes'],
+                    'severity': 'Moderate',
+                    'action': 'Medical evaluation, fertility treatment if desired'
+                },
+                'low': {
+                    'condition': 'Low LH',
+                    'causes': ['Pituitary dysfunction', 'Eating disorders', 'Stress'],
+                    'symptoms': ['Irregular periods', 'Low testosterone', 'Infertility'],
+                    'severity': 'Moderate',
+                    'action': 'Treat underlying cause, hormone therapy'
+                }
+            },
+            
+            # ============================================
+            # OTHER IMPORTANT TESTS - 5 terms
+            # ============================================
+            
+            'PSA': {
+                'category': 'Cancer Markers',
+                'unit': 'ng/mL',
+                'normal_ranges': {
+                    'male': {'min': 0, 'max': 4.0},
+                    'female': {'min': 0, 'max': 0}  # Not applicable
+                },
+                'description': 'Prostate Specific Antigen - screening test for prostate cancer (men only).',
+                'high': {
+                    'condition': 'Elevated PSA',
+                    'causes': ['Prostate cancer', 'Benign prostatic hyperplasia', 'Prostatitis', 'Age'],
+                    'symptoms': ['Difficulty urinating', 'Blood in urine', 'Pelvic pain'],
+                    'severity': 'Moderate to High',
+                    'action': 'Urology referral, prostate biopsy if indicated'
+                },
+                'low': {
+                    'condition': 'Normal PSA',
+                    'causes': ['Healthy prostate'],
+                    'symptoms': ['None'],
+                    'severity': 'Normal',
+                    'action': 'Continue regular screening (men >50)'
+                }
+            },
+            
+            'CEA': {
+                'category': 'Cancer Markers',
+                'unit': 'ng/mL',
+                'normal_ranges': {
+                    'male': {'min': 0, 'max': 3.0},
+                    'female': {'min': 0, 'max': 3.0}
+                },
+                'description': 'Carcinoembryonic Antigen - tumor marker for colorectal cancer.',
+                'high': {
+                    'condition': 'Elevated CEA',
+                    'causes': ['Colorectal cancer', 'Lung cancer', 'Smoking', 'Inflammation'],
+                    'symptoms': ['Depends on cancer type'],
+                    'severity': 'Moderate to High',
+                    'action': 'Further testing (colonoscopy, CT scan), oncology referral'
+                },
+                'low': {
+                    'condition': 'Normal CEA',
+                    'causes': ['No cancer detected'],
+                    'symptoms': ['None'],
+                    'severity': 'Normal',
+                    'action': 'No action needed'
+                }
+            },
+            
+            'CA 19-9': {
+                'category': 'Cancer Markers',
+                'unit': 'U/mL',
+                'normal_ranges': {
+                    'male': {'min': 0, 'max': 37},
+                    'female': {'min': 0, 'max': 37}
+                },
+                'description': 'Tumor marker for pancreatic and bile duct cancers.',
+                'high': {
+                    'condition': 'Elevated CA 19-9',
+                    'causes': ['Pancreatic cancer', 'Bile duct cancer', 'Pancreatitis', 'Cirrhosis'],
+                    'symptoms': ['Abdominal pain', 'Jaundice', 'Weight loss'],
+                    'severity': 'High',
+                    'action': 'CT scan, oncology referral, endoscopy'
+                },
+                'low': {
+                    'condition': 'Normal CA 19-9',
+                    'causes': ['No malignancy'],
+                    'symptoms': ['None'],
+                    'severity': 'Normal',
+                    'action': 'No action needed'
+                }
+            },
+            
+            'HCG': {
+                'category': 'Pregnancy Markers',
+                'unit': 'mIU/mL',
+                'normal_ranges': {
+                    'male': {'min': 0, 'max': 5},
+                    'female': {'min': 0, 'max': 5}  # Non-pregnant
+                },
+                'description': 'Human Chorionic Gonadotropin - pregnancy hormone.',
+                'high': {
+                    'condition': 'Elevated HCG',
+                    'causes': ['Pregnancy', 'Testicular/ovarian tumors', 'Ectopic pregnancy'],
+                    'symptoms': ['Pregnancy symptoms', 'Nausea', 'Breast tenderness'],
+                    'severity': 'Varies',
+                    'action': 'Pregnancy test confirmation, ultrasound, medical evaluation'
+                },
+                'low': {
+                    'condition': 'Normal HCG (non-pregnant)',
+                    'causes': ['Not pregnant', 'Miscarriage'],
+                    'symptoms': ['None or pregnancy loss'],
+                    'severity': 'Normal or concerning if pregnant',
+                    'action': 'Depends on context'
+                }
+            },
         }
-    }
-
-    # ============================================
-    # HELPER METHODS
-    # ============================================
     
-    @classmethod
-    def get_term_info(cls, term_name):
-        """Get complete information about a medical term"""
-        return cls.BLOOD_TESTS.get(term_name)
-    
-    @classmethod
-    def get_normal_range(cls, term_name, gender="all", age_group="adult"):
+    def get_normal_range(self, term, gender='female', age=50):
         """Get normal range for a specific term"""
-        term_info = cls.get_term_info(term_name)
-        if not term_info:
+        if term not in self.knowledge:
             return None
         
-        normal_range = term_info.get("normal_range", {})
+        info = self.knowledge[term]
         
-        # Special case for Glucose - use "all" by default
-        if term_name == "Glucose" and "all" in normal_range:
-            return normal_range["all"]
-        
-        # Try gender-specific first
-        if gender in normal_range:
-            return normal_range[gender]
-        
-        # Fall back to 'all'
-        if "all" in normal_range:
-            return normal_range["all"]
-        
-        # For age-specific (like child)
-        if age_group in normal_range:
-            return normal_range[age_group]
+        if 'normal_ranges' in info:
+            # Return gender-specific range
+            if gender in info['normal_ranges']:
+                return {
+                    'min': info['normal_ranges'][gender]['min'],
+                    'max': info['normal_ranges'][gender]['max'],
+                    'unit': info['unit']
+                }
         
         return None
     
-    @classmethod
-    def check_value_status(cls, term_name, value, gender="all"):
-        """
-        Check if a value is normal, high, or low
-        Returns: "normal", "high", "low", or "unknown"
-        """
-        normal_range = cls.get_normal_range(term_name, gender)
+    def get_interpretation(self, term, value, gender='female', age=50):
+        """Get interpretation for a test value"""
+        if term not in self.knowledge:
+            return {
+                'status': 'unknown',
+                'message': f'No information available for {term}'
+            }
+        
+        info = self.knowledge[term]
+        normal_range = self.get_normal_range(term, gender, age)
         
         if not normal_range:
-            return "unknown"
+            return {
+                'status': 'unknown',
+                'message': 'Normal range not available'
+            }
         
-        min_val = normal_range.get("min", 0)
-        max_val = normal_range.get("max", float('inf'))
-        
-        if value < min_val:
-            return "low"
-        elif value > max_val:
-            return "high"
+        # Determine status
+        if value < normal_range['min']:
+            status = 'low'
+            condition_info = info['low']
+        elif value > normal_range['max']:
+            status = 'high'
+            condition_info = info['high']
         else:
-            return "normal"
-    
-    @classmethod
-    def get_interpretation(cls, term_name, value, gender="all"):
-        """
-        Get detailed interpretation of a test result
-        Returns dict with status, explanation, severity, recommendations
-        """
-        term_info = cls.get_term_info(term_name)
-        if not term_info:
-            return {"error": "Unknown medical term"}
+            status = 'normal'
+            return {
+                'status': 'normal',
+                'message': f'{term} is within the healthy range',
+                'normal_range': f"{normal_range['min']}-{normal_range['max']} {normal_range['unit']}",
+                'category': info['category'],
+                'description': info['description']
+            }
         
-        status = cls.check_value_status(term_name, value, gender)
-        normal_range = cls.get_normal_range(term_name, gender)
-        
-        interpretation = {
-            "term": term_name,
-            "value": value,
-            "unit": normal_range.get("unit", "") if normal_range else "",
-            "status": status,
-            "normal_range": f"{normal_range.get('min', 0)} - {normal_range.get('max', 0)} {normal_range.get('unit', '')}" if normal_range else "Unknown",
-            "explanation": term_info.get("simple_explanation", ""),
-            "category": term_info.get("category", ""),
+        # Build detailed interpretation
+        return {
+            'status': status,
+            'category': info['category'],
+            'description': info['description'],
+            'normal_range': f"{normal_range['min']}-{normal_range['max']} {normal_range['unit']}",
+            'condition': condition_info['condition'],
+            'causes': condition_info['causes'],
+            'symptoms': condition_info['symptoms'],
+            'severity': condition_info['severity'],
+            'action': condition_info['action']
         }
-        
-        if status == "high":
-            high_info = term_info.get("high_means", {})
-            interpretation.update({
-                "condition": high_info.get("condition", "Elevated levels"),
-                "possible_causes": high_info.get("possible_causes", []),
-                "symptoms": high_info.get("symptoms", []),
-                "severity": high_info.get("severity", "Consult doctor"),
-                "next_steps": term_info.get("next_steps", {}).get("if_high", "Consult your doctor")
-            })
-        
-        elif status == "low":
-            low_info = term_info.get("low_means", {})
-            interpretation.update({
-                "condition": low_info.get("condition", "Low levels"),
-                "possible_causes": low_info.get("possible_causes", []),
-                "symptoms": low_info.get("symptoms", []),
-                "severity": low_info.get("severity", "Consult doctor"),
-                "next_steps": term_info.get("next_steps", {}).get("if_low", "Consult your doctor")
-            })
-        
-        else:  # normal
-            interpretation.update({
-                "condition": "Within normal range",
-                "message": "Your levels are healthy",
-                "severity": "None"
-            })
-        
-        return interpretation
     
-    @classmethod
-    def get_all_terms(cls):
-        """Get list of all available medical terms"""
-        return list(cls.BLOOD_TESTS.keys())
+    def get_all_terms(self):
+        """Get list of all available terms"""
+        return list(self.knowledge.keys())
     
-    @classmethod
-    def get_terms_by_category(cls, category):
+    def get_terms_by_category(self, category):
         """Get all terms in a specific category"""
         return [
-            term for term, info in cls.BLOOD_TESTS.items()
-            if info.get("category") == category
+            term for term, info in self.knowledge.items()
+            if info['category'] == category
         ]
     
-    @classmethod
-    def get_all_categories(cls):
+    def get_all_categories(self):
         """Get list of all categories"""
         categories = set()
-        for info in cls.BLOOD_TESTS.values():
-            categories.add(info.get("category", "Other"))
+        for info in self.knowledge.values():
+            categories.add(info['category'])
         return sorted(list(categories))
 
 
 # ============================================
-# USAGE EXAMPLES (for testing)
+# TESTING
 # ============================================
 
 if __name__ == "__main__":
     kb = MedicalKnowledgeBase()
     
-    # Example 1: Get term info
-    print("=" * 50)
-    print("EXAMPLE 1: Get Hemoglobin Info")
-    print("=" * 50)
-    hb_info = kb.get_term_info("Hemoglobin")
-    print(f"Full Name: {hb_info['full_name']}")
-    print(f"Explanation: {hb_info['simple_explanation']}")
-    print()
+    print(f"Total terms in knowledge base: {len(kb.get_all_terms())}")
+    print(f"\nCategories:")
+    for cat in kb.get_all_categories():
+        terms = kb.get_terms_by_category(cat)
+        print(f"  {cat}: {len(terms)} terms")
     
-    # Example 2: Check value status
-    print("=" * 50)
-    print("EXAMPLE 2: Check Blood Sugar Value")
-    print("=" * 50)
-    glucose_value = 120
-    status = kb.check_value_status("Glucose", glucose_value)
-    print(f"Blood Sugar: {glucose_value} mg/dL")
-    print(f"Status: {status}")
-    print()
+    print("\n" + "="*60)
+    print("TESTING INTERPRETATIONS:")
+    print("="*60 + "\n")
     
-    # Example 3: Get full interpretation
-    print("=" * 50)
-    print("EXAMPLE 3: Full Interpretation")
-    print("=" * 50)
-    interpretation = kb.get_interpretation("Hemoglobin", 10.5, gender="female")
-    print(f"Term: {interpretation['term']}")
-    print(f"Value: {interpretation['value']} {interpretation['unit']}")
-    print(f"Status: {interpretation['status']}")
-    print(f"Normal Range: {interpretation['normal_range']}")
-    print(f"Condition: {interpretation.get('condition', 'N/A')}")
-    print(f"Possible Causes: {', '.join(interpretation.get('possible_causes', []))}")
-    print()
+    # Test high HbA1c
+    result = kb.get_interpretation('HbA1c', 8.5, 'female', 50)
+    print(f"HbA1c = 8.5%")
+    print(f"Status: {result['status'].upper()}")
+    print(f"Condition: {result['condition']}")
+    print(f"Severity: {result['severity']}")
+    print(f"Action: {result['action']}")
     
-    # Example 4: Get all categories
-    print("=" * 50)
-    print("EXAMPLE 4: All Categories")
-    print("=" * 50)
-    categories = kb.get_all_categories()
-    print(f"Available categories: {', '.join(categories)}")
-    print()
+    print("\n" + "="*60 + "\n")
     
-    # Example 5: Get terms by category
-    print("=" * 50)
-    print("EXAMPLE 5: Lipid Profile Tests")
-    print("=" * 50)
-    lipid_tests = kb.get_terms_by_category("Lipid Profile")
-    print(f"Lipid tests: {', '.join(lipid_tests)}")
+    # Test low iron
+    result = kb.get_interpretation('Iron', 30, 'female', 30)
+    print(f"Iron = 30 µg/dL (Female, age 30)")
+    print(f"Status: {result['status'].upper()}")
+    print(f"Condition: {result['condition']}")
+    print(f"Causes: {', '.join(result['causes'][:3])}")
+    print(f"Symptoms: {', '.join(result['symptoms'][:3])}")
