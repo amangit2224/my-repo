@@ -1,225 +1,383 @@
 """
-Medical Statistical Validator
-Detects impossible/suspicious medical values using domain knowledge
-NO AI - Pure medical logic and statistics
+Medical Validator - Statistical Anomaly Detection
+Detects impossible or suspicious medical values
+NO AI REQUIRED - Pure medical logic and statistics
 """
+
+import statistics
+from typing import Dict, List, Any
 
 class MedicalValidator:
     
     def __init__(self):
-        self.suspicion_score = 0
-        self.findings = []
+        # Known medical correlations and rules
+        self.correlations = {
+            'HbA1c_Glucose': self._validate_hba1c_glucose,
+            'Cholesterol_Components': self._validate_cholesterol_math,
+            'Liver_Enzymes': self._validate_liver_enzymes,
+            'Thyroid_Hormones': self._validate_thyroid_correlation,
+        }
         
-        # Physiologically impossible ranges (would be fatal/impossible)
+        # Physiologically impossible ranges (incompatible with life)
         self.impossible_ranges = {
-            'Hemoglobin': {'min': 3.0, 'max': 25.0, 'unit': 'g/dL'},
-            'Glucose': {'min': 20, 'max': 800, 'unit': 'mg/dL'},
-            'HbA1c': {'min': 2.0, 'max': 20.0, 'unit': '%'},
-            'Total Cholesterol': {'min': 50, 'max': 600, 'unit': 'mg/dL'},
-            'HDL': {'min': 10, 'max': 150, 'unit': 'mg/dL'},
-            'LDL': {'min': 10, 'max': 400, 'unit': 'mg/dL'},
-            'Triglycerides': {'min': 20, 'max': 1000, 'unit': 'mg/dL'},
-            'WBC': {'min': 0.5, 'max': 100.0, 'unit': '10^3/µL'},
-            'RBC': {'min': 1.0, 'max': 10.0, 'unit': '10^6/µL'},
-            'Platelets': {'min': 10, 'max': 1000, 'unit': '10^3/µL'},
-            'Creatinine': {'min': 0.2, 'max': 25.0, 'unit': 'mg/dL'},
-            'TSH': {'min': 0.01, 'max': 100.0, 'unit': 'mIU/L'},
-            'ALT': {'min': 1, 'max': 5000, 'unit': 'U/L'},
-            'AST': {'min': 1, 'max': 5000, 'unit': 'U/L'},
-            'Troponin': {'min': 0, 'max': 100000, 'unit': 'ng/mL'},
+            'Total Cholesterol': {'min': 50, 'max': 600},
+            'Glucose': {'min': 20, 'max': 600},
+            'HbA1c': {'min': 3.0, 'max': 18.0},
+            'HDL': {'min': 10, 'max': 150},
+            'LDL': {'min': 10, 'max': 400},
+            'Triglycerides': {'min': 20, 'max': 1000},
+            'TSH': {'min': 0.01, 'max': 100},
+            'Hemoglobin': {'min': 3.0, 'max': 25.0},
+            'Creatinine': {'min': 0.1, 'max': 20.0},
+            'ALT': {'min': 1, 'max': 5000},
+            'AST': {'min': 1, 'max': 5000},
         }
     
-    def validate_report(self, parsed_data):
+    def validate_report(self, parsed_data: Dict) -> Dict:
         """
-        Validate medical values for statistical plausibility
-        Returns suspicion score and findings
+        Main validation function
+        Returns suspicion score and detailed findings
         """
-        
         print(f"\n{'='*60}")
-        print(f"🧪 MEDICAL STATISTICAL VALIDATION")
+        print(f"🔬 MEDICAL VALIDATION")
         print(f"{'='*60}\n")
         
-        if not parsed_data or not parsed_data.get('all_results'):
+        suspicion_score = 0
+        findings = []
+        
+        all_results = parsed_data.get('all_results', [])
+        
+        if not all_results:
             return {
-                'valid': True,
                 'suspicion_score': 0,
                 'findings': ['No test results to validate'],
-                'warnings': []
+                'validated': False
             }
         
-        all_results = parsed_data['all_results']
+        # Check 1: Physiologically impossible values
+        impossible_checks = self._check_impossible_values(all_results)
+        suspicion_score += impossible_checks['score']
+        findings.extend(impossible_checks['findings'])
         
-        # Run validation checks
-        self._check_impossible_values(all_results)
-        self._check_value_relationships(all_results)
-        self._check_statistical_outliers(all_results)
+        # Check 2: Statistical outliers
+        outlier_checks = self._check_statistical_outliers(all_results)
+        suspicion_score += outlier_checks['score']
+        findings.extend(outlier_checks['findings'])
         
-        # Generate warnings based on severity
-        warnings = self._generate_warnings()
+        # Check 3: Cross-value correlations
+        correlation_checks = self._check_correlations(all_results)
+        suspicion_score += correlation_checks['score']
+        findings.extend(correlation_checks['findings'])
         
-        print(f"\n{'='*60}")
-        print(f"📊 VALIDATION SUMMARY:")
-        print(f"   Medical Suspicion Score: {self.suspicion_score}")
-        print(f"   Findings: {len(self.findings)}")
-        print(f"   Warnings: {len(warnings)}")
+        # Check 4: Value precision (fake reports often have "too perfect" values)
+        precision_checks = self._check_value_precision(all_results)
+        suspicion_score += precision_checks['score']
+        findings.extend(precision_checks['findings'])
+        
+        print(f"\n📊 Medical Validation Summary:")
+        print(f"   Suspicion Score: {suspicion_score}")
+        print(f"   Findings: {len(findings)}")
         print(f"{'='*60}\n")
         
         return {
-            'valid': self.suspicion_score < 30,
-            'suspicion_score': self.suspicion_score,
-            'findings': self.findings,
-            'warnings': warnings
+            'suspicion_score': suspicion_score,
+            'findings': findings,
+            'validated': suspicion_score < 30,
+            'details': {
+                'impossible_values': impossible_checks['count'],
+                'statistical_outliers': outlier_checks['count'],
+                'correlation_issues': correlation_checks['count'],
+                'precision_issues': precision_checks['count']
+            }
         }
     
-    def _check_impossible_values(self, results):
+    def _check_impossible_values(self, results: List[Dict]) -> Dict:
         """Check for physiologically impossible values"""
+        score = 0
+        findings = []
+        count = 0
+        
         for result in results:
             term = result['term']
             value = result['value']
             
             if term in self.impossible_ranges:
-                limits = self.impossible_ranges[term]
+                range_check = self.impossible_ranges[term]
                 
-                if value < limits['min']:
-                    self.suspicion_score += 30
-                    self.findings.append(
-                        f"🚨 {term} = {value} {result['unit']} is impossibly LOW "
-                        f"(minimum survivable: {limits['min']} {limits['unit']})"
+                if value < range_check['min']:
+                    score += 30
+                    count += 1
+                    findings.append(
+                        f"🚨 CRITICAL: {term} = {value} is impossibly low "
+                        f"(minimum compatible with life: {range_check['min']})"
                     )
-                    print(f"🚨 IMPOSSIBLE: {term} = {value} (too low) +30 suspicion")
-                
-                elif value > limits['max']:
-                    self.suspicion_score += 30
-                    self.findings.append(
-                        f"🚨 {term} = {value} {result['unit']} is impossibly HIGH "
-                        f"(maximum survivable: {limits['max']} {limits['unit']})"
+                    print(f"🚨 Impossible value: {term} = {value} (too low)")
+                    
+                elif value > range_check['max']:
+                    score += 30
+                    count += 1
+                    findings.append(
+                        f"🚨 CRITICAL: {term} = {value} is impossibly high "
+                        f"(maximum compatible with life: {range_check['max']})"
                     )
-                    print(f"🚨 IMPOSSIBLE: {term} = {value} (too high) +30 suspicion")
-                
-                else:
-                    print(f"✅ {term} = {value} (within possible range)")
-    
-    def _check_value_relationships(self, results):
-        """Check for medically inconsistent combinations"""
+                    print(f"🚨 Impossible value: {term} = {value} (too high)")
         
-        # Create lookup dictionary
+        if count == 0:
+            print("✅ All values within physiologically possible ranges")
+        
+        return {'score': score, 'findings': findings, 'count': count}
+    
+    def _check_statistical_outliers(self, results: List[Dict]) -> Dict:
+        """Check for extreme statistical outliers"""
+        score = 0
+        findings = []
+        count = 0
+        
+        # Known population statistics (mean ± 3 std dev covers 99.7% of normal population)
+        population_stats = {
+            'Total Cholesterol': {'mean': 190, 'std': 40},
+            'HDL': {'mean': 55, 'std': 15},
+            'LDL': {'mean': 115, 'std': 35},
+            'Triglycerides': {'mean': 120, 'std': 60},
+            'Glucose': {'mean': 95, 'std': 25},
+            'HbA1c': {'mean': 5.5, 'std': 1.0},
+        }
+        
+        for result in results:
+            term = result['term']
+            value = result['value']
+            
+            if term in population_stats:
+                stats = population_stats[term]
+                z_score = abs((value - stats['mean']) / stats['std'])
+                
+                # Z-score > 4 means extremely rare (1 in 15,787 chance)
+                if z_score > 4:
+                    score += 15
+                    count += 1
+                    findings.append(
+                        f"⚠️ {term} = {value} is an extreme outlier "
+                        f"(Z-score: {z_score:.2f} - occurs in <0.01% of population)"
+                    )
+                    print(f"⚠️ Extreme outlier: {term} = {value} (Z={z_score:.2f})")
+                elif z_score > 3:
+                    score += 5
+                    findings.append(
+                        f"⚠️ {term} = {value} is unusual "
+                        f"(Z-score: {z_score:.2f} - occurs in <0.3% of population)"
+                    )
+                    print(f"⚠️ Unusual value: {term} = {value} (Z={z_score:.2f})")
+        
+        if count == 0:
+            print("✅ No extreme statistical outliers detected")
+        
+        return {'score': score, 'findings': findings, 'count': count}
+    
+    def _check_correlations(self, results: List[Dict]) -> Dict:
+        """Check medical correlations between values"""
+        score = 0
+        findings = []
+        count = 0
+        
+        # Extract values into a dict for easier lookup
         values_dict = {r['term']: r['value'] for r in results}
         
-        # Check HbA1c vs Glucose consistency
+        # Check HbA1c vs Glucose correlation
         if 'HbA1c' in values_dict and 'Glucose' in values_dict:
-            hba1c = values_dict['HbA1c']
-            glucose = values_dict['Glucose']
-            
-            # HbA1c to average glucose approximation
-            # Formula: Average Glucose ≈ (HbA1c * 28.7) - 46.7
-            estimated_glucose = (hba1c * 28.7) - 46.7
-            
-            # Allow 50% variance
-            if abs(glucose - estimated_glucose) > estimated_glucose * 0.5:
-                self.suspicion_score += 15
-                self.findings.append(
-                    f"⚠️ HbA1c ({hba1c}%) and Glucose ({glucose} mg/dL) are inconsistent. "
-                    f"Expected glucose: ~{estimated_glucose:.0f} mg/dL"
-                )
-                print(f"⚠️  HbA1c-Glucose mismatch +15 suspicion")
-            else:
-                print(f"✅ HbA1c-Glucose correlation normal")
+            check = self._validate_hba1c_glucose(values_dict['HbA1c'], values_dict['Glucose'])
+            if not check['valid']:
+                score += check['suspicion']
+                count += 1
+                findings.append(check['message'])
+                print(f"⚠️ {check['message']}")
         
-        # Check Total Cholesterol vs LDL+HDL+Triglycerides
-        if all(k in values_dict for k in ['Total Cholesterol', 'LDL', 'HDL', 'Triglycerides']):
-            total = values_dict['Total Cholesterol']
-            ldl = values_dict['LDL']
-            hdl = values_dict['HDL']
-            trig = values_dict['Triglycerides']
-            
-            # Friedewald equation: Total ≈ LDL + HDL + (Trig/5)
-            calculated_total = ldl + hdl + (trig / 5)
-            
-            # Allow 15% variance
-            if abs(total - calculated_total) > calculated_total * 0.15:
-                self.suspicion_score += 15
-                self.findings.append(
-                    f"⚠️ Lipid values don't match Friedewald equation. "
-                    f"Total Cholesterol: {total}, Calculated: {calculated_total:.1f}"
-                )
-                print(f"⚠️  Lipid equation mismatch +15 suspicion")
-            else:
-                print(f"✅ Lipid profile mathematically consistent")
+        # Check cholesterol math
+        if all(k in values_dict for k in ['Total Cholesterol', 'HDL', 'LDL', 'Triglycerides']):
+            check = self._validate_cholesterol_math(
+                values_dict['Total Cholesterol'],
+                values_dict['HDL'],
+                values_dict['LDL'],
+                values_dict['Triglycerides']
+            )
+            if not check['valid']:
+                score += check['suspicion']
+                count += 1
+                findings.append(check['message'])
+                print(f"⚠️ {check['message']}")
         
-        # Check Hemoglobin vs Hematocrit (if available)
-        if 'Hemoglobin' in values_dict and 'Hematocrit' in values_dict:
-            hgb = values_dict['Hemoglobin']
-            hct = values_dict['Hematocrit']
-            
-            # Rule of thumb: Hematocrit ≈ Hemoglobin * 3
-            expected_hct = hgb * 3
-            
-            # Allow 15% variance
-            if abs(hct - expected_hct) > expected_hct * 0.15:
-                self.suspicion_score += 10
-                self.findings.append(
-                    f"⚠️ Hemoglobin ({hgb}) and Hematocrit ({hct}) ratio is unusual. "
-                    f"Expected Hct: ~{expected_hct:.1f}"
-                )
-                print(f"⚠️  Hgb-Hct ratio unusual +10 suspicion")
-            else:
-                print(f"✅ Hemoglobin-Hematocrit ratio normal")
+        # Check liver enzyme ratio
+        if 'AST' in values_dict and 'ALT' in values_dict:
+            check = self._validate_liver_enzymes(values_dict['AST'], values_dict['ALT'])
+            if not check['valid']:
+                score += check['suspicion']
+                count += 1
+                findings.append(check['message'])
+                print(f"⚠️ {check['message']}")
+        
+        # Check thyroid hormone correlation
+        if all(k in values_dict for k in ['TSH', 'T3', 'T4']):
+            check = self._validate_thyroid_correlation(
+                values_dict['TSH'],
+                values_dict['T3'],
+                values_dict['T4']
+            )
+            if not check['valid']:
+                score += check['suspicion']
+                count += 1
+                findings.append(check['message'])
+                print(f"⚠️ {check['message']}")
+        
+        if count == 0:
+            print("✅ All value correlations appear consistent")
+        
+        return {'score': score, 'findings': findings, 'count': count}
     
-    def _check_statistical_outliers(self, results):
-        """Check for statistically improbable patterns"""
+    def _validate_hba1c_glucose(self, hba1c: float, glucose: float) -> Dict:
+        """
+        Validate HbA1c and Glucose correlation
+        HbA1c reflects average glucose over 3 months
+        """
+        # Approximate conversion: HbA1c% → Average Glucose (mg/dL)
+        # Formula: Average Glucose ≈ (HbA1c × 28.7) - 46.7
+        expected_glucose = (hba1c * 28.7) - 46.7
         
-        # Check for too many "perfect" round numbers
-        round_numbers = 0
+        # Allow 30% tolerance (since glucose fluctuates)
+        tolerance = 0.30
+        lower_bound = expected_glucose * (1 - tolerance)
+        upper_bound = expected_glucose * (1 + tolerance)
+        
+        if glucose < lower_bound or glucose > upper_bound:
+            return {
+                'valid': False,
+                'suspicion': 20,
+                'message': (
+                    f"🚨 HbA1c ({hba1c}%) and Glucose ({glucose} mg/dL) don't correlate. "
+                    f"Expected glucose: {expected_glucose:.0f} mg/dL (±30%). "
+                    f"This mismatch is medically suspicious."
+                )
+            }
+        
+        return {'valid': True, 'suspicion': 0, 'message': ''}
+    
+    def _validate_cholesterol_math(self, total: float, hdl: float, ldl: float, trig: float) -> Dict:
+        """
+        Validate cholesterol math: Total ≈ HDL + LDL + (Triglycerides/5)
+        """
+        calculated_total = hdl + ldl + (trig / 5)
+        difference = abs(total - calculated_total)
+        
+        # Allow 10% tolerance for measurement variance
+        tolerance = total * 0.10
+        
+        if difference > tolerance:
+            return {
+                'valid': False,
+                'suspicion': 25,
+                'message': (
+                    f"🚨 Cholesterol math doesn't add up! "
+                    f"Total Cholesterol ({total}) ≠ HDL ({hdl}) + LDL ({ldl}) + VLDL ({trig/5:.1f}). "
+                    f"Calculated total: {calculated_total:.1f}. Difference: {difference:.1f}. "
+                    f"This suggests data fabrication."
+                )
+            }
+        
+        return {'valid': True, 'suspicion': 0, 'message': ''}
+    
+    def _validate_liver_enzymes(self, ast: float, alt: float) -> Dict:
+        """
+        Validate AST/ALT ratio
+        Normal ratio: 0.8 - 1.5
+        Very high or very low ratios are suspicious
+        """
+        if alt == 0:
+            return {'valid': True, 'suspicion': 0, 'message': ''}
+        
+        ratio = ast / alt
+        
+        # Extreme ratios (>5 or <0.2) are very unusual
+        if ratio > 5 or ratio < 0.2:
+            return {
+                'valid': False,
+                'suspicion': 15,
+                'message': (
+                    f"⚠️ AST/ALT ratio ({ratio:.2f}) is extremely unusual. "
+                    f"Normal ratio: 0.8-1.5. This pattern is rare and suspicious."
+                )
+            }
+        
+        return {'valid': True, 'suspicion': 0, 'message': ''}
+    
+    def _validate_thyroid_correlation(self, tsh: float, t3: float, t4: float) -> Dict:
+        """
+        Validate thyroid hormone correlation
+        High TSH should correlate with low T3/T4 (hypothyroid)
+        Low TSH should correlate with high T3/T4 (hyperthyroid)
+        """
+        # TSH > 4.5 = hypothyroid (expect low T3/T4)
+        # TSH < 0.5 = hyperthyroid (expect high T3/T4)
+        
+        # Normal ranges (approximate)
+        t3_normal = (0.8, 2.0)  # ng/mL
+        t4_normal = (4.5, 11.2)  # µg/dL
+        
+        issues = []
+        
+        # High TSH with high T3/T4 (contradictory)
+        if tsh > 4.5 and (t3 > t3_normal[1] or t4 > t4_normal[1]):
+            issues.append("High TSH but high T3/T4 (contradictory)")
+        
+        # Low TSH with low T3/T4 (contradictory)
+        if tsh < 0.5 and (t3 < t3_normal[0] or t4 < t4_normal[0]):
+            issues.append("Low TSH but low T3/T4 (contradictory)")
+        
+        if issues:
+            return {
+                'valid': False,
+                'suspicion': 20,
+                'message': (
+                    f"⚠️ Thyroid hormones show contradictory pattern: {', '.join(issues)}. "
+                    f"TSH={tsh}, T3={t3}, T4={t4}. This is medically inconsistent."
+                )
+            }
+        
+        return {'valid': True, 'suspicion': 0, 'message': ''}
+    
+    def _check_value_precision(self, results: List[Dict]) -> Dict:
+        """
+        Check if values have suspicious precision
+        Fake reports often use round numbers or too many decimal places
+        """
+        score = 0
+        findings = []
+        count = 0
+        
+        round_values = 0
+        
         for result in results:
             value = result['value']
-            # Check if value is a round number (10, 50, 100, 150, 200)
-            if value % 10 == 0 and value >= 10:
-                round_numbers += 1
+            term = result['term']
+            
+            # Check if value is suspiciously round (like exactly 100, 200, etc.)
+            if value == int(value) and value % 10 == 0 and value != 0:
+                round_values += 1
         
-        # If more than 70% are perfect round numbers, suspicious
-        if len(results) > 3 and round_numbers / len(results) > 0.7:
-            self.suspicion_score += 10
-            self.findings.append(
-                f"⚠️ {round_numbers}/{len(results)} values are perfect round numbers - "
-                f"statistically unusual for real lab results"
-            )
-            print(f"⚠️  Too many round numbers +10 suspicion")
-        else:
-            print(f"✅ Value distribution appears natural")
+        # If >50% of values are round numbers, it's suspicious
+        if len(results) > 0:
+            round_percentage = (round_values / len(results)) * 100
+            
+            if round_percentage > 50:
+                score += 10
+                count += 1
+                findings.append(
+                    f"⚠️ {round_percentage:.0f}% of values are suspiciously round numbers. "
+                    f"Real lab results typically have decimal precision."
+                )
+                print(f"⚠️ {round_percentage:.0f}% values are round numbers (suspicious)")
         
-        # Check for duplicate values (different tests, same value)
-        values_list = [r['value'] for r in results]
-        unique_values = set(values_list)
+        if count == 0:
+            print("✅ Value precision appears normal")
         
-        if len(results) > 5 and len(unique_values) < len(results) * 0.5:
-            self.suspicion_score += 10
-            self.findings.append(
-                f"⚠️ Multiple tests have identical values - suspicious pattern"
-            )
-            print(f"⚠️  Suspicious duplicate values +10 suspicion")
-        else:
-            print(f"✅ No suspicious value patterns")
-    
-    def _generate_warnings(self):
-        """Generate user-friendly warnings"""
-        warnings = []
-        
-        if self.suspicion_score >= 40:
-            warnings.append("🚨 CRITICAL: Medically impossible values detected")
-            warnings.append("These results are physiologically impossible")
-            warnings.append("Report is almost certainly fabricated")
-        elif self.suspicion_score >= 25:
-            warnings.append("⚠️ HIGH: Significant medical inconsistencies")
-            warnings.append("Values don't follow expected medical relationships")
-            warnings.append("Strongly recommend verification with lab")
-        elif self.suspicion_score >= 10:
-            warnings.append("⚠️ MODERATE: Some unusual patterns detected")
-            warnings.append("Results may be legitimate but warrant scrutiny")
-        else:
-            warnings.append("✅ Medical values appear plausible")
-            warnings.append("No statistical red flags detected")
-        
-        return warnings
+        return {'score': score, 'findings': findings, 'count': count}
 
 
 # ============================================
@@ -228,40 +386,42 @@ class MedicalValidator:
 
 if __name__ == "__main__":
     # Test with sample data
-    
-    # Example 1: Normal values
-    normal_data = {
-        'all_results': [
-            {'term': 'Hemoglobin', 'value': 14.5, 'unit': 'g/dL'},
-            {'term': 'Glucose', 'value': 105, 'unit': 'mg/dL'},
-            {'term': 'HbA1c', 'value': 5.7, 'unit': '%'},
-        ]
-    }
-    
-    # Example 2: Impossible values
-    fake_data = {
-        'all_results': [
-            {'term': 'Hemoglobin', 'value': 50.0, 'unit': 'g/dL'},  # Impossible!
-            {'term': 'Glucose', 'value': 1000, 'unit': 'mg/dL'},  # Impossible!
-        ]
-    }
-    
     validator = MedicalValidator()
     
-    print("="*60)
-    print("TEST 1: Normal Values")
-    print("="*60)
-    result1 = validator.validate_report(normal_data)
-    print(f"\nValid: {result1['valid']}")
-    print(f"Suspicion: {result1['suspicion_score']}")
+    # Example 1: Consistent report (should pass)
+    good_report = {
+        'all_results': [
+            {'term': 'HbA1c', 'value': 5.7},
+            {'term': 'Glucose', 'value': 110},
+            {'term': 'Total Cholesterol', 'value': 200},
+            {'term': 'HDL', 'value': 50},
+            {'term': 'LDL', 'value': 120},
+            {'term': 'Triglycerides', 'value': 150},
+        ]
+    }
     
-    print("\n" + "="*60)
-    print("TEST 2: Impossible Values")
-    print("="*60)
-    validator2 = MedicalValidator()
-    result2 = validator2.validate_report(fake_data)
-    print(f"\nValid: {result2['valid']}")
-    print(f"Suspicion: {result2['suspicion_score']}")
+    print("Testing GOOD REPORT:")
+    result1 = validator.validate_report(good_report)
+    print(f"\nResult: Suspicion={result1['suspicion_score']}, Valid={result1['validated']}")
+    
+    print("\n" + "="*60 + "\n")
+    
+    # Example 2: Suspicious report (should fail)
+    bad_report = {
+        'all_results': [
+            {'term': 'HbA1c', 'value': 12.0},  # Very high (diabetic)
+            {'term': 'Glucose', 'value': 85},   # Normal (contradictory!)
+            {'term': 'Total Cholesterol', 'value': 300},  # High
+            {'term': 'HDL', 'value': 30},       # Low
+            {'term': 'LDL', 'value': 150},      # High
+            {'term': 'Triglycerides', 'value': 200},  # High
+            # Math: 30 + 150 + 40 = 220, but total is 300 (doesn't match!)
+        ]
+    }
+    
+    print("Testing SUSPICIOUS REPORT:")
+    result2 = validator.validate_report(bad_report)
+    print(f"\nResult: Suspicion={result2['suspicion_score']}, Valid={result2['validated']}")
     print("\nFindings:")
     for finding in result2['findings']:
-        print(f"  {finding}")
+        print(f"  - {finding}")
