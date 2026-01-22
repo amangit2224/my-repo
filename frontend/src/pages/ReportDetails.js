@@ -250,6 +250,22 @@ function ReportDetails() {
           </div>
         </div>
 
+        {/* Health Risk Assessment Button - Added after summary section */}
+        <div style={{ marginTop: '24px', textAlign: 'center' }}>
+          <button
+            onClick={() => navigate(`/risk-assessment/${reportId}`)}
+            className="btn-primary"
+            style={{
+              padding: '16px 32px',
+              fontSize: 16,
+              background: 'linear-gradient(135deg, #667EEA 0%, #764BA2 100%)',
+              border: 'none'
+            }}
+          >
+            ⚠️ Calculate Health Risks
+          </button>
+        </div>
+
         <div className="original-text-section">
           <h2 style={{ fontSize: '20px', margin: '0 0 16px', fontWeight: 600 }}>
             Original Extracted Text
