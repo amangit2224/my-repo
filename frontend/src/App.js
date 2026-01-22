@@ -9,6 +9,7 @@ import JargonBuster from './pages/JargonBuster';
 import HealthTrends from './pages/HealthTrends';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import HealthRiskAssessment from './pages/HealthRiskAssessment';
 import './App.css';
 
 function App() {
@@ -82,6 +83,14 @@ function App() {
           element={
             <ProtectedRoute>
               <HealthTrends />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/risk-assessment/:reportId"
+          element={
+            <ProtectedRoute>
+              <HealthRiskAssessment />
             </ProtectedRoute>
           }
         />
