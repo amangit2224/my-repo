@@ -835,36 +835,101 @@ def calculate_health_risks(report_id):
         # Get parsed data from report
         parsed_data = report.get('parsed_data', {})
         
-        if not parsed_data or 'tests' not in parsed_data:
-            return jsonify({'error': 'No test data available for risk calculation'}), 400
-        
-        # Extract test values
-        tests = parsed_data['tests']
+        # Extract test values - handle different formats
         test_values = {}
         
-        for test in tests:
-            test_name = test.get('name', '').lower()
-            test_value = test.get('value')
+        # Try to get tests from parsed_data
+        if parsed_data and 'tests' in parsed_data:
+            tests = parsed_data['tests']
             
-            # Map test names to standardized keys
-            if 'cholesterol' in test_name and 'total' in test_name:
-                test_values['total_cholesterol'] = test_value
-            elif 'hdl' in test_name:
-                test_values['hdl'] = test_value
-            elif 'ldl' in test_name:
-                test_values['ldl'] = test_value
-            elif 'triglyceride' in test_name:
-                test_values['triglycerides'] = test_value
-            elif 'hba1c' in test_name or 'a1c' in test_name:
-                test_values['hba1c'] = test_value
-            elif 'glucose' in test_name and 'fasting' in test_name:
-                test_values['fasting_glucose'] = test_value
-            elif 'creatinine' in test_name:
-                test_values['creatinine'] = test_value
-            elif 'urea' in test_name or 'bun' in test_name:
-                test_values['urea'] = test_value
+            print(f"Found {len(tests)} tests in parsed_data")
+            
+            for test in tests:
+                test_name = test.get('name', '').lower()
+                test_value = test.get('value')
+                
+                # Skip if no value
+                if test_value is None:
+                    continue
+                
+                # Convert to float if string
+                try:
+                    if isinstance(test_value, str):
+                        test_value = float(test_value)
+                except:
+                    continue
+                
+                print(f"Processing test: {test_name} = {test_value}")
+                
+                # Map test names to standardized keys
+                if 'cholesterol' in test_name and 'total' in test_name:
+                    test_values['total_cholesterol'] = test_value
+                elif 'cholesterol' in test_name and 'hdl' in test_name:
+                    test_values['hdl'] = test_value
+                elif 'cholesterol' in test_name and 'ldl' in test_name:
+                    test_values['ldl'] = test_value
+                elif 'hdl' in test_name and 'cholesterol' not in test_name:
+                    test_values['hdl'] = test_value
+                elif 'ldl' in test_name and 'cholesterol' not in test_name:
+                    test_values['ldl'] = test_value
+                elif 'triglyceride' in test_name:
+                    test_values['triglycerides'] = test_value
+                elif 'hba1c' in test_name or 'a1c' in test_name or 'hemoglobin a1c' in test_name:
+                    test_values['hba1c'] = test_value
+                elif 'glucose' in test_name and ('fasting' in test_name or 'fast' in test_name):
+                    test_values['fasting_glucose'] = test_value
+                elif 'glucose' in test_name and 'average' in test_name:
+                    test_values['fasting_glucose'] = test_value  # Use average glucose as proxy
+                elif 'creatinine' in test_name:
+                    test_values['creatinine'] = test_value
+                elif 'urea' in test_name or 'bun' in test_name:
+                    test_values['urea'] = test_value
+        
+        # FALLBACK: Try to extract from categories (your parser might use this)
+        if not test_values and parsed_data and 'categories' in parsed_data:
+            categories = parsed_data['categories']
+            
+            for category_name, category_data in categories.items():
+                if isinstance(category_data, dict) and 'tests' in category_data:
+                    for test in category_data['tests']:
+                        test_name = test.get('name', '').lower()
+                        test_value = test.get('value')
+                        
+                        if test_value is None:
+                            continue
+                        
+                        try:
+                            if isinstance(test_value, str):
+                                test_value = float(test_value)
+                        except:
+                            continue
+                        
+                        # Same mapping as above
+                        if 'cholesterol' in test_name and 'total' in test_name:
+                            test_values['total_cholesterol'] = test_value
+                        elif 'hdl' in test_name:
+                            test_values['hdl'] = test_value
+                        elif 'ldl' in test_name:
+                            test_values['ldl'] = test_value
+                        elif 'triglyceride' in test_name:
+                            test_values['triglycerides'] = test_value
+                        elif 'hba1c' in test_name or 'a1c' in test_name:
+                            test_values['hba1c'] = test_value
+                        elif 'glucose' in test_name:
+                            test_values['fasting_glucose'] = test_value
+                        elif 'creatinine' in test_name:
+                            test_values['creatinine'] = test_value
+                        elif 'urea' in test_name:
+                            test_values['urea'] = test_value
         
         print(f"Extracted test values: {test_values}")
+        
+        # Check if we have any test values
+        if not test_values:
+            return jsonify({
+                'error': 'No test data available for risk calculation',
+                'details': 'This report does not contain the required test values (cholesterol, glucose, HbA1c, etc.) needed for risk assessment.'
+            }), 400
         
         # Calculate risks
         risks = calculate_all_risks(test_values)
@@ -872,6 +937,7 @@ def calculate_health_risks(report_id):
         return jsonify({
             'success': True,
             'risks': risks,
+            'test_values_found': test_values,  # Debug: show what we found
             'report_id': report_id,
             'calculated_at': datetime.now(IST).strftime("%Y-%m-%d %I:%M %p")
         }), 200
