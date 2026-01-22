@@ -163,18 +163,18 @@ function HealthRiskAssessment() {
         
         {/* Overall Health Score */}
         <div style={{
-          background: 'linear-gradient(135deg, #667EEA 0%, #764BA2 100%)',
+          background: 'white',
           borderRadius: 16,
           padding: 32,
           marginBottom: 32,
-          color: 'white',
+          border: '2px solid #E5E7EB',
           textAlign: 'center'
         }}>
-          <h2 style={{ fontSize: 28, marginBottom: 16 }}>Overall Health Score</h2>
-          <div style={{ fontSize: 64, fontWeight: 'bold', marginBottom: 8 }}>
+          <h2 style={{ fontSize: 28, marginBottom: 16, color: '#1F2937' }}>Overall Health Score</h2>
+          <div style={{ fontSize: 64, fontWeight: 'bold', marginBottom: 8, color: '#4F46E5' }}>
             {riskData.overall_score}/100
           </div>
-          <div style={{ fontSize: 20, marginBottom: 20, opacity: 0.9 }}>
+          <div style={{ fontSize: 20, marginBottom: 20, color: '#6B7280' }}>
             {riskData.overall_status}
           </div>
           
@@ -182,7 +182,7 @@ function HealthRiskAssessment() {
           <div style={{
             width: '100%',
             height: 12,
-            background: 'rgba(255,255,255,0.3)',
+            background: '#E5E7EB',
             borderRadius: 6,
             overflow: 'hidden',
             marginBottom: 16
@@ -195,7 +195,7 @@ function HealthRiskAssessment() {
             }} />
           </div>
           
-          <p style={{ fontSize: 16, opacity: 0.95, margin: 0 }}>
+          <p style={{ fontSize: 16, color: '#6B7280', margin: 0 }}>
             {riskData.overall_message}
           </p>
         </div>
@@ -371,13 +371,13 @@ function HealthRiskAssessment() {
         {/* Overall Recommendations */}
         {riskData.recommendations && riskData.recommendations.length > 0 && (
           <div style={{
-            background: 'var(--primary-light)',
+            background: 'white',
             borderRadius: 12,
             padding: 24,
-            border: '2px solid var(--primary)'
+            border: '2px solid #4F46E5'
           }}>
-            <h3 style={{ fontSize: 20, marginBottom: 16 }}>📋 Overall Recommendations</h3>
-            <ul style={{ paddingLeft: 20, margin: 0 }}>
+            <h3 style={{ fontSize: 20, marginBottom: 16, color: '#1F2937' }}>📋 Overall Recommendations</h3>
+            <ul style={{ paddingLeft: 20, margin: 0, color: '#4B5563' }}>
               {riskData.recommendations.map((rec, idx) => (
                 <li key={idx} style={{ marginBottom: 8, fontSize: 15 }}>
                   {rec}
