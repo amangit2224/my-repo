@@ -835,18 +835,29 @@ def calculate_health_risks(report_id):
         # Get parsed data from report
         parsed_data = report.get('parsed_data', {})
         
+        # DEBUG: Print the entire structure
+        print(f"\n{'='*60}")
+        print(f"DEBUG: PARSED DATA STRUCTURE")
+        print(f"{'='*60}")
+        print(f"Keys in parsed_data: {list(parsed_data.keys()) if parsed_data else 'NONE'}")
+        if parsed_data:
+            print(f"Full parsed_data: {parsed_data}")
+        print(f"{'='*60}\n")
+        
         # Extract test values - handle different formats
         test_values = {}
         
-        # Try to get tests from parsed_data
+        # METHOD 1: Try parsed_data['tests']
         if parsed_data and 'tests' in parsed_data:
             tests = parsed_data['tests']
-            
-            print(f"Found {len(tests)} tests in parsed_data")
+            print(f"METHOD 1: Found {len(tests)} tests in parsed_data['tests']")
             
             for test in tests:
-                test_name = test.get('name', '').lower()
+                test_name = str(test.get('name', '')).lower()
                 test_value = test.get('value')
+                test_unit = test.get('unit', '')
+                
+                print(f"  Test: {test.get('name')} = {test_value} {test_unit}")
                 
                 # Skip if no value
                 if test_value is None:
@@ -855,44 +866,54 @@ def calculate_health_risks(report_id):
                 # Convert to float if string
                 try:
                     if isinstance(test_value, str):
+                        # Remove any non-numeric characters except decimal point
+                        test_value = test_value.strip().replace(',', '')
                         test_value = float(test_value)
-                except:
+                    else:
+                        test_value = float(test_value)
+                except Exception as e:
+                    print(f"  ERROR converting {test_value}: {e}")
                     continue
                 
-                print(f"Processing test: {test_name} = {test_value}")
-                
-                # Map test names to standardized keys
-                if 'cholesterol' in test_name and 'total' in test_name:
+                # Map test names to standardized keys (case insensitive)
+                if 'total' in test_name and 'cholesterol' in test_name:
                     test_values['total_cholesterol'] = test_value
-                elif 'cholesterol' in test_name and 'hdl' in test_name:
+                    print(f"  ✓ Mapped to: total_cholesterol")
+                elif 'hdl' in test_name:
                     test_values['hdl'] = test_value
-                elif 'cholesterol' in test_name and 'ldl' in test_name:
+                    print(f"  ✓ Mapped to: hdl")
+                elif 'ldl' in test_name:
                     test_values['ldl'] = test_value
-                elif 'hdl' in test_name and 'cholesterol' not in test_name:
-                    test_values['hdl'] = test_value
-                elif 'ldl' in test_name and 'cholesterol' not in test_name:
-                    test_values['ldl'] = test_value
-                elif 'triglyceride' in test_name:
+                    print(f"  ✓ Mapped to: ldl")
+                elif 'triglyceride' in test_name or 'trig' in test_name:
                     test_values['triglycerides'] = test_value
-                elif 'hba1c' in test_name or 'a1c' in test_name or 'hemoglobin a1c' in test_name:
+                    print(f"  ✓ Mapped to: triglycerides")
+                elif 'hba1c' in test_name or 'a1c' in test_name or ('hemoglobin' in test_name and 'a1c' in test_name):
                     test_values['hba1c'] = test_value
-                elif 'glucose' in test_name and ('fasting' in test_name or 'fast' in test_name):
+                    print(f"  ✓ Mapped to: hba1c")
+                elif 'glucose' in test_name:
                     test_values['fasting_glucose'] = test_value
-                elif 'glucose' in test_name and 'average' in test_name:
-                    test_values['fasting_glucose'] = test_value  # Use average glucose as proxy
+                    print(f"  ✓ Mapped to: fasting_glucose")
                 elif 'creatinine' in test_name:
                     test_values['creatinine'] = test_value
+                    print(f"  ✓ Mapped to: creatinine")
                 elif 'urea' in test_name or 'bun' in test_name:
                     test_values['urea'] = test_value
+                    print(f"  ✓ Mapped to: urea")
+                else:
+                    print(f"  ✗ No mapping for this test")
         
-        # FALLBACK: Try to extract from categories (your parser might use this)
+        # METHOD 2: Try categories structure
         if not test_values and parsed_data and 'categories' in parsed_data:
+            print(f"METHOD 2: Trying categories structure")
             categories = parsed_data['categories']
+            print(f"  Found categories: {list(categories.keys())}")
             
             for category_name, category_data in categories.items():
                 if isinstance(category_data, dict) and 'tests' in category_data:
+                    print(f"  Category '{category_name}' has {len(category_data['tests'])} tests")
                     for test in category_data['tests']:
-                        test_name = test.get('name', '').lower()
+                        test_name = str(test.get('name', '')).lower()
                         test_value = test.get('value')
                         
                         if test_value is None:
@@ -900,12 +921,14 @@ def calculate_health_risks(report_id):
                         
                         try:
                             if isinstance(test_value, str):
+                                test_value = float(test_value.strip().replace(',', ''))
+                            else:
                                 test_value = float(test_value)
                         except:
                             continue
                         
-                        # Same mapping as above
-                        if 'cholesterol' in test_name and 'total' in test_name:
+                        # Same mapping logic
+                        if 'total' in test_name and 'cholesterol' in test_name:
                             test_values['total_cholesterol'] = test_value
                         elif 'hdl' in test_name:
                             test_values['hdl'] = test_value
@@ -922,13 +945,21 @@ def calculate_health_risks(report_id):
                         elif 'urea' in test_name:
                             test_values['urea'] = test_value
         
-        print(f"Extracted test values: {test_values}")
+        print(f"\n{'='*60}")
+        print(f"FINAL EXTRACTED TEST VALUES: {test_values}")
+        print(f"{'='*60}\n")
         
         # Check if we have any test values
         if not test_values:
+            # Return detailed error with debug info
             return jsonify({
                 'error': 'No test data available for risk calculation',
-                'details': 'This report does not contain the required test values (cholesterol, glucose, HbA1c, etc.) needed for risk assessment.'
+                'details': 'Could not find required test values in the report.',
+                'debug': {
+                    'parsed_data_keys': list(parsed_data.keys()) if parsed_data else [],
+                    'has_tests_key': 'tests' in parsed_data if parsed_data else False,
+                    'has_categories_key': 'categories' in parsed_data if parsed_data else False
+                }
             }), 400
         
         # Calculate risks
@@ -937,7 +968,7 @@ def calculate_health_risks(report_id):
         return jsonify({
             'success': True,
             'risks': risks,
-            'test_values_found': test_values,  # Debug: show what we found
+            'test_values_found': test_values,
             'report_id': report_id,
             'calculated_at': datetime.now(IST).strftime("%Y-%m-%d %I:%M %p")
         }), 200
@@ -948,7 +979,7 @@ def calculate_health_risks(report_id):
         import traceback
         traceback.print_exc()
         print(f"{'='*60}\n")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': str(e), 'type': 'exception'}), 500
 
 
 def calculate_all_risks(test_values):
