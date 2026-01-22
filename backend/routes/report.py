@@ -674,110 +674,96 @@ def extract_test_results(text):
     Returns list of {name, value, unit}
     """
     tests = []
+    seen_names = set()
     
-    # ============================================
-    # WHITELIST: Valid medical units only
-    # ============================================
-    valid_units = {
-        # Blood count units
-        'cells/cumm', 'thou/cumm', 'mill/cumm', 'cells/mcl', 'k/ul', 'm/ul',
-        # Chemistry units
+    # Valid medical units (lowercase for comparison)
+    valid_units = [
         'mg/dl', 'g/dl', 'mmol/l', 'meq/l', 'iu/l', 'u/l',
-        # Percentage and ratio
         '%', 'percent', 'ratio',
-        # Hormone units
         'ng/ml', 'pg/ml', 'miu/ml', 'uiu/ml', 'pmol/l',
-        # Other common units
-        'sec', 'seconds', 'mm/hr', 'fl', 'pg', 'mcg/dl', 'umol/l',
-        # Misc
+        'cells/cumm', 'thou/cumm', 'mill/cumm',
+        'sec', 'seconds', 'mm/hr', 'fl', 'mcg/dl', 'umol/l',
         'g/l', 'mg/l', 'ug/l', 'nmol/l'
-    }
-    
-    # ============================================
-    # BLACKLIST: Terms to ignore (REDUCED!)
-    # ============================================
-    ignore_terms = [
-        'floor no', 'street', 'apartment', 'building', 'road bangalore', 'town bangalore',
-        'pincode', 'zip code', 'phone', 'email', 'fax',
-        'page', 'barcode', 'labcode', 'invoice', 'receipt', 'bill',
-        'processing', 'cancelled', 'cancellation',
-        'technologies ltd', 'pvt ltd', 'limited', 'company name',
-        'sample type', 'specimen', 'collected on', 'received on', 'released on',
-        'patient name', 'doctor name', 'physician name'
     ]
     
-    # Multiple regex patterns to catch different formats
-    patterns = [
-        # Pattern 1: Test Name: value unit
-        r'([A-Z][A-Za-z0-9\s\-/()]+?):\s*([\d.]+)\s*([a-zA-Z/%]+)',
-        # Pattern 2: Test Name - value unit
-        r'([A-Z][A-Za-z0-9\s\-/()]+?)\s*[-–]\s*([\d.]+)\s*([a-zA-Z/%]+)',
-        # Pattern 3: Test Name value unit (tab or space separated)
-        r'([A-Z][A-Za-z0-9\s\-/()]+?)\s{2,}([\d.]+)\s+([a-zA-Z/%]+)',
+    # Strict blacklist - only obvious non-medical terms
+    blacklist = [
+        'floor no', 'street name', 'apartment', 'building name',
+        'pincode', 'zip code', 
+        'barcode', 'labcode', 'page',
+        'sample collected', 'sample received', 'report released',
+        'patient name', 'ref. by', 'test asked',
+        'technologies ltd', 'pvt ltd',
+        '560025', 'richmond', 'bangalore', 'serpentine'
     ]
     
-    for pattern in patterns:
-        matches = re.finditer(pattern, text)
-        for match in matches:
-            test_name = match.group(1).strip()
-            value_str = match.group(2).strip()
-            unit = match.group(3).strip()
-            
-            # ============================================
-            # VALIDATION CHECKS
-            # ============================================
-            
-            # 1. Skip if test name is too short or too long
-            if len(test_name) < 3 or len(test_name) > 60:
-                continue
-            
-            # 2. Skip if it looks like a sentence (too many words)
-            if test_name.count(' ') > 7:
-                continue
-            
-            # 3. Check if unit is valid medical unit (case insensitive)
-            unit_lower = unit.lower()
-            is_valid_unit = any(valid_unit.lower() == unit_lower or unit_lower in valid_unit.lower() 
-                               for valid_unit in valid_units)
-            if not is_valid_unit:
-                continue
-            
-            # 4. Skip if test name contains blacklisted phrases (must match exact phrase)
-            test_name_lower = test_name.lower()
-            is_blacklisted = any(ignore_term in test_name_lower for ignore_term in ignore_terms)
-            if is_blacklisted:
-                continue
-            
-            # 5. Skip if test name is ONLY numbers
-            if test_name.replace(' ', '').replace('-', '').replace('/', '').isdigit():
-                continue
-            
-            # 6. Skip common non-medical starting words
-            bad_starts = ['the ', 'a ', 'an ', 'this ', 'that ', 'for ', 'with ', 'from ', 'to ']
-            if any(test_name_lower.startswith(bad) for bad in bad_starts):
-                continue
-            
-            # 7. Skip if it's clearly an address component
-            address_indicators = ['560025', 'richmond road', 'serpentine', 'ground floor']
-            if any(indicator in test_name_lower for indicator in address_indicators):
-                continue
-            
-            try:
-                value = float(value_str)
+    # Pattern: TEST_NAME value unit
+    # Looking for lines with this structure
+    lines = text.split('\n')
+    
+    for line in lines:
+        # Skip very short lines
+        if len(line) < 15:
+            continue
+        
+        # Try to find: word(s) followed by number followed by unit
+        # Use multiple patterns
+        patterns = [
+            # Pattern 1: TEST NAME TECH value unit
+            r'([A-Z][A-Za-z0-9\s\-/()]+?)\s+[A-Z\.]+\s+([\d.]+)\s+([a-zA-Z/%]+)',
+            # Pattern 2: TEST NAME value unit  
+            r'^([A-Z][A-Za-z0-9\s\-/()]+?)\s+([\d.]+)\s+([a-zA-Z/%]+)\s*$',
+            # Pattern 3: TEST NAME: value unit
+            r'([A-Z][A-Za-z0-9\s\-/()]+?):\s+([\d.]+)\s+([a-zA-Z/%]+)',
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, line)
+            if match:
+                test_name = match.group(1).strip()
+                value_str = match.group(2).strip()
+                unit = match.group(3).strip()
                 
-                # Skip unrealistic values (likely parsing errors)
-                if value > 10000000 or value < 0:
+                # Basic validation
+                if len(test_name) < 3 or len(test_name) > 60:
                     continue
                 
-                # Check if test already exists (avoid duplicates)
-                if not any(t['name'] == test_name for t in tests):
+                # Check if unit is valid
+                unit_lower = unit.lower()
+                if not any(valid_unit in unit_lower or unit_lower in valid_unit for valid_unit in valid_units):
+                    continue
+                
+                # Check blacklist (only exact phrases)
+                test_lower = test_name.lower()
+                if any(black in test_lower for black in blacklist):
+                    continue
+                
+                # Skip if test name is all numbers
+                if test_name.replace(' ', '').replace('-', '').isdigit():
+                    continue
+                
+                # Skip duplicates
+                if test_name in seen_names:
+                    continue
+                
+                try:
+                    value = float(value_str)
+                    
+                    # Skip unrealistic values
+                    if value < 0 or value > 500000:
+                        continue
+                    
                     tests.append({
                         'name': test_name,
                         'value': value,
                         'unit': unit
                     })
-            except ValueError:
-                continue
+                    seen_names.add(test_name)
+                    
+                except ValueError:
+                    continue
+                
+                break  # Found match, move to next line
     
     return tests
 
@@ -819,3 +805,391 @@ def extract_date_from_text(text):
                 continue
     
     return None
+
+
+# ============================================
+# 🔥 HEALTH RISK CALCULATOR ENDPOINT 🔥
+# ============================================
+
+@report_bp.route('/calculate-risks/<report_id>', methods=['GET'])
+@jwt_required()
+def calculate_health_risks(report_id):
+    """
+    Calculate health risks based on a report's test values
+    Returns cardiovascular risk, diabetes risk, and overall health score
+    """
+    try:
+        from bson.objectid import ObjectId
+        current_user = get_jwt_identity()
+        
+        # Fetch the report
+        reports_collection = db['reports']
+        report = reports_collection.find_one({
+            '_id': ObjectId(report_id),
+            'user_email': current_user
+        })
+        
+        if not report:
+            return jsonify({'error': 'Report not found'}), 404
+        
+        # Get parsed data from report
+        parsed_data = report.get('parsed_data', {})
+        
+        if not parsed_data or 'tests' not in parsed_data:
+            return jsonify({'error': 'No test data available for risk calculation'}), 400
+        
+        # Extract test values
+        tests = parsed_data['tests']
+        test_values = {}
+        
+        for test in tests:
+            test_name = test.get('name', '').lower()
+            test_value = test.get('value')
+            
+            # Map test names to standardized keys
+            if 'cholesterol' in test_name and 'total' in test_name:
+                test_values['total_cholesterol'] = test_value
+            elif 'hdl' in test_name:
+                test_values['hdl'] = test_value
+            elif 'ldl' in test_name:
+                test_values['ldl'] = test_value
+            elif 'triglyceride' in test_name:
+                test_values['triglycerides'] = test_value
+            elif 'hba1c' in test_name or 'a1c' in test_name:
+                test_values['hba1c'] = test_value
+            elif 'glucose' in test_name and 'fasting' in test_name:
+                test_values['fasting_glucose'] = test_value
+            elif 'creatinine' in test_name:
+                test_values['creatinine'] = test_value
+            elif 'urea' in test_name or 'bun' in test_name:
+                test_values['urea'] = test_value
+        
+        print(f"Extracted test values: {test_values}")
+        
+        # Calculate risks
+        risks = calculate_all_risks(test_values)
+        
+        return jsonify({
+            'success': True,
+            'risks': risks,
+            'report_id': report_id,
+            'calculated_at': datetime.now(IST).strftime("%Y-%m-%d %I:%M %p")
+        }), 200
+        
+    except Exception as e:
+        print(f"\nERROR in calculate_health_risks:")
+        print(f"{'='*60}")
+        import traceback
+        traceback.print_exc()
+        print(f"{'='*60}\n")
+        return jsonify({'error': str(e)}), 500
+
+
+def calculate_all_risks(test_values):
+    """
+    Calculate all health risks based on test values
+    Returns a dictionary with risk assessments
+    """
+    risks = {
+        'overall_score': 100,
+        'cardiovascular': None,
+        'diabetes': None,
+        'kidney': None,
+        'recommendations': []
+    }
+    
+    # ============================================
+    # CARDIOVASCULAR RISK ASSESSMENT
+    # ============================================
+    cardio_risk = assess_cardiovascular_risk(test_values)
+    risks['cardiovascular'] = cardio_risk
+    
+    # Deduct from overall score based on cardio risk
+    if cardio_risk['level'] == 'HIGH':
+        risks['overall_score'] -= 15
+        risks['recommendations'].extend(cardio_risk['recommendations'])
+    elif cardio_risk['level'] == 'MEDIUM':
+        risks['overall_score'] -= 8
+        risks['recommendations'].extend(cardio_risk['recommendations'])
+    
+    # ============================================
+    # DIABETES RISK ASSESSMENT
+    # ============================================
+    diabetes_risk = assess_diabetes_risk(test_values)
+    risks['diabetes'] = diabetes_risk
+    
+    # Deduct from overall score based on diabetes risk
+    if diabetes_risk['level'] == 'DIABETIC':
+        risks['overall_score'] -= 15
+        risks['recommendations'].extend(diabetes_risk['recommendations'])
+    elif diabetes_risk['level'] == 'PREDIABETIC':
+        risks['overall_score'] -= 10
+        risks['recommendations'].extend(diabetes_risk['recommendations'])
+    
+    # ============================================
+    # KIDNEY HEALTH ASSESSMENT
+    # ============================================
+    kidney_health = assess_kidney_health(test_values)
+    risks['kidney'] = kidney_health
+    
+    # Deduct from overall score based on kidney health
+    if kidney_health['level'] == 'HIGH_RISK':
+        risks['overall_score'] -= 15
+        risks['recommendations'].extend(kidney_health['recommendations'])
+    elif kidney_health['level'] == 'MODERATE_RISK':
+        risks['overall_score'] -= 8
+        risks['recommendations'].extend(kidney_health['recommendations'])
+    
+    # Ensure score doesn't go below 0
+    risks['overall_score'] = max(0, risks['overall_score'])
+    
+    # Determine overall health status
+    if risks['overall_score'] >= 90:
+        risks['overall_status'] = 'Excellent'
+        risks['overall_message'] = 'Your health markers are excellent! Keep up the good work.'
+    elif risks['overall_score'] >= 75:
+        risks['overall_status'] = 'Good'
+        risks['overall_message'] = 'Your health is good overall. Follow the recommendations to maintain it.'
+    elif risks['overall_score'] >= 60:
+        risks['overall_status'] = 'Fair'
+        risks['overall_message'] = 'Some health markers need attention. Please follow the recommendations.'
+    elif risks['overall_score'] >= 40:
+        risks['overall_status'] = 'Poor'
+        risks['overall_message'] = 'Multiple health concerns detected. Consult your doctor soon.'
+    else:
+        risks['overall_status'] = 'Critical'
+        risks['overall_message'] = 'Immediate medical attention recommended. Please consult your doctor.'
+    
+    # Remove duplicate recommendations
+    risks['recommendations'] = list(set(risks['recommendations']))
+    
+    return risks
+
+
+def assess_cardiovascular_risk(test_values):
+    """
+    Assess cardiovascular disease risk based on lipid profile
+    """
+    risk = {
+        'level': 'UNKNOWN',
+        'score': 0,
+        'factors': [],
+        'recommendations': []
+    }
+    
+    total_chol = test_values.get('total_cholesterol')
+    hdl = test_values.get('hdl')
+    ldl = test_values.get('ldl')
+    triglycerides = test_values.get('triglycerides')
+    
+    risk_points = 0
+    
+    # Total Cholesterol assessment
+    if total_chol is not None:
+        if total_chol >= 240:
+            risk_points += 3
+            risk['factors'].append(f'High Total Cholesterol: {total_chol} mg/dL (>= 240)')
+        elif total_chol >= 200:
+            risk_points += 2
+            risk['factors'].append(f'Borderline High Cholesterol: {total_chol} mg/dL (200-239)')
+        else:
+            risk['factors'].append(f'Normal Total Cholesterol: {total_chol} mg/dL (<200)')
+    
+    # HDL assessment
+    if hdl is not None:
+        if hdl < 40:
+            risk_points += 2
+            risk['factors'].append(f'Low HDL (Good Cholesterol): {hdl} mg/dL (<40)')
+        elif hdl >= 60:
+            risk_points -= 1  # Protective factor
+            risk['factors'].append(f'High HDL (Good Cholesterol): {hdl} mg/dL (>=60) - Protective!')
+        else:
+            risk['factors'].append(f'Normal HDL: {hdl} mg/dL (40-60)')
+    
+    # LDL assessment
+    if ldl is not None:
+        if ldl >= 160:
+            risk_points += 3
+            risk['factors'].append(f'High LDL (Bad Cholesterol): {ldl} mg/dL (>=160)')
+        elif ldl >= 130:
+            risk_points += 2
+            risk['factors'].append(f'Borderline High LDL: {ldl} mg/dL (130-159)')
+        elif ldl >= 100:
+            risk_points += 1
+            risk['factors'].append(f'Near Optimal LDL: {ldl} mg/dL (100-129)')
+        else:
+            risk['factors'].append(f'Optimal LDL: {ldl} mg/dL (<100)')
+    
+    # Triglycerides assessment
+    if triglycerides is not None:
+        if triglycerides >= 200:
+            risk_points += 2
+            risk['factors'].append(f'High Triglycerides: {triglycerides} mg/dL (>=200)')
+        elif triglycerides >= 150:
+            risk_points += 1
+            risk['factors'].append(f'Borderline High Triglycerides: {triglycerides} mg/dL (150-199)')
+        else:
+            risk['factors'].append(f'Normal Triglycerides: {triglycerides} mg/dL (<150)')
+    
+    # Determine risk level
+    if risk_points >= 5:
+        risk['level'] = 'HIGH'
+        risk['recommendations'] = [
+            'Consult a cardiologist immediately',
+            'Consider starting cholesterol-lowering medication',
+            'Follow a heart-healthy diet (low saturated fat)',
+            'Exercise at least 30 minutes daily',
+            'Stop smoking if applicable'
+        ]
+    elif risk_points >= 3:
+        risk['level'] = 'MEDIUM'
+        risk['recommendations'] = [
+            'Monitor cholesterol levels regularly',
+            'Reduce saturated fat and trans fat intake',
+            'Increase physical activity to 30 mins daily',
+            'Maintain healthy weight',
+            'Consider consulting a dietitian'
+        ]
+    else:
+        risk['level'] = 'LOW'
+        risk['recommendations'] = [
+            'Maintain current healthy lifestyle',
+            'Continue regular exercise',
+            'Annual cholesterol screening recommended'
+        ]
+    
+    risk['score'] = risk_points
+    
+    return risk
+
+
+def assess_diabetes_risk(test_values):
+    """
+    Assess diabetes risk based on glucose and HbA1c levels
+    """
+    risk = {
+        'level': 'UNKNOWN',
+        'factors': [],
+        'recommendations': []
+    }
+    
+    hba1c = test_values.get('hba1c')
+    fasting_glucose = test_values.get('fasting_glucose')
+    
+    # HbA1c assessment (primary indicator)
+    if hba1c is not None:
+        if hba1c >= 6.5:
+            risk['level'] = 'DIABETIC'
+            risk['factors'].append(f'HbA1c: {hba1c}% (>=6.5% indicates diabetes)')
+            risk['recommendations'] = [
+                'Consult an endocrinologist immediately',
+                'Start diabetes management plan',
+                'Monitor blood sugar regularly',
+                'Follow diabetic diet plan',
+                'Exercise 30-45 minutes daily',
+                'Check for complications (eyes, kidneys, feet)'
+            ]
+        elif hba1c >= 5.7:
+            risk['level'] = 'PREDIABETIC'
+            risk['factors'].append(f'HbA1c: {hba1c}% (5.7-6.4% indicates prediabetes)')
+            risk['recommendations'] = [
+                'Lifestyle changes to prevent diabetes',
+                'Reduce sugar and refined carbohydrate intake',
+                'Lose 5-10% body weight if overweight',
+                'Exercise 150 minutes per week',
+                'Monitor HbA1c every 3-6 months',
+                'Consider consulting a dietitian'
+            ]
+        else:
+            risk['level'] = 'NORMAL'
+            risk['factors'].append(f'HbA1c: {hba1c}% (<5.7% is normal)')
+            risk['recommendations'] = [
+                'Maintain healthy lifestyle',
+                'Annual HbA1c screening recommended',
+                'Balanced diet with limited processed sugars'
+            ]
+    
+    # Fasting Glucose assessment (secondary indicator)
+    if fasting_glucose is not None:
+        if fasting_glucose >= 126:
+            if risk['level'] != 'DIABETIC':
+                risk['level'] = 'DIABETIC'
+            risk['factors'].append(f'Fasting Glucose: {fasting_glucose} mg/dL (>=126 indicates diabetes)')
+        elif fasting_glucose >= 100:
+            if risk['level'] == 'UNKNOWN' or risk['level'] == 'NORMAL':
+                risk['level'] = 'PREDIABETIC'
+            risk['factors'].append(f'Fasting Glucose: {fasting_glucose} mg/dL (100-125 indicates prediabetes)')
+        else:
+            if risk['level'] == 'UNKNOWN':
+                risk['level'] = 'NORMAL'
+            risk['factors'].append(f'Fasting Glucose: {fasting_glucose} mg/dL (<100 is normal)')
+    
+    return risk
+
+
+def assess_kidney_health(test_values):
+    """
+    Assess kidney health based on creatinine and urea levels
+    """
+    risk = {
+        'level': 'UNKNOWN',
+        'factors': [],
+        'recommendations': []
+    }
+    
+    creatinine = test_values.get('creatinine')
+    urea = test_values.get('urea')
+    
+    risk_points = 0
+    
+    # Creatinine assessment
+    if creatinine is not None:
+        if creatinine > 1.3:  # Elevated for most adults
+            risk_points += 2
+            risk['factors'].append(f'Elevated Creatinine: {creatinine} mg/dL (>1.3)')
+        elif creatinine > 1.1:
+            risk_points += 1
+            risk['factors'].append(f'Borderline Creatinine: {creatinine} mg/dL (>1.1)')
+        else:
+            risk['factors'].append(f'Normal Creatinine: {creatinine} mg/dL (<=1.1)')
+    
+    # Urea assessment
+    if urea is not None:
+        if urea > 45:  # Elevated
+            risk_points += 2
+            risk['factors'].append(f'Elevated Urea: {urea} mg/dL (>45)')
+        elif urea > 40:
+            risk_points += 1
+            risk['factors'].append(f'Borderline Urea: {urea} mg/dL (>40)')
+        else:
+            risk['factors'].append(f'Normal Urea: {urea} mg/dL (<=40)')
+    
+    # Determine risk level
+    if risk_points >= 3:
+        risk['level'] = 'HIGH_RISK'
+        risk['recommendations'] = [
+            'Consult a nephrologist immediately',
+            'Get kidney function tests (eGFR)',
+            'Stay well hydrated',
+            'Limit protein intake',
+            'Monitor blood pressure regularly',
+            'Avoid nephrotoxic medications'
+        ]
+    elif risk_points >= 1:
+        risk['level'] = 'MODERATE_RISK'
+        risk['recommendations'] = [
+            'Monitor kidney function regularly',
+            'Stay hydrated (8-10 glasses water daily)',
+            'Limit sodium intake',
+            'Control blood pressure and blood sugar',
+            'Recheck kidney tests in 3 months'
+        ]
+    else:
+        risk['level'] = 'NORMAL'
+        risk['recommendations'] = [
+            'Kidney function is normal',
+            'Maintain adequate hydration',
+            'Annual kidney screening recommended'
+        ]
+    
+    return risk
