@@ -847,17 +847,18 @@ def calculate_health_risks(report_id):
         # Extract test values - handle different formats
         test_values = {}
         
-        # METHOD 1: Try parsed_data['tests']
-        if parsed_data and 'tests' in parsed_data:
-            tests = parsed_data['tests']
-            print(f"METHOD 1: Found {len(tests)} tests in parsed_data['tests']")
+        # METHOD 1: Try parsed_data['all_results'] (YOUR PARSER FORMAT!)
+        if parsed_data and 'all_results' in parsed_data:
+            tests = parsed_data['all_results']
+            print(f"METHOD 1: Found {len(tests)} tests in parsed_data['all_results']")
             
             for test in tests:
-                test_name = str(test.get('name', '')).lower()
+                # Your parser uses 'term' not 'name'!
+                test_name = str(test.get('term', '')).lower()
                 test_value = test.get('value')
                 test_unit = test.get('unit', '')
                 
-                print(f"  Test: {test.get('name')} = {test_value} {test_unit}")
+                print(f"  Test: {test.get('term')} = {test_value} {test_unit}")
                 
                 # Skip if no value
                 if test_value is None:
@@ -866,7 +867,6 @@ def calculate_health_risks(report_id):
                 # Convert to float if string
                 try:
                     if isinstance(test_value, str):
-                        # Remove any non-numeric characters except decimal point
                         test_value = test_value.strip().replace(',', '')
                         test_value = float(test_value)
                     else:
@@ -903,9 +903,54 @@ def calculate_health_risks(report_id):
                 else:
                     print(f"  ✗ No mapping for this test")
         
-        # METHOD 2: Try categories structure
+        # METHOD 2: Try parsed_data['tests'] (fallback for other parsers)
+        elif parsed_data and 'tests' in parsed_data:
+            tests = parsed_data['tests']
+            print(f"METHOD 2: Found {len(tests)} tests in parsed_data['tests']")
+            
+            for test in tests:
+                test_name = str(test.get('name', '')).lower()
+                test_value = test.get('value')
+                test_unit = test.get('unit', '')
+                
+                print(f"  Test: {test.get('name')} = {test_value} {test_unit}")
+                
+                # Skip if no value
+                if test_value is None:
+                    continue
+                
+                # Convert to float if string
+                try:
+                    if isinstance(test_value, str):
+                        test_value = test_value.strip().replace(',', '')
+                        test_value = float(test_value)
+                    else:
+                        test_value = float(test_value)
+                except Exception as e:
+                    print(f"  ERROR converting {test_value}: {e}")
+                    continue
+                
+                # Same mapping logic
+                if 'total' in test_name and 'cholesterol' in test_name:
+                    test_values['total_cholesterol'] = test_value
+                elif 'hdl' in test_name:
+                    test_values['hdl'] = test_value
+                elif 'ldl' in test_name:
+                    test_values['ldl'] = test_value
+                elif 'triglyceride' in test_name:
+                    test_values['triglycerides'] = test_value
+                elif 'hba1c' in test_name or 'a1c' in test_name:
+                    test_values['hba1c'] = test_value
+                elif 'glucose' in test_name:
+                    test_values['fasting_glucose'] = test_value
+                elif 'creatinine' in test_name:
+                    test_values['creatinine'] = test_value
+                elif 'urea' in test_name or 'bun' in test_name:
+                    test_values['urea'] = test_value
+        
+        # METHOD 3: Try categories structure
         if not test_values and parsed_data and 'categories' in parsed_data:
-            print(f"METHOD 2: Trying categories structure")
+            print(f"METHOD 3: Trying categories structure")
             categories = parsed_data['categories']
             print(f"  Found categories: {list(categories.keys())}")
             
