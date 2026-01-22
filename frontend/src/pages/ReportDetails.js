@@ -250,17 +250,23 @@ function ReportDetails() {
           </div>
         </div>
 
-        {/* Health Risk Assessment Button - Added after summary section */}
+        {/* Health Risk Assessment Button - Updated style */}
         <div style={{ marginTop: '24px', textAlign: 'center' }}>
           <button
             onClick={() => navigate(`/risk-assessment/${reportId}`)}
-            className="btn-primary"
             style={{
               padding: '16px 32px',
-              fontSize: 16,
-              background: 'linear-gradient(135deg, #667EEA 0%, #764BA2 100%)',
-              border: 'none'
+              fontSize: '16px',
+              background: '#4F46E5',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: '500',
+              transition: 'background 0.2s'
             }}
+            onMouseEnter={(e) => e.target.style.background = '#4338CA'}
+            onMouseLeave={(e) => e.target.style.background = '#4F46E5'}
           >
             ⚠️ Calculate Health Risks
           </button>
