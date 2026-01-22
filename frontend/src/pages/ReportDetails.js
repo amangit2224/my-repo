@@ -38,27 +38,25 @@ function ReportDetails() {
       .finally(() => setLoading(false));
   }, [reportId]);
 
+  // FIXED: Use reportAPI instead of raw fetch
   const fetchDietRecommendations = async () => {
     setLoadingDiet(true);
     setDietModalOpen(true);
     
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/report/diet-recommendations/${reportId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch diet recommendations');
-      }
-      
-      const data = await response.json();
-      setDietPlan(data.diet_plan);
+      const response = await reportAPI.getDietRecommendations(reportId);
+      setDietPlan(response.data.diet_plan);
     } catch (error) {
       console.error('Error fetching diet recommendations:', error);
-      alert('Failed to load diet recommendations. Please try again.');
+      
+      if (error.response) {
+        alert(`Error: ${error.response.data.error || 'Failed to load diet recommendations'}`);
+      } else if (error.request) {
+        alert('Could not reach the server. Please check if backend is running.');
+      } else {
+        alert('Failed to load diet recommendations. Please try again.');
+      }
+      
       setDietModalOpen(false);
     } finally {
       setLoadingDiet(false);

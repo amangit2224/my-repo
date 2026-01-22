@@ -63,6 +63,10 @@ export const reportAPI = {
   
   // 🔥 NEW: Calculate health risks
   calculateRisks: (reportId) => api.get(`/api/report/calculate-risks/${reportId}`),
+  
+  // 🔥 FIXED: Diet recommendations (consistent path with /api/report/)
+  getDietRecommendations: (reportId) =>
+    api.get(`/api/report/diet-recommendations/${reportId}`),
 };
 
 // JARGON API
