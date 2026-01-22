@@ -4,6 +4,7 @@ import { reportAPI } from '../utils/api';
 import '../App.css';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
+import DietModal from '../components/DietModal';
 
 function ReportDetails() {
   const { reportId } = useParams();
@@ -11,6 +12,9 @@ function ReportDetails() {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [dietModalOpen, setDietModalOpen] = useState(false);
+  const [dietPlan, setDietPlan] = useState(null);
+  const [loadingDiet, setLoadingDiet] = useState(false);
   const printRef = useRef();
 
   useEffect(() => {
@@ -33,6 +37,33 @@ function ReportDetails() {
       })
       .finally(() => setLoading(false));
   }, [reportId]);
+
+  const fetchDietRecommendations = async () => {
+    setLoadingDiet(true);
+    setDietModalOpen(true);
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/report/diet-recommendations/${reportId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch diet recommendations');
+      }
+      
+      const data = await response.json();
+      setDietPlan(data.diet_plan);
+    } catch (error) {
+      console.error('Error fetching diet recommendations:', error);
+      alert('Failed to load diet recommendations. Please try again.');
+      setDietModalOpen(false);
+    } finally {
+      setLoadingDiet(false);
+    }
+  };
 
   const speakSummary = () => {
     if (!report?.plain_language_summary || isSpeaking) return;
@@ -141,7 +172,7 @@ function ReportDetails() {
           </p>
         </div>
 
-        {/* FIXED: Verification Badge with Readable Text */}
+        {/* Verification Badge */}
         {report.verification_enabled && report.verification && (
           <div style={{
             marginBottom: '24px',
@@ -250,26 +281,65 @@ function ReportDetails() {
           </div>
         </div>
 
-        {/* Health Risk Assessment Button - Light Blue Color */}
-        <div style={{ marginTop: '24px', textAlign: 'center' }}>
+        {/* Health Actions Buttons */}
+        <div style={{ 
+          marginTop: '24px', 
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '16px',
+          alignItems: 'center'
+        }}>
+          {/* Calculate Health Risks Button */}
           <button
             onClick={() => navigate(`/risk-assessment/${reportId}`)}
             className="btn-primary"
             style={{
               padding: '16px 32px',
               fontSize: 16,
-              background: '#60A5FA',  // Light blue color
+              background: '#60A5FA',
               border: 'none',
               borderRadius: '8px',
               cursor: 'pointer',
               fontWeight: '500',
               transition: 'background 0.2s',
-              color: 'white'
+              color: 'white',
+              width: '100%',
+              maxWidth: '400px'
             }}
             onMouseEnter={(e) => e.target.style.background = '#3B82F6'}
             onMouseLeave={(e) => e.target.style.background = '#60A5FA'}
           >
             ⚠️ Calculate Health Risks
+          </button>
+
+          {/* Get Diet Plan Button */}
+          <button
+            onClick={fetchDietRecommendations}
+            className="btn-primary"
+            style={{
+              padding: '16px 32px',
+              fontSize: 16,
+              background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: '500',
+              transition: 'transform 0.2s, box-shadow 0.2s',
+              color: 'white',
+              width: '100%',
+              maxWidth: '400px',
+              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.transform = 'translateY(-2px)';
+              e.target.style.boxShadow = '0 6px 20px rgba(16, 185, 129, 0.5)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.transform = 'translateY(0)';
+              e.target.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
+            }}
+          >
+            🥗 Get Personalized Diet Plan
           </button>
         </div>
 
@@ -287,6 +357,14 @@ function ReportDetails() {
           </details>
         </div>
       </div>
+
+      {/* Diet Modal */}
+      <DietModal 
+        isOpen={dietModalOpen}
+        onClose={() => setDietModalOpen(false)}
+        dietPlan={dietPlan}
+        loading={loadingDiet}
+      />
     </div>
   );
 }
