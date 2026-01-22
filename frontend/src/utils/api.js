@@ -60,6 +60,9 @@ export const reportAPI = {
     api.post('/api/report/compare', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
+  
+  // 🔥 NEW: Calculate health risks
+  calculateRisks: (reportId) => api.get(`/api/report/calculate-risks/${reportId}`),
 };
 
 // JARGON API

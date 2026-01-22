@@ -1,5 +1,5 @@
 // src/pages/HealthRiskAssessment.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import '../App.css';
@@ -17,11 +17,7 @@ function HealthRiskAssessment() {
     navigate('/login');
   };
 
-  useEffect(() => {
-    calculateRisks();
-  }, [reportId]);
-
-  const calculateRisks = async () => {
+  const calculateRisks = useCallback(async () => {
     setLoading(true);
     setError('');
 
@@ -45,7 +41,11 @@ function HealthRiskAssessment() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [reportId]);
+
+  useEffect(() => {
+    calculateRisks();
+  }, [calculateRisks]);
 
   const getRiskColor = (level) => {
     switch (level) {
