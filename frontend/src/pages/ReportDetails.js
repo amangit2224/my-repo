@@ -38,7 +38,6 @@ function ReportDetails() {
       .finally(() => setLoading(false));
   }, [reportId]);
 
-  // FIXED: Use reportAPI instead of raw fetch
   const fetchDietRecommendations = async () => {
     setLoadingDiet(true);
     setDietModalOpen(true);

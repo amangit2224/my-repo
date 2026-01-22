@@ -55,18 +55,17 @@ export const reportAPI = {
   getHistory: () => api.get('/api/report/history'),
   getDetails: (reportId) => api.get(`/api/report/details/${reportId}`),
   
-  // 🔥 NEW: Compare two reports
+  // Compare two reports
   compareReports: (formData) =>
     api.post('/api/report/compare', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
   
-  // 🔥 NEW: Calculate health risks
+  // Calculate health risks
   calculateRisks: (reportId) => api.get(`/api/report/calculate-risks/${reportId}`),
   
-  // 🔥 FIXED: Diet recommendations (consistent path with /api/report/)
-  getDietRecommendations: (reportId) =>
-    api.get(`/api/report/diet-recommendations/${reportId}`),
+  // Get diet recommendations
+  getDietRecommendations: (reportId) => api.get(`/api/report/diet-recommendations/${reportId}`),
 };
 
 // JARGON API
