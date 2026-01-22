@@ -39,14 +39,15 @@ function DietModal({ isOpen, onClose, dietPlan, loading }) {
         <div style={{
           position: 'sticky',
           top: 0,
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          color: 'white',
+          background: '#F9FAFB',
+          color: '#1F2937',
           padding: '24px 32px',
           borderRadius: '16px 16px 0 0',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          zIndex: 10
+          zIndex: 10,
+          borderBottom: '2px solid #E5E7EB'
         }}>
           <div>
             <h2 style={{ margin: 0, fontSize: '28px', fontWeight: '700' }}>
@@ -59,9 +60,9 @@ function DietModal({ isOpen, onClose, dietPlan, loading }) {
           <button 
             onClick={onClose}
             style={{
-              background: 'rgba(255, 255, 255, 0.2)',
+              background: '#E5E7EB',
               border: 'none',
-              color: 'white',
+              color: '#374151',
               fontSize: '28px',
               cursor: 'pointer',
               width: '40px',
@@ -72,8 +73,8 @@ function DietModal({ isOpen, onClose, dietPlan, loading }) {
               justifyContent: 'center',
               transition: 'background 0.2s'
             }}
-            onMouseEnter={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.3)'}
-            onMouseLeave={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.2)'}
+            onMouseEnter={(e) => e.target.style.background = '#D1D5DB'}
+            onMouseLeave={(e) => e.target.style.background = '#E5E7EB'}
           >
             ×
           </button>
@@ -331,7 +332,7 @@ function DietModal({ isOpen, onClose, dietPlan, loading }) {
           <button 
             onClick={onClose}
             style={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              background: '#374151',
               color: 'white',
               border: 'none',
               padding: '14px 40px',
@@ -339,16 +340,14 @@ function DietModal({ isOpen, onClose, dietPlan, loading }) {
               fontSize: '16px',
               fontWeight: '600',
               cursor: 'pointer',
-              transition: 'transform 0.2s, box-shadow 0.2s',
-              boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)'
+              transition: 'background 0.2s',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
             }}
             onMouseEnter={(e) => {
-              e.target.style.transform = 'translateY(-2px)';
-              e.target.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.6)';
+              e.target.style.background = '#1F2937';
             }}
             onMouseLeave={(e) => {
-              e.target.style.transform = 'translateY(0)';
-              e.target.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
+              e.target.style.background = '#374151';
             }}
           >
             Close
