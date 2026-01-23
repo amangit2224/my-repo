@@ -1525,6 +1525,197 @@ def get_diet_recommendations(report_id):
         traceback.print_exc()
         print(f"{'='*60}\n")
         return jsonify({'error': str(e), 'type': 'exception'}), 500
+    
+# ============================================
+# 🔥 CHAT WITH REPORT ENDPOINT 🔥
+# ============================================
+
+
+@report_bp.route('/chat/<report_id>', methods=['POST'])
+@jwt_required()
+def chat_with_report(report_id):
+    """
+    Chat with AI about the medical report
+    Provides context-aware answers based on report data
+    """
+    try:
+        if not BSON_AVAILABLE:
+            return jsonify({'error': 'Database features unavailable'}), 500
+            
+        current_user = get_jwt_identity()
+        
+        # Get user's question and chat history
+        data = request.get_json()
+        user_question = data.get('question', '').strip()
+        chat_history = data.get('history', [])  # List of {role, content}
+        
+        if not user_question:
+            return jsonify({'error': 'Question is required'}), 400
+        
+        # Fetch the report
+        reports_collection = db['reports']
+        report = reports_collection.find_one({
+            '_id': ObjectId(report_id),
+            'user_email': current_user
+        })
+        
+        if not report:
+            return jsonify({'error': 'Report not found'}), 404
+        
+        print(f"\n{'='*60}")
+        print(f"💬 CHAT WITH REPORT")
+        print(f"Report ID: {report_id}")
+        print(f"Question: {user_question}")
+        print(f"History length: {len(chat_history)}")
+        print(f"{'='*60}\n")
+        
+        # Get report data
+        plain_summary = report.get('plain_language_summary', '')
+        parsed_data = report.get('parsed_data', {})
+        extracted_text = report.get('extracted_text', '')
+        
+        # Build context for AI
+        try:
+            import google.generativeai as genai
+            import os
+            
+            # Configure Gemini
+            genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            
+            # Build comprehensive context
+            context = f"""You are a helpful medical assistant analyzing a patient's medical report.
+
+REPORT SUMMARY:
+{plain_summary}
+
+AVAILABLE TEST DATA:
+"""
+            
+            # Add test results if available
+            if parsed_data and 'all_results' in parsed_data:
+                context += "\nTest Results:\n"
+                for test in parsed_data['all_results'][:20]:  # Limit to first 20 tests
+                    term = test.get('term', '')
+                    value = test.get('value', '')
+                    unit = test.get('unit', '')
+                    status = test.get('status', '')
+                    if term and value:
+                        context += f"- {term}: {value} {unit} ({status})\n"
+            
+            context += f"""
+
+INSTRUCTIONS:
+1. Answer the user's question based on the report data above
+2. Be clear, accurate, and helpful
+3. Cite specific test values when relevant
+4. Use simple language, avoid medical jargon unless necessary
+5. If the report doesn't contain info to answer the question, say so politely
+6. Add disclaimers when giving medical advice
+7. Keep responses concise but informative
+
+USER QUESTION: {user_question}
+
+Provide a helpful, accurate answer:"""
+            
+            # Build conversation history for context
+            conversation = []
+            for msg in chat_history[-6:]:  # Keep last 6 messages for context
+                conversation.append(f"{msg['role'].upper()}: {msg['content']}")
+            
+            if conversation:
+                context = "CONVERSATION HISTORY:\n" + "\n".join(conversation) + "\n\n" + context
+            
+            # Generate response
+            print("🤖 Generating AI response...")
+            response = model.generate_content(context)
+            ai_answer = response.text
+            
+            print(f"✅ AI Response generated ({len(ai_answer)} chars)")
+            print(f"{'='*60}\n")
+            
+            return jsonify({
+                'success': True,
+                'answer': ai_answer,
+                'question': user_question,
+                'timestamp': datetime.now(IST).strftime("%Y-%m-%d %I:%M %p")
+            }), 200
+            
+        except Exception as e:
+            print(f"❌ AI generation failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({
+                'error': 'Failed to generate response',
+                'details': str(e)
+            }), 500
+        
+    except Exception as e:
+        print(f"\n❌ ERROR in chat_with_report:")
+        print(f"{'='*60}")
+        import traceback
+        traceback.print_exc()
+        print(f"{'='*60}\n")
+        return jsonify({'error': str(e)}), 500
+
+
+@report_bp.route('/chat/suggestions/<report_id>', methods=['GET'])
+@jwt_required()
+def get_chat_suggestions(report_id):
+    """
+    Get smart suggested questions based on the report
+    """
+    try:
+        if not BSON_AVAILABLE:
+            return jsonify({'error': 'Database features unavailable'}), 500
+            
+        current_user = get_jwt_identity()
+        
+        # Fetch the report
+        reports_collection = db['reports']
+        report = reports_collection.find_one({
+            '_id': ObjectId(report_id),
+            'user_email': current_user
+        })
+        
+        if not report:
+            return jsonify({'error': 'Report not found'}), 404
+        
+        # Get parsed data
+        parsed_data = report.get('parsed_data', {})
+        
+        # Build smart suggestions based on report
+        suggestions = [
+            "Can you explain my test results in simple terms?",
+            "What do my abnormal values mean?",
+            "What should I do to improve my health?"
+        ]
+        
+        # Add condition-specific suggestions
+        if parsed_data and 'all_results' in parsed_data:
+            abnormal_tests = [t for t in parsed_data['all_results'] if t.get('status') in ['HIGH', 'LOW', 'CRITICAL']]
+            
+            if abnormal_tests:
+                # Add specific questions about abnormal tests
+                for test in abnormal_tests[:2]:  # First 2 abnormal tests
+                    term = test.get('term', '')
+                    if term:
+                        suggestions.append(f"Why is my {term} abnormal?")
+                
+                suggestions.append("What foods should I eat based on my results?")
+                suggestions.append("Are these results concerning?")
+        
+        # Limit to 6 suggestions
+        suggestions = suggestions[:6]
+        
+        return jsonify({
+            'success': True,
+            'suggestions': suggestions
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ ERROR in get_chat_suggestions: {e}")
+        return jsonify({'error': str(e)}), 500
 
 # ============================================
 # DELETE REPORT ENDPOINT
