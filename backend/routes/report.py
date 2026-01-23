@@ -1530,7 +1530,6 @@ def get_diet_recommendations(report_id):
 # 🔥 CHAT WITH REPORT ENDPOINT 🔥
 # ============================================
 
-
 @report_bp.route('/chat/<report_id>', methods=['POST'])
 @jwt_required()
 def chat_with_report(report_id):
@@ -1576,12 +1575,14 @@ def chat_with_report(report_id):
         
         # Build context for AI
         try:
-            import google.generativeai as genai
+            import requests
             import os
             
-            # Configure Gemini
-            genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            # Use REST API with correct model
+            GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+            url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+            
+            headers = {"Content-Type": "application/json"}
             
             # Build comprehensive context
             context = f"""You are a helpful medical assistant analyzing a patient's medical report.
@@ -1626,20 +1627,33 @@ Provide a helpful, accurate answer:"""
             if conversation:
                 context = "CONVERSATION HISTORY:\n" + "\n".join(conversation) + "\n\n" + context
             
-            # Generate response
+            # Generate response using REST API
             print("🤖 Generating AI response...")
-            response = model.generate_content(context)
-            ai_answer = response.text
             
-            print(f"✅ AI Response generated ({len(ai_answer)} chars)")
-            print(f"{'='*60}\n")
+            payload = {
+                "contents": [{
+                    "parts": [{"text": context}]
+                }]
+            }
             
-            return jsonify({
-                'success': True,
-                'answer': ai_answer,
-                'question': user_question,
-                'timestamp': datetime.now(IST).strftime("%Y-%m-%d %I:%M %p")
-            }), 200
+            response = requests.post(url, headers=headers, json=payload, timeout=30)
+            
+            if response.status_code == 200:
+                result = response.json()
+                ai_answer = result['candidates'][0]['content']['parts'][0]['text']
+                
+                print(f"✅ AI Response generated ({len(ai_answer)} chars)")
+                print(f"{'='*60}\n")
+                
+                return jsonify({
+                    'success': True,
+                    'answer': ai_answer,
+                    'question': user_question,
+                    'timestamp': datetime.now(IST).strftime("%Y-%m-%d %I:%M %p")
+                }), 200
+            else:
+                error_detail = response.json() if response.text else response.text
+                raise Exception(f"Gemini API Error {response.status_code}: {error_detail}")
             
         except Exception as e:
             print(f"❌ AI generation failed: {e}")
