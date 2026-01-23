@@ -9,3 +9,4 @@ groq==0.37.1
 requests==2.32.3
 sendgrid
 PyPDF2==3.0.1
+google-generativeai
