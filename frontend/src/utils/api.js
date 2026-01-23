@@ -66,6 +66,12 @@ export const reportAPI = {
   
   // Get diet recommendations
   getDietRecommendations: (reportId) => api.get(`/api/report/diet-recommendations/${reportId}`),
+  
+  // Chat with report
+  chatWithReport: (reportId, data) => api.post(`/api/report/chat/${reportId}`, data),
+  
+  // Get chat suggestions
+  getChatSuggestions: (reportId) => api.get(`/api/report/chat/suggestions/${reportId}`),
 };
 
 // JARGON API

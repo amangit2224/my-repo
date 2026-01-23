@@ -5,6 +5,7 @@ import '../App.css';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import DietModal from '../components/DietModal';
+import ChatSection from '../components/ChatSection';
 
 function ReportDetails() {
   const { reportId } = useParams();
@@ -15,6 +16,7 @@ function ReportDetails() {
   const [dietModalOpen, setDietModalOpen] = useState(false);
   const [dietPlan, setDietPlan] = useState(null);
   const [loadingDiet, setLoadingDiet] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const printRef = useRef();
 
   useEffect(() => {
@@ -338,7 +340,48 @@ function ReportDetails() {
           >
             🥗 Get Personalized Diet Plan
           </button>
+
+          {/* Chat with Report Button */}
+          <button
+            onClick={() => setChatOpen(!chatOpen)}
+            className="btn-primary"
+            style={{
+              padding: '16px 32px',
+              fontSize: 16,
+              background: chatOpen ? '#6B7280' : 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: '500',
+              transition: 'transform 0.2s, box-shadow 0.2s',
+              color: 'white',
+              width: '100%',
+              maxWidth: '400px',
+              boxShadow: chatOpen ? '0 2px 8px rgba(107, 114, 128, 0.3)' : '0 4px 12px rgba(139, 92, 246, 0.3)'
+            }}
+            onMouseEnter={(e) => {
+              if (!chatOpen) {
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 6px 20px rgba(139, 92, 246, 0.5)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!chatOpen) {
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.3)';
+              }
+            }}
+          >
+            💬 {chatOpen ? 'Close Chat' : 'Chat with Your Report'}
+          </button>
         </div>
+
+        {/* Chat Section */}
+        <ChatSection 
+          reportId={reportId}
+          isOpen={chatOpen}
+          onClose={() => setChatOpen(false)}
+        />
 
         <div className="original-text-section">
           <h2 style={{ fontSize: '20px', margin: '0 0 16px', fontWeight: 600 }}>
