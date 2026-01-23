@@ -10,6 +10,15 @@ function ChatSection({ reportId, isOpen, onClose }) {
 
   // Fetch suggestions when component opens
   useEffect(() => {
+    const fetchSuggestions = async () => {
+      try {
+        const response = await reportAPI.getChatSuggestions(reportId);
+        setSuggestions(response.data.suggestions || []);
+      } catch (error) {
+        console.error('Failed to fetch suggestions:', error);
+      }
+    };
+
     if (isOpen && reportId) {
       fetchSuggestions();
       // Add welcome message
@@ -19,21 +28,13 @@ function ChatSection({ reportId, isOpen, onClose }) {
         timestamp: new Date().toISOString()
       }]);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, reportId]);
 
   // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
-
-  const fetchSuggestions = async () => {
-    try {
-      const response = await reportAPI.getChatSuggestions(reportId);
-      setSuggestions(response.data.suggestions || []);
-    } catch (error) {
-      console.error('Failed to fetch suggestions:', error);
-    }
-  };
 
   const handleSendMessage = async (question = null) => {
     const userQuestion = question || input.trim();
