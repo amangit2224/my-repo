@@ -774,13 +774,12 @@ def compare_reports():
 def extract_test_results(text):
     """
     Extract test results from medical report text
-    Returns list of {name, value, unit}
-    FINAL BALANCED VERSION
+    FINAL WORKING VERSION - Specifically handles Thyrocare format
     """
     tests = []
     seen_names = set()
     
-    # Valid medical units (lowercase for comparison)
+    # Valid medical units
     valid_units = [
         'mg/dl', 'g/dl', 'mmol/l', 'meq/l', 'iu/l', 'u/l',
         '%', 'percent', 'ratio',
@@ -790,90 +789,112 @@ def extract_test_results(text):
         'g/l', 'mg/l', 'ug/l', 'nmol/l'
     ]
     
-    # STRICT blacklist - only obvious non-medical terms
+    # Blacklist
     blacklist = [
-        'floor no', 'street name', 'apartment', 'building',
-        'pincode', 'zip code', 
-        'barcode', 'labcode', 'page',
-        'sample collected', 'sample received', 'report released',
-        'patient name', 'ref. by', 'test asked', 'referred',
-        'technologies ltd', 'pvt ltd',
-        'phone', 'mobile', 'email', 'address',
-        'bangalore', 'richmond', 'serpentine', '560025',
-        # NEW: Date-related garbage
-        'test date report', 'report date', 'collection date',
-        'precision at', 'accuracy at',
-        # NEW: Gender/demographic garbage  
-        'males only', 'females only', 'male range', 'female range',
-        'age range', 'reference range for'
+        'test date', 'report date', 'sample collected', 'sample received',
+        'report released', 'barcode', 'labcode', 'page',
+        'bio. ref. interval', 'ref. interval', 'reference range',
+        'cutoff values', 'precision at', 'specifications',
+        'males', 'females', 'male', 'female',
+        'bangalore', 'richmond', 'serpentine'
     ]
     
     lines = text.split('\n')
     
     for line in lines:
-        # Skip very short lines
-        if len(line) < 15:
+        if len(line) < 10:
             continue
         
-        # Try multiple patterns
-        patterns = [
-            # Pattern 1: TEST NAME TECH value unit
-            r'([A-Z][A-Za-z0-9\s\-/()]+?)\s+[A-Z\.]+\s+([\d.]+)\s+([a-zA-Z/%]+)',
-            # Pattern 2: TEST NAME value unit  
-            r'^([A-Z][A-Za-z0-9\s\-/()]+?)\s+([\d.]+)\s+([a-zA-Z/%]+)\s*$',
-            # Pattern 3: TEST NAME: value unit
-            r'([A-Z][A-Za-z0-9\s\-/()]+?):\s+([\d.]+)\s+([a-zA-Z/%]+)',
-        ]
+        # Pattern 1: TEST NAME [TECHNOLOGY] VALUE UNITS (Thyrocare format)
+        # Example: "TOTAL CHOLESTEROL PHOTOMETRY 195 mg/dL"
+        pattern1 = r'^([A-Z][A-Z\s\-/()]+?)\s+(?:[A-Z\.]+\s+)?([\d.]+)\s+([a-zA-Z/%]+)\s*$'
+        match = re.search(pattern1, line.strip())
         
-        for pattern in patterns:
-            match = re.search(pattern, line)
+        if match:
+            test_name = match.group(1).strip()
+            value_str = match.group(2).strip()
+            unit = match.group(3).strip()
+            
+            # Clean up test name - remove trailing technology words
+            test_name = re.sub(r'\s+(PHOTOMETRY|CALCULATED|HPLC|H\.P\.L\.C|C\.M\.I\.A|DIRECT)$', '', test_name, flags=re.IGNORECASE)
+            test_name = test_name.strip()
+            
+            # Validation
+            if len(test_name) < 3 or len(test_name) > 70:
+                continue
+            
+            # Check unit validity
+            unit_lower = unit.lower()
+            if not any(valid_unit in unit_lower or unit_lower in valid_unit for valid_unit in valid_units):
+                continue
+            
+            # Check blacklist
+            test_lower = test_name.lower()
+            if any(black in test_lower for black in blacklist):
+                continue
+            
+            # Skip if only numbers
+            if test_name.replace(' ', '').replace('-', '').isdigit():
+                continue
+            
+            # Skip garbage patterns
+            if test_name.startswith(('Bio', 'Method', 'Sample', 'Note', 'Alert')):
+                continue
+            
+            # Skip duplicates (case insensitive)
+            test_key = test_name.lower()
+            if test_key in seen_names:
+                continue
+            
+            try:
+                value = float(value_str)
+                
+                if value < 0 or value > 500000:
+                    continue
+                
+                tests.append({
+                    'name': test_name,
+                    'value': value,
+                    'unit': unit
+                })
+                seen_names.add(test_key)
+                
+            except ValueError:
+                continue
+    
+    # If we got nothing, try alternative patterns
+    if len(tests) == 0:
+        for line in lines:
+            if len(line) < 15:
+                continue
+            
+            # Pattern 2: More flexible - TEST NAME: VALUE UNITS
+            pattern2 = r'([A-Z][A-Za-z\s\-/()]+?)[\s:]+?([\d.]+)\s+([a-zA-Z/%]+)'
+            match = re.search(pattern2, line)
+            
             if match:
                 test_name = match.group(1).strip()
                 value_str = match.group(2).strip()
                 unit = match.group(3).strip()
                 
-                # Basic validation
-                if len(test_name) < 3 or len(test_name) > 60:
+                # Same validation
+                if len(test_name) < 3 or len(test_name) > 70:
                     continue
                 
-                # Check if unit is valid
                 unit_lower = unit.lower()
                 if not any(valid_unit in unit_lower or unit_lower in valid_unit for valid_unit in valid_units):
                     continue
                 
-                # Check blacklist - be specific
                 test_lower = test_name.lower()
-                if any(black == test_lower or black in test_lower for black in blacklist):
+                if any(black in test_lower for black in blacklist):
                     continue
                 
-                # NEW: Filter out obvious garbage patterns
-                # Skip if starts with date-related words
-                if test_name.startswith(('Test date', 'Report', 'April', 'Precision', 'Accuracy', 'Males', 'Females', 'Age')):
-                    continue
-                
-                # Skip if looks like a date (starts with number like "25 April")
-                if re.match(r'^\d{1,2}\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)', test_name, re.IGNORECASE):
-                    continue
-                
-                # Skip if test name is all numbers
-                if test_name.replace(' ', '').replace('-', '').isdigit():
-                    continue
-                
-                # Skip single word test names UNLESS they're known medical terms
-                words = test_name.split()
-                if len(words) == 1:
-                    known_single_word_tests = ['hemoglobin', 'glucose', 'creatinine', 'albumin', 'bilirubin', 'urea']
-                    if test_name.lower() not in known_single_word_tests:
-                        continue
-                
-                # Skip duplicates
-                if test_name in seen_names:
+                test_key = test_name.lower()
+                if test_key in seen_names:
                     continue
                 
                 try:
                     value = float(value_str)
-                    
-                    # Skip unrealistic values
                     if value < 0 or value > 500000:
                         continue
                     
@@ -882,12 +903,9 @@ def extract_test_results(text):
                         'value': value,
                         'unit': unit
                     })
-                    seen_names.add(test_name)
-                    
+                    seen_names.add(test_key)
                 except ValueError:
                     continue
-                
-                break  # Found match, move to next line
     
     return tests
 
