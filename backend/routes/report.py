@@ -5,6 +5,7 @@ from app import db
 import os
 import sys
 import re
+import time
 from datetime import datetime
 from pytz import timezone
 from difflib import SequenceMatcher
@@ -543,7 +544,7 @@ def get_report_details(report_id):
         return jsonify({'error': str(e)}), 500
 
 # ============================================
-# 🔥 COMPARE TWO REPORTS 🔥
+# 🔥 COMPARE TWO REPORTS 🔥 - IMPROVED WITH BETTER ERROR HANDLING
 # ============================================
 
 @report_bp.route('/compare', methods=['POST'])
@@ -551,7 +552,7 @@ def get_report_details(report_id):
 def compare_reports():
     """
     IMPROVED: Compare two uploaded medical reports using MedicalReportParser
-    This uses your existing parser that already works for individual reports!
+    With better error handling and timeout management
     """
     temp_files = []
     
@@ -593,8 +594,8 @@ def compare_reports():
         os.makedirs(upload_folder, exist_ok=True)
         
         timestamp = datetime.now(IST).strftime('%Y%m%d_%H%M%S')
-        filename1 = secure_filename(f"temp1_{current_user}_{timestamp}_{file1.filename}")
-        filename2 = secure_filename(f"temp2_{current_user}_{timestamp}_{file2.filename}")
+        filename1 = secure_filename(f"temp1_{timestamp}_{file1.filename}")
+        filename2 = secure_filename(f"temp2_{timestamp}_{file2.filename}")
         
         filepath1 = os.path.join(upload_folder, filename1)
         filepath2 = os.path.join(upload_folder, filename2)
@@ -611,43 +612,84 @@ def compare_reports():
         print(f"{'='*60}\n")
         
         # ============================================
-        # 🔥 USE YOUR EXISTING PARSER!
+        # 🔥 IMPROVED TEXT EXTRACTION WITH TIMEOUT WARNING
         # ============================================
         
-        # Extract text from both PDFs
-        text1 = extract_text_from_report(filepath1, "Report 1")
-        text2 = extract_text_from_report(filepath2, "Report 2")
+        start_time = time.time()
         
-        if not text1 or not text2:
+        # Extract with better error messages
+        print("📄 Extracting text from Report 1...")
+        text1 = extract_text_from_report_with_retry(filepath1, "Report 1")
+        
+        if not text1:
             return jsonify({
-                'error': 'Failed to extract text from one or both reports'
+                'error': 'Failed to extract text from Report 1',
+                'details': 'The file may be corrupted, password-protected, or in an unsupported format.',
+                'suggestion': 'Try using a different PDF or ensure it is not scanned. Digital PDFs work best.'
             }), 400
         
+        print("📄 Extracting text from Report 2...")
+        text2 = extract_text_from_report_with_retry(filepath2, "Report 2")
+        
+        if not text2:
+            return jsonify({
+                'error': 'Failed to extract text from Report 2',
+                'details': 'The file may be corrupted, password-protected, or in an unsupported format.',
+                'suggestion': 'Try using a different PDF or ensure it is not scanned. Digital PDFs work best.'
+            }), 400
+        
+        extraction_time = time.time() - start_time
+        print(f"⏱️ Text extraction took {extraction_time:.1f}s")
         print(f"✅ Text extracted: Report1={len(text1)} chars, Report2={len(text2)} chars\n")
         
-        # Parse both reports using YOUR EXISTING PARSER
+        # ============================================
+        # PARSE USING YOUR EXISTING PARSER
+        # ============================================
+        
         if not RULE_BASED_AVAILABLE:
             return jsonify({
                 'error': 'Report parser not available',
-                'details': 'MedicalReportParser is required for comparison'
+                'details': 'Internal system error - MedicalReportParser is required.',
+                'suggestion': 'Please contact support if this issue persists.'
             }), 500
         
         from utils.report_parser import MedicalReportParser
         
         parser = MedicalReportParser()
         
-        print("🧪 Parsing Report 1...")
-        parsed1 = parser.parse_report(text1, gender="female", age=50)
+        print("🧪 Parsing reports...")
+        parse_start = time.time()
         
-        print("🧪 Parsing Report 2...")
-        parsed2 = parser.parse_report(text2, gender="female", age=50)
+        try:
+            parsed1 = parser.parse_report(text1, gender="female", age=50)
+            parsed2 = parser.parse_report(text2, gender="female", age=50)
+        except Exception as e:
+            print(f"❌ Parser error: {e}")
+            return jsonify({
+                'error': 'Failed to parse medical reports',
+                'details': f'Parser error: {str(e)}',
+                'suggestion': 'Reports may be in an unsupported format. Ensure they contain standard medical test results.'
+            }), 400
         
-        # Extract test results from parsed data
+        parse_time = time.time() - parse_start
+        print(f"⏱️ Parsing took {parse_time:.1f}s")
+        
+        # Extract tests from parsed data
         tests1 = extract_tests_from_parsed_data(parsed1)
         tests2 = extract_tests_from_parsed_data(parsed2)
         
         print(f"\n📊 Found {len(tests1)} tests in Report 1")
         print(f"📊 Found {len(tests2)} tests in Report 2\n")
+        
+        # Check if any tests found
+        if len(tests1) == 0 or len(tests2) == 0:
+            return jsonify({
+                'error': 'No test results found in one or both reports',
+                'details': f'Report 1: {len(tests1)} tests found, Report 2: {len(tests2)} tests found',
+                'suggestion': 'Ensure both reports contain standard medical test results with numerical values and units.',
+                'report1_tests': len(tests1),
+                'report2_tests': len(tests2)
+            }), 400
         
         # Debug: Show sample tests
         if len(tests1) > 0:
@@ -660,28 +702,35 @@ def compare_reports():
             for test in tests2[:3]:
                 print(f"   - {test['name']}: {test['value']} {test['unit']}")
         
-        # Find matching tests
+        # Compare tests
         comparisons = compare_test_results(tests1, tests2)
         
         print(f"\n✅ Found {len(comparisons)} matching tests\n")
         
-        # If still no matches, try fuzzy matching
+        # If no matches, try fuzzy matching
         if len(comparisons) == 0 and len(tests1) > 0 and len(tests2) > 0:
             print("⚠️ No exact matches, trying fuzzy matching...")
             comparisons = fuzzy_match_tests(tests1, tests2)
             print(f"✅ Fuzzy matching found {len(comparisons)} matches\n")
         
-        # Calculate summary
-        improved = 0
-        worsened = 0
-        stable = 0
+        # If still no matches
+        if len(comparisons) == 0:
+            return jsonify({
+                'error': 'No matching tests found between reports',
+                'details': f'Report 1 has {len(tests1)} tests, Report 2 has {len(tests2)} tests, but none match.',
+                'suggestion': 'Ensure both reports are from the same lab or contain similar types of tests.',
+                'report1_sample_tests': [t['name'] for t in tests1[:5]],
+                'report2_sample_tests': [t['name'] for t in tests2[:5]]
+            }), 400
         
+        # Calculate summary
+        improved = worsened = stable = 0
         lower_is_better = ['cholesterol', 'ldl', 'triglycerides', 'glucose', 'hba1c', 
                           'creatinine', 'urea', 'bilirubin', 'sgpt', 'sgot', 'alt', 'ast']
         
         for comp in comparisons:
             change = comp['change']
-            is_lower_better = any(term in comp['name'].lower() for term in lower_is_better)
+            is_lower_better = any(t in comp['name'].lower() for t in lower_is_better)
             
             if abs(change) < 0.01:
                 stable += 1
@@ -693,10 +742,11 @@ def compare_reports():
                 worsened += 1
                 comp['status'] = 'worsened'
         
-        # Extract dates
         date1 = extract_date_from_text(text1)
         date2 = extract_date_from_text(text2)
         
+        total_time = time.time() - start_time
+        print(f"✅ Comparison complete in {total_time:.1f}s")
         print(f"📈 Summary: {improved} improved, {worsened} worsened, {stable} stable")
         print(f"{'='*60}\n")
         
@@ -715,7 +765,8 @@ def compare_reports():
             'report1_total_tests': len(tests1),
             'report2_total_tests': len(tests2),
             'report1_filename': file1.filename,
-            'report2_filename': file2.filename
+            'report2_filename': file2.filename,
+            'processing_time': f"{total_time:.1f}s"
         }), 200
         
     except Exception as e:
@@ -724,7 +775,27 @@ def compare_reports():
         import traceback
         traceback.print_exc()
         print(f"{'='*60}\n")
-        return jsonify({'error': f'Failed to compare reports: {str(e)}'}), 500
+        
+        # Better error messages
+        error_msg = str(e)
+        if 'timeout' in error_msg.lower():
+            return jsonify({
+                'error': 'Request timed out',
+                'details': 'Processing took too long. This usually happens with scanned PDFs.',
+                'suggestion': 'Try using digital PDFs instead of scanned images for faster processing.'
+            }), 504
+        elif 'api' in error_msg.lower() or 'gemini' in error_msg.lower():
+            return jsonify({
+                'error': 'AI service temporarily unavailable',
+                'details': 'The text extraction service is experiencing issues.',
+                'suggestion': 'Please try again in a few moments.'
+            }), 503
+        else:
+            return jsonify({
+                'error': 'Failed to compare reports',
+                'details': error_msg,
+                'suggestion': 'Please ensure both files are valid medical reports in PDF format.'
+            }), 500
         
     finally:
         # Clean up temporary files
@@ -735,6 +806,74 @@ def compare_reports():
                     print(f"🧹 Cleaned up: {os.path.basename(filepath)}")
             except Exception as e:
                 print(f"⚠️ Failed to clean up {filepath}: {e}")
+
+# ============================================
+# 🔥 IMPROVED HELPER FUNCTIONS
+# ============================================
+
+def extract_text_from_report_with_retry(filepath, report_name, max_retries=2):
+    """
+    Extract text from a report with retry logic for transient failures
+    """
+    for attempt in range(max_retries):
+        try:
+            text = extract_text_from_report(filepath, report_name)
+            if text and len(text.strip()) > 50:
+                return text
+        except Exception as e:
+            print(f"⚠️ {report_name} Attempt {attempt + 1} failed: {e}")
+            if attempt < max_retries - 1:
+                print(f"🔄 Retrying...")
+                time.sleep(1)  # Wait 1 second before retry
+            else:
+                print(f"❌ All {max_retries} attempts failed")
+                return None
+    
+    return None
+
+def extract_text_from_report(filepath, report_name):
+    """
+    Extract text from a report using PyPDF2 or AI fallback
+    """
+    text = None
+    
+    # Try PyPDF2 first (FAST - usually <1 second)
+    if OCR_AVAILABLE and callable(process_file):
+        try:
+            print(f"🔄 {report_name}: Trying PyPDF2 (fast)...")
+            start = time.time()
+            text = process_file(filepath)
+            
+            if text and len(text.strip()) > 50:
+                elapsed = time.time() - start
+                print(f"✅ {report_name}: PyPDF2 success in {elapsed:.1f}s")
+                return text
+            else:
+                print(f"⚠️ {report_name}: PyPDF2 returned minimal text")
+        except Exception as e:
+            print(f"❌ {report_name} PyPDF2 failed: {e}")
+    
+    # AI OCR fallback with timing
+    try:
+        print(f"🔄 {report_name}: Trying AI OCR (may take 10-30s for scanned PDFs)...")
+        start = time.time()
+        
+        from utils.ai_summarizer import extract_text_from_pdf_with_ai
+        
+        text = extract_text_from_pdf_with_ai(filepath)
+        
+        elapsed = time.time() - start
+        
+        if text and len(text.strip()) >= 50:
+            print(f"✅ {report_name}: AI OCR success in {elapsed:.1f}s")
+            return text
+        else:
+            print(f"❌ {report_name}: AI OCR returned insufficient text")
+            return None
+            
+    except Exception as e:
+        print(f"❌ {report_name} AI OCR failed: {e}")
+        return None
 
 def extract_tests_from_parsed_data(parsed_data):
     """
@@ -834,9 +973,8 @@ def compare_test_results(tests1, tests2):
 def fuzzy_match_tests(tests1, tests2):
     """
     Find matching tests using fuzzy string matching
+    For cases where test names are slightly different between reports
     """
-    from difflib import SequenceMatcher
-    
     comparisons = []
     used_tests2 = set()
     
@@ -873,32 +1011,6 @@ def fuzzy_match_tests(tests1, tests2):
             used_tests2.add(best_match['name'])
     
     return comparisons
-
-def extract_text_from_report(filepath, report_name):
-    """
-    Extract text from a report using PyPDF2 or AI fallback
-    """
-    text = None
-    
-    # Try PyPDF2 first
-    if OCR_AVAILABLE and callable(process_file):
-        try:
-            text = process_file(filepath)
-            if text and len(text.strip()) > 50:
-                return text
-        except Exception as e:
-            print(f"❌ {report_name} PyPDF2 failed: {e}")
-    
-    # Fallback to AI OCR
-    try:
-        from utils.ai_summarizer import extract_text_from_pdf_with_ai
-        text = extract_text_from_pdf_with_ai(filepath)
-        if text and len(text.strip()) >= 50:
-            return text
-    except Exception as e:
-        print(f"❌ {report_name} AI OCR failed: {e}")
-    
-    return text
 
 def extract_date_from_text(text):
     """
