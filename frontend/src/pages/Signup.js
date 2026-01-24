@@ -11,18 +11,70 @@ function Signup() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [passwordStrength, setPasswordStrength] = useState({
+    isValid: false,
+    hasLength: false,
+    hasUpper: false,
+    hasSpecial: false,
+    message: ''
+  });
   const navigate = useNavigate();
 
+  // Password validation function
+  const validatePassword = (password) => {
+    const hasLength = password.length >= 8;
+    const hasUpper = /[A-Z]/.test(password);
+    const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+    
+    const isValid = hasLength && hasUpper && hasSpecial;
+    
+    let message = '';
+    if (!password) {
+      message = '';
+    } else if (isValid) {
+      message = 'Strong password! ✅';
+    } else {
+      const missing = [];
+      if (!hasLength) missing.push('8+ characters');
+      if (!hasUpper) missing.push('1 uppercase letter');
+      if (!hasSpecial) missing.push('1 special character');
+      message = `Need: ${missing.join(', ')}`;
+    }
+    
+    return {
+      isValid,
+      hasLength,
+      hasUpper,
+      hasSpecial,
+      message
+    };
+  };
+
   const handleChange = (e) => {
+    const { name, value } = e.target;
+    
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: value,
     });
+    
+    // Validate password in real-time
+    if (name === 'password') {
+      const validation = validatePassword(value);
+      setPasswordStrength(validation);
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    
+    // Check password strength before submitting
+    if (!passwordStrength.isValid) {
+      setError('Password does not meet security requirements');
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -77,11 +129,35 @@ function Signup() {
               value={formData.password}
               onChange={handleChange}
               required
-              placeholder="At least 6 characters"
+              placeholder="Min 8 chars, 1 uppercase, 1 special"
             />
+            
+            {/* Password Strength Indicator */}
+            {formData.password && (
+              <div className="password-strength">
+                <div className="strength-indicators">
+                  <div className={`strength-item ${passwordStrength.hasLength ? 'valid' : 'invalid'}`}>
+                    {passwordStrength.hasLength ? '✓' : '○'} 8+ characters
+                  </div>
+                  <div className={`strength-item ${passwordStrength.hasUpper ? 'valid' : 'invalid'}`}>
+                    {passwordStrength.hasUpper ? '✓' : '○'} 1 uppercase
+                  </div>
+                  <div className={`strength-item ${passwordStrength.hasSpecial ? 'valid' : 'invalid'}`}>
+                    {passwordStrength.hasSpecial ? '✓' : '○'} 1 special char
+                  </div>
+                </div>
+                <div className={`strength-message ${passwordStrength.isValid ? 'valid' : 'invalid'}`}>
+                  {passwordStrength.message}
+                </div>
+              </div>
+            )}
           </div>
           
-          <button type="submit" disabled={loading} className="btn-primary">
+          <button 
+            type="submit" 
+            disabled={loading || (formData.password && !passwordStrength.isValid)} 
+            className="btn-primary"
+          >
             {loading ? 'Creating account...' : 'Sign Up'}
           </button>
         </form>
