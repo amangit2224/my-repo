@@ -7,6 +7,7 @@ import sys
 import re
 from datetime import datetime
 from pytz import timezone
+from difflib import SequenceMatcher
 
 IST = timezone('Asia/Kolkata')
 report_bp = Blueprint('report', __name__)
@@ -68,6 +69,336 @@ def validate_file_size(file):
     size = file.tell()
     file.seek(0)  # Reset to beginning
     return size <= MAX_FILE_SIZE, size
+
+# ============================================
+# TEXT EXTRACTION FUNCTIONS
+# ============================================
+
+def extract_text_from_report(filepath, report_name):
+    """
+    Extract text from a report using PyPDF2 or AI fallback
+    """
+    text = None
+    
+    # Try PyPDF2 first (FASTEST)
+    if OCR_AVAILABLE and callable(process_file):
+        try:
+            print(f"🔄 {report_name}: Trying PyPDF2...")
+            text = process_file(filepath)
+            
+            if text and len(text.strip()) > 50:
+                print(f"✅ {report_name}: PyPDF2 extracted {len(text)} chars")
+                return text
+            else:
+                print(f"⚠️ {report_name}: PyPDF2 returned insufficient text")
+                text = None
+        except Exception as e:
+            print(f"❌ {report_name} PyPDF2 failed: {e}")
+            text = None
+    
+    # Fallback to AI OCR
+    if not text:
+        try:
+            from utils.ai_summarizer import extract_text_from_pdf_with_ai
+            print(f"🔄 {report_name}: Trying Gemini AI OCR...")
+            text = extract_text_from_pdf_with_ai(filepath)
+            
+            if text and len(text.strip()) >= 50:
+                print(f"✅ {report_name}: AI OCR extracted {len(text)} chars")
+                return text
+            else:
+                print(f"❌ {report_name}: AI OCR returned insufficient text")
+                return None
+        except Exception as e:
+            print(f"❌ {report_name} AI OCR failed: {e}")
+            return None
+    
+    return text
+
+def extract_test_results(text):
+    """
+    IMPROVED: Extract test results from medical report text
+    Works with multiple report formats including Thyrocare, Lal PathLabs, etc.
+    """
+    tests = []
+    seen_names = set()
+    
+    # Valid medical units - EXPANDED LIST
+    valid_units = [
+        'mg/dl', 'g/dl', 'mmol/l', 'meq/l', 'iu/l', 'u/l',
+        '%', 'percent', 'ratio',
+        'ng/ml', 'pg/ml', 'miu/ml', 'uiu/ml', 'pmol/l',
+        'cells/cumm', 'thou/cumm', 'mill/cumm',
+        'sec', 'seconds', 'mm/hr', 'fl', 'mcg/dl', 'umol/l',
+        'g/l', 'mg/l', 'ug/l', 'nmol/l', 'ng/dl', 'ug/ml',
+        'cells/ul', 'k/ul', 'm/ul', 'pg', 'fl'
+    ]
+    
+    # Blacklist
+    blacklist = [
+        'test date', 'report date', 'sample collected', 'sample received',
+        'report released', 'barcode', 'labcode', 'page',
+        'bio. ref. interval', 'ref. interval', 'reference range',
+        'cutoff values', 'precision at', 'specifications',
+        'males', 'females', 'male', 'female',
+        'bangalore', 'richmond', 'serpentine', 'methodology',
+        'method', 'technology', 'units', 'result', 'reference'
+    ]
+    
+    lines = text.split('\n')
+    
+    print(f"\n🔍 ANALYZING {len(lines)} LINES FOR TEST RESULTS...")
+    
+    tests_found = 0
+    
+    for i, line in enumerate(lines):
+        if len(line.strip()) < 5:
+            continue
+        
+        line_clean = line.strip()
+        
+        # ============================================
+        # STRATEGY 1: Thyrocare format
+        # "TEST NAME TECHNOLOGY VALUE UNIT"
+        # ============================================
+        pattern1 = r'^([A-Z][A-Z\s\-/()]+?)\s+(?:[A-Z\.]+\s+)?([\d.]+)\s+([a-zA-Z/%]+)\s*$'
+        match = re.search(pattern1, line_clean)
+        
+        if match:
+            test_name = match.group(1).strip()
+            value_str = match.group(2).strip()
+            unit = match.group(3).strip()
+            
+            # Clean test name
+            test_name = re.sub(r'\s+(PHOTOMETRY|CALCULATED|HPLC|H\.P\.L\.C|C\.M\.I\.A|DIRECT|ENZYMATIC)$', '', test_name, flags=re.IGNORECASE)
+            test_name = test_name.strip()
+            
+            if validate_and_add_test(test_name, value_str, unit, valid_units, blacklist, tests, seen_names):
+                tests_found += 1
+                if tests_found <= 5:  # Log first 5
+                    print(f"  ✅ Pattern 1: {test_name} = {value_str} {unit}")
+                continue
+        
+        # ============================================
+        # STRATEGY 2: Standard format with colon
+        # "TEST NAME: VALUE UNIT" or "TEST NAME VALUE UNIT"
+        # ============================================
+        pattern2 = r'([A-Za-z][A-Za-z\s\-/()\.]+?)[\s:]+?([\d.]+)\s+([a-zA-Z/%]+)'
+        match = re.search(pattern2, line_clean)
+        
+        if match:
+            test_name = match.group(1).strip()
+            value_str = match.group(2).strip()
+            unit = match.group(3).strip()
+            
+            if validate_and_add_test(test_name, value_str, unit, valid_units, blacklist, tests, seen_names):
+                tests_found += 1
+                if tests_found <= 5:
+                    print(f"  ✅ Pattern 2: {test_name} = {value_str} {unit}")
+                continue
+        
+        # ============================================
+        # STRATEGY 3: Tab-separated format
+        # "TEST NAME\tVALUE\tUNIT"
+        # ============================================
+        if '\t' in line_clean:
+            parts = [p.strip() for p in line_clean.split('\t') if p.strip()]
+            if len(parts) >= 3:
+                test_name = parts[0]
+                value_str = parts[1]
+                unit = parts[2] if len(parts) > 2 else ''
+                
+                if validate_and_add_test(test_name, value_str, unit, valid_units, blacklist, tests, seen_names):
+                    tests_found += 1
+                    if tests_found <= 5:
+                        print(f"  ✅ Pattern 3 (Tab): {test_name} = {value_str} {unit}")
+                    continue
+        
+        # ============================================
+        # STRATEGY 4: Multiple spaces separation
+        # "TEST NAME    VALUE    UNIT"
+        # ============================================
+        if '  ' in line_clean:  # Multiple spaces
+            parts = [p.strip() for p in re.split(r'\s{2,}', line_clean) if p.strip()]
+            if len(parts) >= 3:
+                test_name = parts[0]
+                value_str = parts[1]
+                unit = parts[2] if len(parts) > 2 else ''
+                
+                if validate_and_add_test(test_name, value_str, unit, valid_units, blacklist, tests, seen_names):
+                    tests_found += 1
+                    if tests_found <= 5:
+                        print(f"  ✅ Pattern 4 (Multi-space): {test_name} = {value_str} {unit}")
+                    continue
+    
+    print(f"\n📊 EXTRACTION COMPLETE: Found {len(tests)} tests")
+    if len(tests) > 0:
+        print(f"   Sample tests: {[t['name'] for t in tests[:3]]}")
+    
+    return tests
+
+def validate_and_add_test(test_name, value_str, unit, valid_units, blacklist, tests, seen_names):
+    """
+    Validate and add a test to the results list
+    Returns True if test was added successfully
+    """
+    # Validation checks
+    if len(test_name) < 3 or len(test_name) > 100:
+        return False
+    
+    # Check unit validity
+    unit_lower = unit.lower().replace('/', '')
+    if not any(valid_unit.replace('/', '') in unit_lower or unit_lower in valid_unit.replace('/', '') for valid_unit in valid_units):
+        return False
+    
+    # Check blacklist
+    test_lower = test_name.lower()
+    if any(black in test_lower for black in blacklist):
+        return False
+    
+    # Skip if only numbers
+    if test_name.replace(' ', '').replace('-', '').replace('.', '').isdigit():
+        return False
+    
+    # Skip garbage patterns
+    if test_name.startswith(('Bio', 'Method', 'Sample', 'Note', 'Alert', 'Page', 'Report')):
+        return False
+    
+    # Skip if test name has too many numbers
+    num_count = sum(c.isdigit() for c in test_name)
+    if num_count > len(test_name) * 0.3:  # More than 30% numbers
+        return False
+    
+    # Skip duplicates (case insensitive)
+    test_key = test_name.lower()
+    if test_key in seen_names:
+        return False
+    
+    # Validate value
+    try:
+        value = float(value_str.replace(',', ''))
+        if value < 0 or value > 1000000:
+            return False
+    except ValueError:
+        return False
+    
+    # All validations passed - add the test
+    tests.append({
+        'name': test_name,
+        'value': value,
+        'unit': unit
+    })
+    seen_names.add(test_key)
+    
+    return True
+
+def find_matching_tests(tests1, tests2):
+    """
+    Find matching tests between two reports (exact matching)
+    """
+    comparisons = []
+    test_names1 = {test['name']: test for test in tests1}
+    test_names2 = {test['name']: test for test in tests2}
+    
+    for test_name in test_names1:
+        if test_name in test_names2:
+            test1 = test_names1[test_name]
+            test2 = test_names2[test_name]
+            
+            # Only compare if units match
+            if test1['unit'].lower() == test2['unit'].lower():
+                comparisons.append({
+                    'name': test_name,
+                    'value1': test1['value'],
+                    'value2': test2['value'],
+                    'unit': test1['unit'],
+                    'change': test2['value'] - test1['value'],
+                    'percent_change': ((test2['value'] - test1['value']) / test1['value'] * 100) if test1['value'] != 0 else 0
+                })
+    
+    return comparisons
+
+def fuzzy_match_tests(tests1, tests2):
+    """
+    Find matching tests using fuzzy string matching
+    (for cases where test names are slightly different)
+    """
+    comparisons = []
+    used_tests2 = set()
+    
+    for test1 in tests1:
+        best_match = None
+        best_ratio = 0.0
+        
+        for test2 in tests2:
+            # Skip if already used
+            test2_name = test2['name']
+            if test2_name in used_tests2:
+                continue
+            
+            # Calculate similarity
+            ratio = SequenceMatcher(None, 
+                                   test1['name'].lower(), 
+                                   test2['name'].lower()).ratio()
+            
+            # Also check if units match
+            if ratio > best_ratio and ratio > 0.8:  # 80% similarity threshold
+                if test1['unit'].lower() == test2['unit'].lower():
+                    best_ratio = ratio
+                    best_match = test2
+        
+        # If we found a good match
+        if best_match and best_ratio > 0.8:
+            comparisons.append({
+                'name': test1['name'],  # Use test1 name as primary
+                'name_match_score': best_ratio,
+                'value1': test1['value'],
+                'value2': best_match['value'],
+                'unit': test1['unit'],
+                'change': best_match['value'] - test1['value'],
+                'percent_change': ((best_match['value'] - test1['value']) / test1['value'] * 100) if test1['value'] != 0 else 0
+            })
+            used_tests2.add(best_match['name'])
+    
+    return comparisons
+
+def extract_date_from_text(text):
+    """
+    Try to extract a date from the report text
+    Returns ISO format date string or None
+    """
+    # Common date patterns
+    date_patterns = [
+        r'(\d{1,2})[/-](\d{1,2})[/-](\d{4})',  # DD/MM/YYYY or DD-MM-YYYY
+        r'(\d{4})[/-](\d{1,2})[/-](\d{1,2})',  # YYYY/MM/DD or YYYY-MM-DD
+        r'(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+(\d{1,2}),?\s+(\d{4})',  # Month DD, YYYY
+    ]
+    
+    for pattern in date_patterns:
+        matches = re.findall(pattern, text, re.IGNORECASE)
+        for match in matches:
+            try:
+                groups = match
+                if len(groups) == 3:
+                    if pattern.startswith(r'(\d{1,2})'):
+                        # DD/MM/YYYY format
+                        day, month, year = groups
+                        date_obj = datetime(int(year), int(month), int(day))
+                    elif pattern.startswith(r'(\d{4})'):
+                        # YYYY/MM/DD format
+                        year, month, day = groups
+                        date_obj = datetime(int(year), int(month), int(day))
+                    else:
+                        # Month name format
+                        month_name, day, year = groups
+                        month_num = datetime.strptime(month_name[:3], '%b').month
+                        date_obj = datetime(int(year), month_num, int(day))
+                    
+                    return date_obj.strftime("%Y-%m-%d")
+            except:
+                continue
+    
+    return None
 
 # ============================================
 # MAIN UPLOAD ENDPOINT
@@ -549,7 +880,7 @@ def get_report_details(report_id):
 @jwt_required()
 def compare_reports():
     """
-    Compare two uploaded medical reports
+    IMPROVED: Compare two uploaded medical reports
     Returns matching tests with their values and changes
     """
     temp_files = []
@@ -609,58 +940,9 @@ def compare_reports():
         print(f"📄 Report 2: {file2.filename} ({size2/(1024*1024):.1f}MB)")
         print(f"{'='*60}\n")
         
-        # Extract text from both PDFs
-        text1 = None
-        text2 = None
-        
-        # Try PyPDF2 first for both
-        if OCR_AVAILABLE and callable(process_file):
-            try:
-                text1 = process_file(filepath1)
-                if not text1 or len(text1.strip()) < 50:
-                    print("⚠️ Report 1: PyPDF2 returned insufficient text")
-                    text1 = None
-                else:
-                    print(f"✅ Report 1: PyPDF2 extracted {len(text1)} chars")
-            except Exception as e:
-                print(f"❌ Report 1 PyPDF2 failed: {e}")
-                text1 = None
-            
-            try:
-                text2 = process_file(filepath2)
-                if not text2 or len(text2.strip()) < 50:
-                    print("⚠️ Report 2: PyPDF2 returned insufficient text")
-                    text2 = None
-                else:
-                    print(f"✅ Report 2: PyPDF2 extracted {len(text2)} chars")
-            except Exception as e:
-                print(f"❌ Report 2 PyPDF2 failed: {e}")
-                text2 = None
-        
-        # Fallback to AI OCR if needed
-        if not text1:
-            try:
-                from utils.ai_summarizer import extract_text_from_pdf_with_ai
-                print("🔄 Report 1: Trying AI OCR...")
-                text1 = extract_text_from_pdf_with_ai(filepath1)
-                if text1 and len(text1.strip()) >= 50:
-                    print(f"✅ Report 1: AI OCR extracted {len(text1)} chars")
-                else:
-                    print("❌ Report 1: AI OCR failed")
-            except Exception as e:
-                print(f"❌ Report 1 AI OCR failed: {e}")
-        
-        if not text2:
-            try:
-                from utils.ai_summarizer import extract_text_from_pdf_with_ai
-                print("🔄 Report 2: Trying AI OCR...")
-                text2 = extract_text_from_pdf_with_ai(filepath2)
-                if text2 and len(text2.strip()) >= 50:
-                    print(f"✅ Report 2: AI OCR extracted {len(text2)} chars")
-                else:
-                    print("❌ Report 2: AI OCR failed")
-            except Exception as e:
-                print(f"❌ Report 2 AI OCR failed: {e}")
+        # Extract text from both PDFs using improved function
+        text1 = extract_text_from_report(filepath1, "Report 1")
+        text2 = extract_text_from_report(filepath2, "Report 2")
         
         if not text1 or not text2:
             return jsonify({
@@ -675,35 +957,34 @@ def compare_reports():
         print(f"📊 Report 1: {len(text1)} chars")
         print(f"📊 Report 2: {len(text2)} chars\n")
         
-        # Extract test results from both
+        # Extract test results from both using IMPROVED function
         tests1 = extract_test_results(text1)
         tests2 = extract_test_results(text2)
         
         print(f"🧪 Found {len(tests1)} tests in Report 1")
         print(f"🧪 Found {len(tests2)} tests in Report 2\n")
         
-        # Find matching tests
-        comparisons = []
-        test_names1 = {test['name']: test for test in tests1}
-        test_names2 = {test['name']: test for test in tests2}
+        # DEBUG: Log sample tests
+        if len(tests1) > 0:
+            print(f"📋 Sample from Report 1:")
+            for test in tests1[:3]:
+                print(f"   - {test['name']}: {test['value']} {test['unit']}")
+
+        if len(tests2) > 0:
+            print(f"📋 Sample from Report 2:")
+            for test in tests2[:3]:
+                print(f"   - {test['name']}: {test['value']} {test['unit']}")
         
-        for test_name in test_names1:
-            if test_name in test_names2:
-                test1 = test_names1[test_name]
-                test2 = test_names2[test_name]
-                
-                # Only compare if units match
-                if test1['unit'] == test2['unit']:
-                    comparisons.append({
-                        'name': test_name,
-                        'value1': test1['value'],
-                        'value2': test2['value'],
-                        'unit': test1['unit'],
-                        'change': test2['value'] - test1['value'],
-                        'percent_change': ((test2['value'] - test1['value']) / test1['value'] * 100) if test1['value'] != 0 else 0
-                    })
+        # Find matching tests with exact matching first
+        comparisons = find_matching_tests(tests1, tests2)
         
-        print(f"✅ Found {len(comparisons)} matching tests\n")
+        print(f"\n✅ Found {len(comparisons)} matching tests\n")
+        
+        # 🔥 NEW: If no matches found, try fuzzy matching
+        if len(comparisons) == 0 and len(tests1) > 0 and len(tests2) > 0:
+            print("⚠️ No exact matches found, trying fuzzy matching...")
+            comparisons = fuzzy_match_tests(tests1, tests2)
+            print(f"✅ Fuzzy matching found {len(comparisons)} matches\n")
         
         # Calculate summary statistics
         improved = 0
@@ -711,7 +992,8 @@ def compare_reports():
         stable = 0
         
         # Tests where lower is better
-        lower_is_better = ['cholesterol', 'ldl', 'triglycerides', 'glucose', 'hba1c', 'creatinine', 'urea', 'bilirubin']
+        lower_is_better = ['cholesterol', 'ldl', 'triglycerides', 'glucose', 'hba1c', 
+                          'creatinine', 'urea', 'bilirubin', 'sgpt', 'sgot', 'alt', 'ast']
         
         for comp in comparisons:
             change = comp['change']
@@ -750,7 +1032,9 @@ def compare_reports():
             'report1_date': date1,
             'report2_date': date2,
             'report1_total_tests': len(tests1),
-            'report2_total_tests': len(tests2)
+            'report2_total_tests': len(tests2),
+            'report1_filename': file1.filename,
+            'report2_filename': file2.filename
         }), 200
         
     except Exception as e:
@@ -770,182 +1054,6 @@ def compare_reports():
                     print(f"🧹 Cleaned up: {os.path.basename(filepath)}")
             except Exception as e:
                 print(f"⚠️ Failed to clean up {filepath}: {e}")
-
-def extract_test_results(text):
-    """
-    Extract test results from medical report text
-    FINAL WORKING VERSION - Specifically handles Thyrocare format
-    """
-    tests = []
-    seen_names = set()
-    
-    # Valid medical units
-    valid_units = [
-        'mg/dl', 'g/dl', 'mmol/l', 'meq/l', 'iu/l', 'u/l',
-        '%', 'percent', 'ratio',
-        'ng/ml', 'pg/ml', 'miu/ml', 'uiu/ml', 'pmol/l',
-        'cells/cumm', 'thou/cumm', 'mill/cumm',
-        'sec', 'seconds', 'mm/hr', 'fl', 'mcg/dl', 'umol/l',
-        'g/l', 'mg/l', 'ug/l', 'nmol/l'
-    ]
-    
-    # Blacklist
-    blacklist = [
-        'test date', 'report date', 'sample collected', 'sample received',
-        'report released', 'barcode', 'labcode', 'page',
-        'bio. ref. interval', 'ref. interval', 'reference range',
-        'cutoff values', 'precision at', 'specifications',
-        'males', 'females', 'male', 'female',
-        'bangalore', 'richmond', 'serpentine'
-    ]
-    
-    lines = text.split('\n')
-    
-    for line in lines:
-        if len(line) < 10:
-            continue
-        
-        # Pattern 1: TEST NAME [TECHNOLOGY] VALUE UNITS (Thyrocare format)
-        # Example: "TOTAL CHOLESTEROL PHOTOMETRY 195 mg/dL"
-        pattern1 = r'^([A-Z][A-Z\s\-/()]+?)\s+(?:[A-Z\.]+\s+)?([\d.]+)\s+([a-zA-Z/%]+)\s*$'
-        match = re.search(pattern1, line.strip())
-        
-        if match:
-            test_name = match.group(1).strip()
-            value_str = match.group(2).strip()
-            unit = match.group(3).strip()
-            
-            # Clean up test name - remove trailing technology words
-            test_name = re.sub(r'\s+(PHOTOMETRY|CALCULATED|HPLC|H\.P\.L\.C|C\.M\.I\.A|DIRECT)$', '', test_name, flags=re.IGNORECASE)
-            test_name = test_name.strip()
-            
-            # Validation
-            if len(test_name) < 3 or len(test_name) > 70:
-                continue
-            
-            # Check unit validity
-            unit_lower = unit.lower()
-            if not any(valid_unit in unit_lower or unit_lower in valid_unit for valid_unit in valid_units):
-                continue
-            
-            # Check blacklist
-            test_lower = test_name.lower()
-            if any(black in test_lower for black in blacklist):
-                continue
-            
-            # Skip if only numbers
-            if test_name.replace(' ', '').replace('-', '').isdigit():
-                continue
-            
-            # Skip garbage patterns
-            if test_name.startswith(('Bio', 'Method', 'Sample', 'Note', 'Alert')):
-                continue
-            
-            # Skip duplicates (case insensitive)
-            test_key = test_name.lower()
-            if test_key in seen_names:
-                continue
-            
-            try:
-                value = float(value_str)
-                
-                if value < 0 or value > 500000:
-                    continue
-                
-                tests.append({
-                    'name': test_name,
-                    'value': value,
-                    'unit': unit
-                })
-                seen_names.add(test_key)
-                
-            except ValueError:
-                continue
-    
-    # If we got nothing, try alternative patterns
-    if len(tests) == 0:
-        for line in lines:
-            if len(line) < 15:
-                continue
-            
-            # Pattern 2: More flexible - TEST NAME: VALUE UNITS
-            pattern2 = r'([A-Z][A-Za-z\s\-/()]+?)[\s:]+?([\d.]+)\s+([a-zA-Z/%]+)'
-            match = re.search(pattern2, line)
-            
-            if match:
-                test_name = match.group(1).strip()
-                value_str = match.group(2).strip()
-                unit = match.group(3).strip()
-                
-                # Same validation
-                if len(test_name) < 3 or len(test_name) > 70:
-                    continue
-                
-                unit_lower = unit.lower()
-                if not any(valid_unit in unit_lower or unit_lower in valid_unit for valid_unit in valid_units):
-                    continue
-                
-                test_lower = test_name.lower()
-                if any(black in test_lower for black in blacklist):
-                    continue
-                
-                test_key = test_name.lower()
-                if test_key in seen_names:
-                    continue
-                
-                try:
-                    value = float(value_str)
-                    if value < 0 or value > 500000:
-                        continue
-                    
-                    tests.append({
-                        'name': test_name,
-                        'value': value,
-                        'unit': unit
-                    })
-                    seen_names.add(test_key)
-                except ValueError:
-                    continue
-    
-    return tests
-
-def extract_date_from_text(text):
-    """
-    Try to extract a date from the report text
-    Returns ISO format date string or None
-    """
-    # Common date patterns
-    date_patterns = [
-        r'(\d{1,2})[/-](\d{1,2})[/-](\d{4})',  # DD/MM/YYYY or DD-MM-YYYY
-        r'(\d{4})[/-](\d{1,2})[/-](\d{1,2})',  # YYYY/MM/DD or YYYY-MM-DD
-        r'(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+(\d{1,2}),?\s+(\d{4})',  # Month DD, YYYY
-    ]
-    
-    for pattern in date_patterns:
-        matches = re.findall(pattern, text, re.IGNORECASE)
-        for match in matches:
-            try:
-                groups = match
-                if len(groups) == 3:
-                    if pattern.startswith(r'(\d{1,2})'):
-                        # DD/MM/YYYY format
-                        day, month, year = groups
-                        date_obj = datetime(int(year), int(month), int(day))
-                    elif pattern.startswith(r'(\d{4})'):
-                        # YYYY/MM/DD format
-                        year, month, day = groups
-                        date_obj = datetime(int(year), int(month), int(day))
-                    else:
-                        # Month name format
-                        month_name, day, year = groups
-                        month_num = datetime.strptime(month_name[:3], '%b').month
-                        date_obj = datetime(int(year), month_num, int(day))
-                    
-                    return date_obj.strftime("%Y-%m-%d")
-            except:
-                continue
-    
-    return None
 
 # ============================================
 # 🔥 HEALTH RISK CALCULATOR ENDPOINT 🔥
