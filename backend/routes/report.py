@@ -775,7 +775,7 @@ def extract_test_results(text):
     """
     Extract test results from medical report text
     Returns list of {name, value, unit}
-    BALANCED VERSION - Extracts legitimate medical tests only
+    FINAL BALANCED VERSION
     """
     tests = []
     seen_names = set()
@@ -790,37 +790,22 @@ def extract_test_results(text):
         'g/l', 'mg/l', 'ug/l', 'nmol/l'
     ]
     
-    # Expanded blacklist - filter out common non-test terms
+    # STRICT blacklist - only obvious non-medical terms
     blacklist = [
-        'floor no', 'street name', 'apartment', 'building name',
-        'pincode', 'zip code', 'postal code',
-        'barcode', 'labcode', 'page', 'page no',
+        'floor no', 'street name', 'apartment', 'building',
+        'pincode', 'zip code', 
+        'barcode', 'labcode', 'page',
         'sample collected', 'sample received', 'report released',
-        'patient name', 'ref. by', 'test asked', 'referred by',
-        'technologies ltd', 'pvt ltd', 'pvt. ltd',
+        'patient name', 'ref. by', 'test asked', 'referred',
+        'technologies ltd', 'pvt ltd',
         'phone', 'mobile', 'email', 'address',
-        'test date', 'report date', 'collected on',
-        'precision at', 'accuracy', 'method',
-        'males', 'females', 'male', 'female',
-        'age', 'gender', 'reference', 'range',
-        'normal', 'abnormal', 'high', 'low',
-        'interpretation', 'comment', 'note',
-        'doctor', 'hospital', 'lab', 'laboratory',
-        'bangalore', 'richmond', 'serpentine',
-        '560025', 'india', 'karnataka'
-    ]
-    
-    # Keywords that MUST appear in valid test names
-    medical_keywords = [
-        'cholesterol', 'hdl', 'ldl', 'vldl', 'triglyceride',
-        'glucose', 'sugar', 'hba1c', 'hemoglobin', 'hb',
-        'creatinine', 'urea', 'bun', 'uric',
-        'bilirubin', 'albumin', 'protein', 'globulin',
-        'ast', 'alt', 'sgot', 'sgpt', 'alp', 'ggt',
-        'sodium', 'potassium', 'chloride', 'calcium',
-        'iron', 'ferritin', 'vitamin', 'tsh', 'thyroid',
-        'wbc', 'rbc', 'platelet', 'count',
-        'ratio', 'calculated', 'direct', 'total', 'average'
+        'bangalore', 'richmond', 'serpentine', '560025',
+        # NEW: Date-related garbage
+        'test date report', 'report date', 'collection date',
+        'precision at', 'accuracy at',
+        # NEW: Gender/demographic garbage  
+        'males only', 'females only', 'male range', 'female range',
+        'age range', 'reference range for'
     ]
     
     lines = text.split('\n')
@@ -832,12 +817,12 @@ def extract_test_results(text):
         
         # Try multiple patterns
         patterns = [
-            # Pattern 1: TEST NAME TECH value unit (most common in medical reports)
-            r'([A-Z][A-Z\s\-/()]+?)\s+[A-Z]+\s+([\d.]+)\s+([a-zA-Z/%]+)',
+            # Pattern 1: TEST NAME TECH value unit
+            r'([A-Z][A-Za-z0-9\s\-/()]+?)\s+[A-Z\.]+\s+([\d.]+)\s+([a-zA-Z/%]+)',
             # Pattern 2: TEST NAME value unit  
-            r'^([A-Z][A-Z\s\-/()]+?)\s+([\d.]+)\s+([a-zA-Z/%]+)\s*$',
+            r'^([A-Z][A-Za-z0-9\s\-/()]+?)\s+([\d.]+)\s+([a-zA-Z/%]+)\s*$',
             # Pattern 3: TEST NAME: value unit
-            r'([A-Z][A-Z\s\-/()]+?):\s+([\d.]+)\s+([a-zA-Z/%]+)',
+            r'([A-Z][A-Za-z0-9\s\-/()]+?):\s+([\d.]+)\s+([a-zA-Z/%]+)',
         ]
         
         for pattern in patterns:
@@ -847,7 +832,7 @@ def extract_test_results(text):
                 value_str = match.group(2).strip()
                 unit = match.group(3).strip()
                 
-                # Length validation
+                # Basic validation
                 if len(test_name) < 3 or len(test_name) > 60:
                     continue
                 
@@ -856,19 +841,30 @@ def extract_test_results(text):
                 if not any(valid_unit in unit_lower or unit_lower in valid_unit for valid_unit in valid_units):
                     continue
                 
-                # Check blacklist
+                # Check blacklist - be specific
                 test_lower = test_name.lower()
-                if any(black in test_lower for black in blacklist):
+                if any(black == test_lower or black in test_lower for black in blacklist):
                     continue
                 
-                # NEW: Check if test name contains medical keywords
-                has_medical_keyword = any(keyword in test_lower for keyword in medical_keywords)
-                if not has_medical_keyword:
+                # NEW: Filter out obvious garbage patterns
+                # Skip if starts with date-related words
+                if test_name.startswith(('Test date', 'Report', 'April', 'Precision', 'Accuracy', 'Males', 'Females', 'Age')):
+                    continue
+                
+                # Skip if looks like a date (starts with number like "25 April")
+                if re.match(r'^\d{1,2}\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)', test_name, re.IGNORECASE):
                     continue
                 
                 # Skip if test name is all numbers
                 if test_name.replace(' ', '').replace('-', '').isdigit():
                     continue
+                
+                # Skip single word test names UNLESS they're known medical terms
+                words = test_name.split()
+                if len(words) == 1:
+                    known_single_word_tests = ['hemoglobin', 'glucose', 'creatinine', 'albumin', 'bilirubin', 'urea']
+                    if test_name.lower() not in known_single_word_tests:
+                        continue
                 
                 # Skip duplicates
                 if test_name in seen_names:
@@ -879,10 +875,6 @@ def extract_test_results(text):
                     
                     # Skip unrealistic values
                     if value < 0 or value > 500000:
-                        continue
-                    
-                    # NEW: Skip values that look like dates (25, 2025, etc in April context)
-                    if value in [25, 99, 163, 192] and 'april' in test_lower:
                         continue
                     
                     tests.append({
