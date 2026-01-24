@@ -775,29 +775,32 @@ def extract_test_results(text):
     """
     Extract test results from medical report text
     Returns list of {name, value, unit}
+    RELAXED VERSION - Extracts more tests
     """
     tests = []
     seen_names = set()
     
-    # Valid medical units (lowercase for comparison)
+    # Valid medical units (lowercase for comparison) - EXPANDED LIST
     valid_units = [
         'mg/dl', 'g/dl', 'mmol/l', 'meq/l', 'iu/l', 'u/l',
         '%', 'percent', 'ratio',
         'ng/ml', 'pg/ml', 'miu/ml', 'uiu/ml', 'pmol/l',
         'cells/cumm', 'thou/cumm', 'mill/cumm',
         'sec', 'seconds', 'mm/hr', 'fl', 'mcg/dl', 'umol/l',
-        'g/l', 'mg/l', 'ug/l', 'nmol/l'
+        'g/l', 'mg/l', 'ug/l', 'nmol/l',
+        'mm', 'cm', 'kg', 'lbs',  # Added more units
+        'ml', 'dl', 'l'  # Volume units
     ]
     
-    # Strict blacklist - only obvious non-medical terms
+    # Minimal blacklist - only truly non-medical terms
     blacklist = [
         'floor no', 'street name', 'apartment', 'building name',
-        'pincode', 'zip code', 
-        'barcode', 'labcode', 'page',
+        'pincode', 'zip code', 'postal code',
+        'barcode', 'labcode', 'page', 'page no',
         'sample collected', 'sample received', 'report released',
-        'patient name', 'ref. by', 'test asked',
-        'technologies ltd', 'pvt ltd',
-        '560025', 'richmond', 'bangalore', 'serpentine'
+        'patient name', 'ref. by', 'test asked', 'referred by',
+        'technologies ltd', 'pvt ltd', 'pvt. ltd',
+        'phone', 'mobile', 'email', 'address'
     ]
     
     # Pattern: TEST_NAME value unit
@@ -805,33 +808,40 @@ def extract_test_results(text):
     
     for line in lines:
         # Skip very short lines
-        if len(line) < 15:
+        if len(line) < 10:  # RELAXED: was 15, now 10
             continue
         
-        # Try multiple patterns
+        # Try multiple patterns - RELAXED patterns
         patterns = [
-            # Pattern 1: TEST NAME TECH value unit
-            r'([A-Z][A-Za-z0-9\s\-/()]+?)\s+[A-Z\.]+\s+([\d.]+)\s+([a-zA-Z/%]+)',
+            # Pattern 1: TEST NAME TECH value unit (most common)
+            r'([A-Za-z][A-Za-z0-9\s\-/()\.]+?)\s+[A-Z\.]+\s+([\d.]+)\s+([a-zA-Z/%]+)',
             # Pattern 2: TEST NAME value unit  
-            r'^([A-Z][A-Za-z0-9\s\-/()]+?)\s+([\d.]+)\s+([a-zA-Z/%]+)\s*$',
+            r'([A-Za-z][A-Za-z0-9\s\-/()\.]+?)\s+([\d.]+)\s+([a-zA-Z/%]+)',
             # Pattern 3: TEST NAME: value unit
-            r'([A-Z][A-Za-z0-9\s\-/()]+?):\s+([\d.]+)\s+([a-zA-Z/%]+)',
+            r'([A-Za-z][A-Za-z0-9\s\-/()\.]+?):\s*([\d.]+)\s+([a-zA-Z/%]+)',
+            # Pattern 4: With optional spaces/tabs
+            r'([A-Za-z][A-Za-z0-9\s\-/()\.]+?)\s*[:=]\s*([\d.]+)\s+([a-zA-Z/%]+)'
         ]
         
         for pattern in patterns:
-            match = re.search(pattern, line)
+            match = re.search(pattern, line, re.IGNORECASE)  # ADDED: Case insensitive
             if match:
                 test_name = match.group(1).strip()
                 value_str = match.group(2).strip()
                 unit = match.group(3).strip()
                 
-                # Basic validation
-                if len(test_name) < 3 or len(test_name) > 60:
+                # RELAXED validation
+                if len(test_name) < 2 or len(test_name) > 70:  # RELAXED: 3->2, 60->70
                     continue
                 
-                # Check if unit is valid
+                # Check if unit is valid (case insensitive)
                 unit_lower = unit.lower()
-                if not any(valid_unit in unit_lower or unit_lower in valid_unit for valid_unit in valid_units):
+                is_valid_unit = any(
+                    valid_unit in unit_lower or unit_lower in valid_unit 
+                    for valid_unit in valid_units
+                )
+                
+                if not is_valid_unit:
                     continue
                 
                 # Check blacklist (only exact phrases)
@@ -840,18 +850,19 @@ def extract_test_results(text):
                     continue
                 
                 # Skip if test name is all numbers
-                if test_name.replace(' ', '').replace('-', '').isdigit():
+                if test_name.replace(' ', '').replace('-', '').replace('.', '').isdigit():
                     continue
                 
-                # Skip duplicates
-                if test_name in seen_names:
+                # Skip duplicates (case insensitive)
+                test_name_lower = test_name.lower()
+                if test_name_lower in seen_names:
                     continue
                 
                 try:
                     value = float(value_str)
                     
-                    # Skip unrealistic values
-                    if value < 0 or value > 500000:
+                    # RELAXED: Skip only extremely unrealistic values
+                    if value < 0 or value > 1000000:  # RELAXED: was 500000, now 1000000
                         continue
                     
                     tests.append({
@@ -859,7 +870,7 @@ def extract_test_results(text):
                         'value': value,
                         'unit': unit
                     })
-                    seen_names.add(test_name)
+                    seen_names.add(test_name_lower)
                     
                 except ValueError:
                     continue
