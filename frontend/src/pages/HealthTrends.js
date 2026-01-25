@@ -512,9 +512,14 @@ function HealthTrends({ darkMode, setDarkMode }) {
                         options={{
                           responsive: true,
                           maintainAspectRatio: false,
+                          devicePixelRatio: window.devicePixelRatio || 2,
                           plugins: {
                             legend: { display: false },
                             tooltip: {
+                              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                              padding: 12,
+                              titleFont: { size: 14, weight: 'bold' },
+                              bodyFont: { size: 13 },
                               callbacks: {
                                 label: (context) => `${context.parsed.y} ${test.unit}`
                               }
@@ -523,12 +528,25 @@ function HealthTrends({ darkMode, setDarkMode }) {
                           scales: {
                             y: {
                               beginAtZero: false,
-                              grid: { color: '#E5E7EB' },
+                              grid: { 
+                                color: '#E5E7EB',
+                                drawBorder: false
+                              },
                               ticks: {
+                                font: { size: 12, weight: '500' },
+                                color: '#6B7280',
+                                padding: 8,
                                 callback: (value) => `${value} ${test.unit}`
                               }
                             },
-                            x: { grid: { display: false } }
+                            x: {
+                              grid: { display: false },
+                              ticks: {
+                                font: { size: 13, weight: '600' },
+                                color: '#374151',
+                                padding: 8
+                              }
+                            }
                           }
                         }}
                       />
