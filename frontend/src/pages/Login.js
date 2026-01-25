@@ -65,15 +65,16 @@ function Login() {
             {/* Logo */}
             <div className="login-logo">
               <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect width="48" height="48" rx="12" fill="url(#logoGradient)"/>
-                <path d="M24 14L16 20V32L24 38L32 32V20L24 14Z" fill="white" fillOpacity="0.9"/>
-                <path d="M24 20V32M20 24H28M20 28H28" stroke="url(#logoGradient)" strokeWidth="2" strokeLinecap="round"/>
-                <defs>
-                  <linearGradient id="logoGradient" x1="0" y1="0" x2="48" y2="48">
-                    <stop offset="0%" stopColor="#2563EB"/>
-                    <stop offset="100%" stopColor="#7C3AED"/>
-                  </linearGradient>
-                </defs>
+                <rect width="48" height="48" rx="12" fill="#2563EB"/>
+                {/* Document/Report */}
+                <rect x="14" y="10" width="20" height="28" rx="2" fill="white"/>
+                {/* Scanner lines effect */}
+                <line x1="18" y1="16" x2="30" y2="16" stroke="#2563EB" strokeWidth="1.5" strokeLinecap="round"/>
+                <line x1="18" y1="20" x2="30" y2="20" stroke="#2563EB" strokeWidth="1.5" strokeLinecap="round"/>
+                <line x1="18" y1="24" x2="26" y2="24" stroke="#2563EB" strokeWidth="1.5" strokeLinecap="round"/>
+                {/* Medical cross */}
+                <circle cx="24" cy="31" r="4" fill="#2563EB"/>
+                <path d="M24 29v4M22 31h4" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
               </svg>
             </div>
 
@@ -185,57 +186,79 @@ function Login() {
         <div className="login-hero-side">
           <div className="hero-content">
             <h2>
-              Securely Upload And Store<br />
-              Your Important Documents<br />
-              With <span className="hero-brand">MedLens!</span>
+              Securely Upload Your Reports<br />
+              And Understand Your Health<br />
+              Status With <span className="hero-brand">MedLens!</span>
             </h2>
             
             {/* Illustration */}
             <div className="hero-illustration">
-              <svg viewBox="0 0 600 400" fill="none" xmlns="http://www.w3.org/2000/svg">
-                {/* Decorative dots */}
-                <g opacity="0.3">
-                  <circle cx="280" cy="150" r="3" fill="#CBD5E1"/>
-                  <circle cx="295" cy="150" r="3" fill="#CBD5E1"/>
-                  <circle cx="310" cy="150" r="3" fill="#CBD5E1"/>
-                  <circle cx="280" cy="165" r="3" fill="#CBD5E1"/>
-                  <circle cx="295" cy="165" r="3" fill="#CBD5E1"/>
-                  <circle cx="310" cy="165" r="3" fill="#CBD5E1"/>
-                  <circle cx="280" cy="180" r="3" fill="#CBD5E1"/>
-                  <circle cx="295" cy="180" r="3" fill="#CBD5E1"/>
-                  <circle cx="310" cy="180" r="3" fill="#CBD5E1"/>
+              <svg viewBox="0 0 500 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+                {/* Background decoration - dots pattern */}
+                <g opacity="0.2">
+                  <circle cx="100" cy="100" r="2" fill="#64748B"/>
+                  <circle cx="110" cy="100" r="2" fill="#64748B"/>
+                  <circle cx="120" cy="100" r="2" fill="#64748B"/>
+                  <circle cx="130" cy="100" r="2" fill="#64748B"/>
+                  <circle cx="100" cy="110" r="2" fill="#64748B"/>
+                  <circle cx="110" cy="110" r="2" fill="#64748B"/>
+                  <circle cx="120" cy="110" r="2" fill="#64748B"/>
+                  <circle cx="130" cy="110" r="2" fill="#64748B"/>
+                  <circle cx="100" cy="120" r="2" fill="#64748B"/>
+                  <circle cx="110" cy="120" r="2" fill="#64748B"/>
+                  <circle cx="120" cy="120" r="2" fill="#64748B"/>
+                  <circle cx="130" cy="120" r="2" fill="#64748B"/>
                 </g>
                 
-                {/* Curved line decoration */}
-                <path d="M 450 100 Q 520 150 480 250" stroke="#CBD5E1" strokeWidth="2" fill="none" opacity="0.3"/>
+                {/* Curved decorative line */}
+                <path d="M 380 80 Q 420 130 400 200" stroke="#94A3B8" strokeWidth="2" fill="none" opacity="0.3" strokeLinecap="round"/>
                 
-                {/* Main character blob */}
-                <ellipse cx="300" cy="250" rx="140" ry="100" fill="url(#blobGradient)"/>
+                {/* Main character body (simplified blob) */}
+                <ellipse cx="250" cy="240" rx="110" ry="85" fill="url(#personGradient)" opacity="0.95"/>
                 
                 {/* Head */}
-                <circle cx="300" cy="170" r="35" fill="white"/>
+                <circle cx="250" cy="150" r="32" fill="white"/>
+                <circle cx="250" cy="150" r="32" fill="#F1F5F9" opacity="0.5"/>
                 
-                {/* Laptop */}
-                <rect x="270" y="215" width="60" height="40" rx="3" fill="#E0F2FE"/>
-                <rect x="265" y="255" width="70" height="3" fill="#64748B"/>
+                {/* Laptop/Document */}
+                <rect x="225" y="210" width="50" height="35" rx="2" fill="white"/>
+                <rect x="227" y="212" width="46" height="31" rx="1" fill="#DBEAFE"/>
+                {/* Lines on laptop screen */}
+                <line x1="232" y1="220" x2="268" y2="220" stroke="#60A5FA" strokeWidth="2" strokeLinecap="round"/>
+                <line x1="232" y1="227" x2="268" y2="227" stroke="#60A5FA" strokeWidth="2" strokeLinecap="round"/>
+                <line x1="232" y1="234" x2="255" y2="234" stroke="#60A5FA" strokeWidth="2" strokeLinecap="round"/>
+                {/* Laptop base */}
+                <rect x="220" y="245" width="60" height="3" rx="1" fill="#94A3B8"/>
                 
-                {/* Arms */}
-                <path d="M 240 220 Q 230 240 250 250" stroke="#1E293B" strokeWidth="8" strokeLinecap="round"/>
-                <path d="M 360 220 Q 370 240 350 250" stroke="#1E293B" strokeWidth="8" strokeLinecap="round"/>
+                {/* Arms (simplified curves) */}
+                <path d="M 180 220 Q 170 235 200 245" stroke="#1E293B" strokeWidth="6" strokeLinecap="round" fill="none"/>
+                <path d="M 320 220 Q 330 235 300 245" stroke="#1E293B" strokeWidth="6" strokeLinecap="round" fill="none"/>
                 
                 {/* Legs */}
-                <line x1="280" y1="320" x2="280" y2="360" stroke="#1E293B" strokeWidth="8" strokeLinecap="round"/>
-                <line x1="320" y1="320" x2="320" y2="360" stroke="#1E293B" strokeWidth="8" strokeLinecap="round"/>
+                <rect x="235" y="310" width="6" height="50" rx="3" fill="#1E293B"/>
+                <rect x="259" y="310" width="6" height="50" rx="3" fill="#1E293B"/>
                 
-                {/* Ground */}
-                <line x1="200" y1="360" x2="400" y2="360" stroke="#1E293B" strokeWidth="3" strokeLinecap="round"/>
+                {/* Ground line */}
+                <line x1="150" y1="360" x2="350" y2="360" stroke="#1E293B" strokeWidth="3" strokeLinecap="round"/>
+                
+                {/* Medical report floating beside */}
+                <g transform="translate(340, 180)">
+                  <rect width="45" height="60" rx="3" fill="white" filter="url(#shadow)"/>
+                  <line x1="8" y1="12" x2="37" y2="12" stroke="#60A5FA" strokeWidth="2" strokeLinecap="round"/>
+                  <line x1="8" y1="20" x2="37" y2="20" stroke="#60A5FA" strokeWidth="1.5" strokeLinecap="round"/>
+                  <line x1="8" y1="27" x2="30" y2="27" stroke="#60A5FA" strokeWidth="1.5" strokeLinecap="round"/>
+                  <circle cx="22.5" cy="42" r="8" fill="#34D399"/>
+                  <path d="M19 42l2 2 4-4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                </g>
                 
                 <defs>
-                  <linearGradient id="blobGradient" x1="200" y1="150" x2="400" y2="350">
+                  <linearGradient id="personGradient" x1="150" y1="150" x2="350" y2="330">
                     <stop offset="0%" stopColor="#60A5FA"/>
-                    <stop offset="50%" stopColor="#34D399"/>
-                    <stop offset="100%" stopColor="#60A5FA"/>
+                    <stop offset="100%" stopColor="#3B82F6"/>
                   </linearGradient>
+                  <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+                    <feDropShadow dx="0" dy="4" stdDeviation="8" floodOpacity="0.15"/>
+                  </filter>
                 </defs>
               </svg>
             </div>

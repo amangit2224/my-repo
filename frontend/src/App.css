@@ -1280,7 +1280,7 @@ select:focus {
 
 .hero-illustration {
   width: 100%;
-  max-width: 600px;
+  max-width: 500px;
   margin: 0 auto;
   animation: illustrationFloat 6s ease-in-out infinite;
 }
@@ -1288,7 +1288,7 @@ select:focus {
 .hero-illustration svg {
   width: 100%;
   height: auto;
-  filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.1));
+  filter: drop-shadow(0 10px 30px rgba(37, 99, 235, 0.1));
 }
 
 @keyframes heroFadeIn {
