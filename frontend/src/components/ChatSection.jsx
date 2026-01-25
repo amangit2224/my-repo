@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { reportAPI } from '../utils/api';
+import '../App.css';
 
 function ChatSection({ reportId, isOpen, onClose }) {
   const [messages, setMessages] = useState([]);
@@ -7,6 +8,7 @@ function ChatSection({ reportId, isOpen, onClose }) {
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
 
   // Fetch suggestions when component opens
   useEffect(() => {
@@ -27,6 +29,8 @@ function ChatSection({ reportId, isOpen, onClose }) {
         content: "Hello! I'm here to help you understand your medical report. Ask me anything about your test results, what they mean, or what you should do next.",
         timestamp: new Date().toISOString()
       }]);
+      // Focus input after opening
+      setTimeout(() => inputRef.current?.focus(), 100);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, reportId]);
@@ -79,6 +83,7 @@ function ChatSection({ reportId, isOpen, onClose }) {
       }]);
     } finally {
       setLoading(false);
+      inputRef.current?.focus();
     }
   };
 
@@ -93,222 +98,158 @@ function ChatSection({ reportId, isOpen, onClose }) {
     }
   };
 
+  const formatTime = (timestamp) => {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+  };
+
   if (!isOpen) return null;
 
   return (
-    <div style={{
-      marginTop: '32px',
-      border: '2px solid #E5E7EB',
-      borderRadius: '12px',
-      backgroundColor: 'white',
-      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)'
-    }}>
-      {/* Header */}
-      <div style={{
-        padding: '20px 24px',
-        borderBottom: '2px solid #E5E7EB',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        backgroundColor: '#F9FAFB'
-      }}>
-        <div>
-          <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '600', color: '#1F2937' }}>
-            💬 Chat About Your Report
-          </h3>
-          <p style={{ margin: '4px 0 0', fontSize: '14px', color: '#6B7280' }}>
-            Ask questions about your test results
-          </p>
-        </div>
-        <button
-          onClick={onClose}
-          style={{
-            background: '#E5E7EB',
-            border: 'none',
-            color: '#374151',
-            fontSize: '24px',
-            cursor: 'pointer',
-            width: '36px',
-            height: '36px',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'background 0.2s'
-          }}
-          onMouseEnter={(e) => e.target.style.background = '#D1D5DB'}
-          onMouseLeave={(e) => e.target.style.background = '#E5E7EB'}
-        >
-          ×
-        </button>
-      </div>
-
-      {/* Suggested Questions */}
-      {suggestions.length > 0 && messages.length <= 1 && (
-        <div style={{
-          padding: '16px 24px',
-          backgroundColor: '#FFFBEB',
-          borderBottom: '1px solid #FDE68A'
-        }}>
-          <p style={{ 
-            margin: '0 0 12px', 
-            fontSize: '14px', 
-            fontWeight: '600', 
-            color: '#92400E' 
-          }}>
-            💡 Suggested Questions:
-          </p>
-          <div style={{ 
-            display: 'flex', 
-            flexWrap: 'wrap', 
-            gap: '8px' 
-          }}>
-            {suggestions.map((suggestion, idx) => (
-              <button
-                key={idx}
-                onClick={() => handleSuggestionClick(suggestion)}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: 'white',
-                  border: '1px solid #FCD34D',
-                  borderRadius: '20px',
-                  fontSize: '13px',
-                  color: '#92400E',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  fontWeight: '500'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = '#FEF3C7';
-                  e.target.style.borderColor = '#F59E0B';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = 'white';
-                  e.target.style.borderColor = '#FCD34D';
-                }}
-              >
-                {suggestion}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Messages */}
-      <div style={{
-        padding: '24px',
-        maxHeight: '500px',
-        overflowY: 'auto',
-        minHeight: '300px'
-      }}>
-        {messages.map((message, idx) => (
-          <div
-            key={idx}
-            style={{
-              marginBottom: '16px',
-              display: 'flex',
-              justifyContent: message.role === 'user' ? 'flex-end' : 'flex-start'
-            }}
-          >
-            <div style={{
-              maxWidth: '75%',
-              padding: '12px 16px',
-              borderRadius: message.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-              backgroundColor: message.role === 'user' ? '#3B82F6' : '#F3F4F6',
-              color: message.role === 'user' ? 'white' : '#1F2937',
-              fontSize: '15px',
-              lineHeight: '1.6',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word'
-            }}>
-              {message.content}
+    <div className="chat-section-wrapper">
+      <div className="chat-container">
+        {/* Header */}
+        <div className="chat-header">
+          <div className="chat-header-content">
+            <div className="chat-avatar">
+              <svg width="24" height="24" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd"/>
+              </svg>
+            </div>
+            <div className="chat-header-info">
+              <h3>AI Medical Assistant</h3>
+              <p className="chat-status">
+                <span className="status-dot"></span>
+                Online
+              </p>
             </div>
           </div>
-        ))}
+          <button onClick={onClose} className="chat-close-btn">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
+            </svg>
+          </button>
+        </div>
 
-        {loading && (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            color: '#6B7280',
-            fontSize: '14px'
-          }}>
-            <div className="spinner" style={{ 
-              width: '16px', 
-              height: '16px', 
-              borderWidth: '2px' 
-            }}></div>
-            Typing...
+        {/* Suggested Questions */}
+        {suggestions.length > 0 && messages.length <= 1 && (
+          <div className="chat-suggestions">
+            <div className="suggestions-header">
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1h4v1a2 2 0 11-4 0zM12 14c.015-.34.208-.646.477-.859a4 4 0 10-4.954 0c.27.213.462.519.476.859h4.002z"/>
+              </svg>
+              <span>Quick Questions</span>
+            </div>
+            <div className="suggestions-grid">
+              {suggestions.map((suggestion, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleSuggestionClick(suggestion)}
+                  className="suggestion-chip"
+                  style={{ animationDelay: `${idx * 0.05}s` }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd"/>
+                  </svg>
+                  {suggestion}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
-        <div ref={messagesEndRef} />
-      </div>
+        {/* Messages */}
+        <div className="chat-messages">
+          {messages.map((message, idx) => (
+            <div
+              key={idx}
+              className={`message-wrapper ${message.role}`}
+              style={{ animationDelay: `${idx * 0.05}s` }}
+            >
+              {message.role === 'assistant' && (
+                <div className="message-avatar assistant-avatar">
+                  <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                  </svg>
+                </div>
+              )}
+              
+              <div className={`message-bubble ${message.role} ${message.isError ? 'error' : ''}`}>
+                <div className="message-content">{message.content}</div>
+                <div className="message-time">{formatTime(message.timestamp)}</div>
+              </div>
 
-      {/* Input */}
-      <div style={{
-        padding: '16px 24px',
-        borderTop: '2px solid #E5E7EB',
-        backgroundColor: '#F9FAFB'
-      }}>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Ask a question about your report..."
-            disabled={loading}
-            style={{
-              flex: 1,
-              padding: '12px 16px',
-              border: '2px solid #E5E7EB',
-              borderRadius: '8px',
-              fontSize: '15px',
-              outline: 'none',
-              transition: 'border-color 0.2s',
-              backgroundColor: 'white'
-            }}
-            onFocus={(e) => e.target.style.borderColor = '#3B82F6'}
-            onBlur={(e) => e.target.style.borderColor = '#E5E7EB'}
-          />
-          <button
-            onClick={() => handleSendMessage()}
-            disabled={!input.trim() || loading}
-            style={{
-              padding: '12px 24px',
-              backgroundColor: input.trim() && !loading ? '#3B82F6' : '#D1D5DB',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '15px',
-              fontWeight: '600',
-              cursor: input.trim() && !loading ? 'pointer' : 'not-allowed',
-              transition: 'background 0.2s'
-            }}
-            onMouseEnter={(e) => {
-              if (input.trim() && !loading) {
-                e.target.style.backgroundColor = '#2563EB';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (input.trim() && !loading) {
-                e.target.style.backgroundColor = '#3B82F6';
-              }
-            }}
-          >
-            Send
-          </button>
+              {message.role === 'user' && (
+                <div className="message-avatar user-avatar">
+                  <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"/>
+                  </svg>
+                </div>
+              )}
+            </div>
+          ))}
+
+          {loading && (
+            <div className="message-wrapper assistant typing-indicator">
+              <div className="message-avatar assistant-avatar">
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                </svg>
+              </div>
+              <div className="message-bubble assistant">
+                <div className="typing-dots">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div ref={messagesEndRef} />
         </div>
-        <p style={{
-          margin: '8px 0 0',
-          fontSize: '12px',
-          color: '#9CA3AF',
-          textAlign: 'center'
-        }}>
-          Press Enter to send • Shift + Enter for new line
-        </p>
+
+        {/* Input */}
+        <div className="chat-input-wrapper">
+          <div className="chat-input-container">
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Ask me anything about your medical report..."
+              disabled={loading}
+              className="chat-input"
+              rows="1"
+              onInput={(e) => {
+                e.target.style.height = 'auto';
+                e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+              }}
+            />
+            <button
+              onClick={() => handleSendMessage()}
+              disabled={!input.trim() || loading}
+              className="chat-send-btn"
+            >
+              {loading ? (
+                <div className="button-spinner"></div>
+              ) : (
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"/>
+                </svg>
+              )}
+            </button>
+          </div>
+          <div className="chat-input-hint">
+            <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"/>
+            </svg>
+            Press <kbd>Enter</kbd> to send • <kbd>Shift + Enter</kbd> for new line
+          </div>
+        </div>
       </div>
     </div>
   );
