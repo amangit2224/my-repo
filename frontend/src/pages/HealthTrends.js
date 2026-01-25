@@ -411,30 +411,32 @@ function HealthTrends({ darkMode, setDarkMode }) {
         {/* Summary Card */}
         {comparisonData.summary && (
           <div className="summary-card">
-            <div className="summary-icon">
-              {comparisonData.summary.improved_count > comparisonData.summary.worsened_count ? (
-                <svg width="32" height="32" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
-                </svg>
-              ) : (
-                <svg width="32" height="32" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
-                </svg>
-              )}
+            <div className="summary-header">
+              <div className="summary-icon">
+                {comparisonData.summary.improved_count > comparisonData.summary.worsened_count ? (
+                  <svg width="32" height="32" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                  </svg>
+                ) : (
+                  <svg width="32" height="32" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
+                  </svg>
+                )}
+              </div>
+              <h2>Overall Health Summary</h2>
             </div>
-            <h2>Overall Health Summary</h2>
             <div className="summary-stats">
               <div className="summary-stat improved">
-                <span className="stat-value">{comparisonData.summary.improved_count}</span>
-                <span className="stat-label">Improved</span>
+                <div className="stat-value">{comparisonData.summary.improved_count}</div>
+                <div className="stat-label">Tests Improved</div>
               </div>
               <div className="summary-stat worsened">
-                <span className="stat-value">{comparisonData.summary.worsened_count}</span>
-                <span className="stat-label">Worsened</span>
+                <div className="stat-value">{comparisonData.summary.worsened_count}</div>
+                <div className="stat-label">Tests Worsened</div>
               </div>
               <div className="summary-stat stable">
-                <span className="stat-value">{comparisonData.summary.stable_count}</span>
-                <span className="stat-label">Stable</span>
+                <div className="stat-value">{comparisonData.summary.stable_count}</div>
+                <div className="stat-label">Tests Stable</div>
               </div>
             </div>
           </div>
@@ -494,9 +496,10 @@ function HealthTrends({ darkMode, setDarkMode }) {
                   datasets: [{
                     label: `${test.name} (${test.unit})`,
                     data: [test.value1, test.value2],
-                    backgroundColor: ['rgba(37, 99, 235, 0.8)', 'rgba(124, 58, 237, 0.8)'],
-                    borderColor: ['#2563EB', '#7C3AED'],
-                    borderWidth: 2
+                    backgroundColor: ['rgba(59, 130, 246, 0.8)', 'rgba(16, 185, 129, 0.8)'],
+                    borderColor: ['#3B82F6', '#10B981'],
+                    borderWidth: 2,
+                    borderRadius: 8
                   }]
                 };
 
