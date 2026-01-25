@@ -4431,6 +4431,542 @@ body.dark-mode .overall-recommendations {
   border-color: var(--border);
 }
 
+/* ========================================
+   DIET MODAL STYLES
+   ======================================== */
+
+/* Modal Overlay */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  overflow-y: auto;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Modal Container */
+.diet-modal-container {
+  background: var(--bg);
+  border-radius: 20px;
+  max-width: 900px;
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Modal Header */
+.diet-modal-header {
+  position: sticky;
+  top: 0;
+  background: var(--bg-alt);
+  padding: 24px 32px;
+  border-radius: 20px 20px 0 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 10;
+  border-bottom: 2px solid var(--border);
+}
+
+.diet-header-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.diet-header-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #10B981, #059669);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.diet-modal-header h2 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 4px 0;
+}
+
+.diet-modal-header p {
+  font-size: 14px;
+  color: var(--text-light);
+  margin: 0;
+}
+
+.diet-close-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.diet-close-btn:hover {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: white;
+  transform: rotate(90deg);
+}
+
+/* Modal Content */
+.diet-modal-content {
+  padding: 32px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.diet-modal-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.diet-modal-content::-webkit-scrollbar-track {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+.diet-modal-content::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  border-radius: 4px;
+}
+
+/* Loading State */
+.diet-loading-state {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.diet-loading-state h3 {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 20px 0 8px;
+}
+
+.diet-loading-state p {
+  font-size: 14px;
+  color: var(--text-light);
+  margin: 0;
+}
+
+/* Empty State */
+.diet-empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-light);
+}
+
+.diet-empty-state svg {
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+/* Diet Section */
+.diet-section {
+  margin-bottom: 28px;
+  background: var(--bg-alt);
+  border: 2px solid;
+  border-radius: 16px;
+  padding: 24px;
+  transition: all 0.3s;
+}
+
+.diet-section:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.diet-section-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.diet-section-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  flex-shrink: 0;
+}
+
+.diet-section-header h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.diet-section-content {
+  color: var(--text-light);
+}
+
+/* Condition Badges */
+.condition-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.condition-badge {
+  background: linear-gradient(135deg, #FBBF24, #F59E0B);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Diet List */
+.diet-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.diet-list li {
+  padding: 10px 0 10px 28px;
+  position: relative;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--text);
+}
+
+.diet-list li:before {
+  content: "✓";
+  position: absolute;
+  left: 8px;
+  color: #10B981;
+  font-weight: bold;
+  font-size: 16px;
+}
+
+/* Food Category */
+.food-category {
+  margin-bottom: 20px;
+}
+
+.food-category h4 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 10px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.food-category.include h4 {
+  color: #10B981;
+}
+
+.food-category.avoid h4 {
+  color: #EF4444;
+}
+
+.food-category ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.food-category ul li {
+  padding: 6px 0 6px 24px;
+  position: relative;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-light);
+}
+
+.food-category.include ul li:before {
+  content: "•";
+  position: absolute;
+  left: 8px;
+  color: #10B981;
+  font-weight: bold;
+}
+
+.food-category.avoid ul li:before {
+  content: "•";
+  position: absolute;
+  left: 8px;
+  color: #EF4444;
+  font-weight: bold;
+}
+
+/* Meal Suggestions Grid */
+.meal-suggestions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+}
+
+.meal-time-card {
+  background: var(--bg);
+  border: 2px solid #EC4899;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.meal-time-card h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #EC4899;
+  margin: 0 0 12px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.meal-time-card ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.meal-time-card ul li {
+  padding: 6px 0 6px 20px;
+  position: relative;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-light);
+}
+
+.meal-time-card ul li:before {
+  content: "•";
+  position: absolute;
+  left: 4px;
+  color: #EC4899;
+}
+
+/* Nutritional Targets Grid */
+.nutritional-targets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.nutrient-card {
+  background: var(--bg);
+  border: 2px solid #6366F1;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.nutrient-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #6366F1;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.nutrient-value {
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 500;
+}
+
+/* Lifestyle Tips Grid */
+.lifestyle-tips-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.lifestyle-tip-card {
+  background: var(--bg);
+  border: 2px solid #F59E0B;
+  border-radius: 12px;
+  padding: 16px;
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 500;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.lifestyle-tip-card svg {
+  flex-shrink: 0;
+  color: #F59E0B;
+  margin-top: 2px;
+}
+
+/* Important Notes */
+.diet-important-notes {
+  background: #FEF9C3;
+  border: 2px solid #EAB308;
+  border-radius: 16px;
+  padding: 24px;
+  margin-top: 24px;
+}
+
+.notes-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.notes-header svg {
+  color: #854D0E;
+}
+
+.notes-header h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #854D0E;
+  margin: 0;
+}
+
+.diet-important-notes ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.diet-important-notes ul li {
+  padding: 8px 0 8px 24px;
+  position: relative;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #713F12;
+}
+
+.diet-important-notes ul li:before {
+  content: "!";
+  position: absolute;
+  left: 8px;
+  color: #EAB308;
+  font-weight: bold;
+  font-size: 16px;
+}
+
+/* Modal Footer */
+.diet-modal-footer {
+  position: sticky;
+  bottom: 0;
+  background: var(--bg-alt);
+  padding: 20px 32px;
+  border-radius: 0 0 20px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: center;
+}
+
+.diet-footer-btn {
+  background: var(--text);
+  color: white;
+  border: none;
+  padding: 14px 40px;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.diet-footer-btn:hover {
+  background: var(--primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .diet-modal-container {
+    max-width: 100%;
+    max-height: 95vh;
+    border-radius: 16px;
+  }
+
+  .diet-modal-header,
+  .diet-modal-content,
+  .diet-modal-footer {
+    padding: 20px;
+  }
+
+  .diet-header-content {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .meal-suggestions-grid,
+  .nutritional-targets-grid,
+  .lifestyle-tips-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Dark Mode */
+body.dark-mode .diet-modal-container {
+  background: var(--bg);
+}
+
+body.dark-mode .diet-modal-header,
+body.dark-mode .diet-modal-footer {
+  background: var(--bg-alt);
+}
+
+body.dark-mode .diet-section,
+body.dark-mode .meal-time-card,
+body.dark-mode .nutrient-card,
+body.dark-mode .lifestyle-tip-card {
+  background: var(--bg);
+}
+
+body.dark-mode .diet-important-notes {
+  background: rgba(254, 249, 195, 0.1);
+}
+
 /* keep prints readable */
 @media print {
   body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
