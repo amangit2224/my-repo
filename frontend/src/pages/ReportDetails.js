@@ -18,7 +18,8 @@ function ReportDetails({ darkMode, setDarkMode }) {
   const [dietPlan, setDietPlan] = useState(null);
   const [loadingDiet, setLoadingDiet] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
-  const printRef = useRef();
+  const [exportingPDF, setExportingPDF] = useState(false);
+  const summaryRef = useRef();
 
   useEffect(() => {
     if (!reportId || reportId === 'undefined') {
@@ -68,43 +69,57 @@ function ReportDetails({ darkMode, setDarkMode }) {
     setIsSpeaking(false);
   };
 
+  // ==================== SIMPLE jsPDF EXPORT ====================
   const exportToPDF = async () => {
-    const element = printRef.current;
-    if (!element) return;
-
-    const canvas = await html2canvas(element, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: getComputedStyle(document.body).getPropertyValue('--bg').trim() || '#FFFFFF',
-    });
-
-    const pdf = new jsPDF('p', 'pt', 'a4');
-    const pageWidthPt = pdf.internal.pageSize.getWidth();
-    const pageHeightPt = pdf.internal.pageSize.getHeight();
-    const pxPerPt = canvas.width / pageWidthPt;
-    const pageHeightPx = Math.floor(pageHeightPt * pxPerPt);
-
-    let y = 0;
-    let pageCount = 0;
-
-    while (y < canvas.height) {
-      const sliceHeightPx = Math.min(pageHeightPx, canvas.height - y);
-      const tmpCanvas = document.createElement('canvas');
-      tmpCanvas.width = canvas.width;
-      tmpCanvas.height = sliceHeightPx;
-      const tmpCtx = tmpCanvas.getContext('2d');
-      tmpCtx.drawImage(canvas, 0, y, canvas.width, sliceHeightPx, 0, 0, canvas.width, sliceHeightPx);
-
-      const imgData = tmpCanvas.toDataURL('image/png');
-      const imgHeightPt = sliceHeightPx / pxPerPt;
-
-      if (pageCount > 0) pdf.addPage();
-      pdf.addImage(imgData, 'PNG', 10, 10, pageWidthPt - 20, imgHeightPt);
-      y += sliceHeightPx;
-      pageCount += 1;
+    if (!summaryRef.current || !report) {
+      alert('Report data not available');
+      return;
     }
 
-    pdf.save(`${report.filename.replace(/\.[^/.]+$/, '')}_summary.pdf`);
+    setExportingPDF(true);
+    try {
+      // Capture only the summary section
+      const canvas = await html2canvas(summaryRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#FFFFFF',
+      });
+
+      const pdf = new jsPDF('p', 'pt', 'a4');
+      const pageWidthPt = pdf.internal.pageSize.getWidth();
+      const pageHeightPt = pdf.internal.pageSize.getHeight();
+      const pxPerPt = canvas.width / pageWidthPt;
+      const pageHeightPx = Math.floor(pageHeightPt * pxPerPt);
+
+      let y = 0;
+      let pageCount = 0;
+
+      while (y < canvas.height) {
+        const sliceHeightPx = Math.min(pageHeightPx, canvas.height - y);
+        const tmpCanvas = document.createElement('canvas');
+        tmpCanvas.width = canvas.width;
+        tmpCanvas.height = sliceHeightPx;
+        const tmpCtx = tmpCanvas.getContext('2d');
+        tmpCtx.drawImage(canvas, 0, y, canvas.width, sliceHeightPx, 0, 0, canvas.width, sliceHeightPx);
+
+        const imgData = tmpCanvas.toDataURL('image/png');
+        const imgHeightPt = sliceHeightPx / pxPerPt;
+
+        if (pageCount > 0) pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 10, 10, pageWidthPt - 20, imgHeightPt);
+        y += sliceHeightPx;
+        pageCount += 1;
+      }
+
+      pdf.save(`${report.filename.replace(/\.[^/.]+$/, '')}_summary.pdf`);
+      alert('PDF exported successfully!');
+
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      alert('Failed to export PDF');
+    } finally {
+      setExportingPDF(false);
+    }
   };
 
   const handleLogout = () => {
@@ -216,16 +231,31 @@ function ReportDetails({ darkMode, setDarkMode }) {
               )}
               {isSpeaking ? 'Stop' : 'Read Aloud'}
             </button>
-            <button onClick={exportToPDF} className="btn-action btn-primary-action">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" clipRule="evenodd"/>
-              </svg>
-              Export to PDF
+            <button 
+              onClick={exportToPDF} 
+              className="btn-action btn-primary-action"
+              disabled={exportingPDF}
+            >
+              {exportingPDF ? (
+                <>
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" style={{animation: 'spin 1s linear infinite'}}>
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z" clipRule="evenodd"/>
+                  </svg>
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" clipRule="evenodd"/>
+                  </svg>
+                  Export to PDF
+                </>
+              )}
             </button>
           </div>
         </div>
 
-        <div ref={printRef} className="report-content">
+        <div className="report-content">
           {/* Report Header */}
           <div className="report-info-card">
             <div className="report-file-icon">
@@ -316,8 +346,8 @@ function ReportDetails({ darkMode, setDarkMode }) {
             </div>
           )}
 
-          {/* Summary Section with Scroll */}
-          <div className="summary-section-modern">
+          {/* Summary Section - THIS IS WHAT GETS EXPORTED */}
+          <div ref={summaryRef} className="summary-section-modern" style={{ padding: '20px', backgroundColor: '#fff' }}>
             <h2>Plain Language Summary</h2>
             <div className="summary-scrollable">
               {report.plain_language_summary}
