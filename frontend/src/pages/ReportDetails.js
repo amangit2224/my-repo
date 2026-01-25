@@ -6,7 +6,6 @@ import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import DietModal from '../components/DietModal';
 import ChatSection from '../components/ChatSection';
-import MarkdownSummary from '../components/MarkdownSummary';
 
 function ReportDetails({ darkMode, setDarkMode }) {
   const { reportId } = useParams();
@@ -347,10 +346,12 @@ function ReportDetails({ darkMode, setDarkMode }) {
             </div>
           )}
 
-          {/* Summary Section - Beautifully formatted markdown */}
+          {/* Summary Section - THIS IS WHAT GETS EXPORTED */}
           <div ref={summaryRef} className="summary-section-modern" style={{ padding: '20px', backgroundColor: '#fff' }}>
             <h2>Plain Language Summary</h2>
-            <MarkdownSummary content={report.plain_language_summary} />
+            <div className="summary-scrollable">
+              {report.plain_language_summary}
+            </div>
           </div>
 
           {/* Action Cards Grid */}
