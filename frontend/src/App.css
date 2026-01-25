@@ -2552,6 +2552,452 @@ body.dark-mode .timeline-count {
   background: var(--bg);
 }
 
+/* ========================================
+   ENHANCED JARGON BUSTER PAGE
+   ======================================== */
+
+/* Jargon Container */
+.jargon-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 24px;
+}
+
+/* Hero Section */
+.jargon-hero {
+  text-align: center;
+  margin-bottom: 48px;
+}
+
+.jargon-hero-icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 24px;
+  background: linear-gradient(135deg, var(--primary), #7C3AED);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  animation: iconPulse 2s ease-in-out infinite;
+}
+
+@keyframes iconPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.jargon-hero h1 {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 12px;
+  letter-spacing: -0.5px;
+}
+
+.jargon-hero p {
+  font-size: 18px;
+  color: var(--text-light);
+  margin-bottom: 32px;
+}
+
+/* Search Wrapper */
+.jargon-search-wrapper {
+  max-width: 700px;
+  margin: 0 auto;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg);
+  border: 2px solid var(--border);
+  border-radius: 16px;
+  padding: 8px;
+  transition: all 0.3s;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.jargon-search-wrapper:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 8px 16px rgba(37, 99, 235, 0.15);
+}
+
+.search-icon {
+  margin-left: 12px;
+  color: var(--text-light);
+  flex-shrink: 0;
+}
+
+.jargon-search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 16px;
+  padding: 12px 8px;
+  background: transparent;
+  color: var(--text);
+}
+
+.jargon-search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.jargon-search-btn {
+  padding: 12px 24px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.jargon-search-btn:hover:not(:disabled) {
+  background: var(--primary-dark);
+  transform: translateY(-1px);
+}
+
+.jargon-search-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Alert */
+.jargon-alert {
+  max-width: 700px;
+  margin: 16px auto 0;
+  padding: 12px 16px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  animation: slideDown 0.3s ease-out;
+}
+
+.jargon-alert svg {
+  flex-shrink: 0;
+}
+
+.jargon-alert-error {
+  background: #FEF2F2;
+  color: var(--danger);
+  border: 1px solid #FCA5A5;
+}
+
+/* Result Card */
+.jargon-result-card {
+  max-width: 800px;
+  margin: 0 auto 48px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  animation: resultSlideIn 0.5s ease-out;
+}
+
+@keyframes resultSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.result-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 24px;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 24px;
+}
+
+.result-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #10B981, #059669);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.result-header h2 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.result-pronunciation {
+  font-size: 14px;
+  color: var(--primary);
+  font-weight: 500;
+  font-style: italic;
+}
+
+.result-section {
+  margin-bottom: 24px;
+}
+
+.result-section:last-child {
+  margin-bottom: 0;
+}
+
+.result-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.result-label svg {
+  color: var(--primary);
+}
+
+.result-text {
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--text-light);
+  margin: 0;
+}
+
+.result-example {
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--primary);
+  font-style: italic;
+  margin: 0;
+  padding: 16px;
+  background: var(--primary-light);
+  border-radius: 10px;
+  border-left: 3px solid var(--primary);
+}
+
+/* Content Grid */
+.jargon-content-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+}
+
+.jargon-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.section-heading {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Popular Terms Grid */
+.popular-terms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 16px;
+}
+
+.popular-term-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: termSlideIn 0.5s ease-out both;
+}
+
+@keyframes termSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.popular-term-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  border-color: var(--primary);
+}
+
+.term-icon {
+  font-size: 28px;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-alt);
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.term-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.term-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.term-category {
+  font-size: 12px;
+  color: var(--text-light);
+}
+
+.term-arrow {
+  color: var(--primary);
+  flex-shrink: 0;
+  transition: transform 0.2s;
+}
+
+.popular-term-card:hover .term-arrow {
+  transform: translateX(4px);
+}
+
+/* Recent Searches */
+.recent-searches-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.recent-search-chip {
+  padding: 10px 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.recent-search-chip svg {
+  color: var(--text-light);
+}
+
+.recent-search-chip:hover {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+  transform: translateY(-2px);
+}
+
+.recent-search-chip:hover svg {
+  color: white;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .jargon-container {
+    padding: 32px 20px;
+  }
+
+  .jargon-hero h1 {
+    font-size: 28px;
+  }
+
+  .jargon-hero p {
+    font-size: 16px;
+  }
+
+  .jargon-search-wrapper {
+    flex-direction: column;
+    padding: 12px;
+  }
+
+  .search-icon {
+    display: none;
+  }
+
+  .jargon-search-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .jargon-result-card {
+    padding: 24px 20px;
+  }
+
+  .result-header {
+    flex-direction: column;
+    text-align: center;
+    align-items: center;
+  }
+
+  .popular-terms-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .recent-searches-list {
+    justify-content: center;
+  }
+}
+
+/* Dark Mode */
+body.dark-mode .jargon-result-card,
+body.dark-mode .popular-term-card,
+body.dark-mode .recent-search-chip {
+  background: var(--bg);
+  border-color: var(--border);
+}
+
+body.dark-mode .jargon-search-wrapper {
+  background: var(--bg);
+  border-color: var(--border);
+}
+
+body.dark-mode .result-example {
+  background: rgba(37, 99, 235, 0.1);
+}
+
+body.dark-mode .term-icon {
+  background: var(--bg-alt);
+}
+
 /* keep prints readable */
 @media print {
   body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
