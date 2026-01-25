@@ -1,0 +1,71 @@
+.markdown-summary {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #2d3748;
+  line-height: 1.8;
+}
+
+/* Headings */
+.markdown-h2 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 24px 0 12px 0;
+  padding-bottom: 8px;
+  border-bottom: 3px solid #3182ce;
+  letter-spacing: -0.5px;
+}
+
+.markdown-h3 {
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: #2c5282;
+  margin: 18px 0 10px 0;
+  padding-left: 12px;
+  border-left: 4px solid #3182ce;
+}
+
+/* Paragraphs */
+.markdown-p {
+  font-size: 1rem;
+  margin: 12px 0;
+  color: #4a5568;
+  text-align: justify;
+  line-height: 1.8;
+  letter-spacing: 0.3px;
+}
+
+/* Bold text */
+.markdown-summary strong {
+  font-weight: 700;
+  color: #2c5282;
+}
+
+/* Spacing */
+.markdown-spacer {
+  height: 8px;
+}
+
+/* For dark mode */
+@media (prefers-color-scheme: dark) {
+  .markdown-summary {
+    color: #e2e8f0;
+  }
+
+  .markdown-h2 {
+    color: #f7fafc;
+    border-bottom-color: #63b3ed;
+  }
+
+  .markdown-h3 {
+    color: #90cdf4;
+    border-left-color: #63b3ed;
+  }
+
+  .markdown-p {
+    color: #cbd5e0;
+  }
+
+  .markdown-summary strong {
+    color: #90cdf4;
+  }
+}
