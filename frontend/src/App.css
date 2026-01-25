@@ -4999,7 +4999,7 @@ body.dark-mode .diet-important-notes {
 
 /* Chat Header */
 .chat-header {
-  background: linear-gradient(135deg, #8B5CF6, #7C3AED);
+  background: linear-gradient(135deg, #1F2937, #111827);
   padding: 20px 24px;
   display: flex;
   justify-content: space-between;
@@ -5015,7 +5015,7 @@ body.dark-mode .diet-important-notes {
   left: 0;
   right: 0;
   bottom: 0;
-  background: radial-gradient(circle at top right, rgba(255, 255, 255, 0.1), transparent);
+  background: radial-gradient(circle at top right, rgba(59, 130, 246, 0.1), transparent);
   pointer-events: none;
 }
 
@@ -5226,9 +5226,9 @@ body.dark-mode .diet-important-notes {
 }
 
 .assistant-avatar {
-  background: linear-gradient(135deg, #8B5CF6, #7C3AED);
+  background: linear-gradient(135deg, #374151, #1F2937);
   color: white;
-  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .user-avatar {
@@ -5301,7 +5301,7 @@ body.dark-mode .diet-important-notes {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--primary);
+  background: #6B7280;
   animation: typingBounce 1.4s ease-in-out infinite;
 }
 
@@ -5479,7 +5479,6 @@ body.dark-mode .chat-input:focus {
 body.dark-mode .suggestion-chip {
   background: var(--bg);
 }
-
 /* keep prints readable */
 @media print {
   body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
