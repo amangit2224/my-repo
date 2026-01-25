@@ -77,7 +77,7 @@ function Login() {
         {/* Title */}
         <div className="login-header">
           <h1>Sign in to MedLens</h1>
-          <p>Analyze your medical reports with AI-powered insights</p>
+          <p>Securely analyze and store your medical reports with AI</p>
         </div>
 
         {/* Error Message */}
@@ -170,33 +170,6 @@ function Login() {
             )}
           </button>
         </form>
-
-        {/* Divider */}
-        <div className="login-divider">
-          <span>Or continue with</span>
-        </div>
-
-        {/* Social Login */}
-        <div className="social-login">
-          <button type="button" className="social-button" disabled>
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M10.2 0C4.6 0 0 4.5 0 10.1c0 4.4 2.9 8.2 7 9.5.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.1-1.1-1.4-1.1-1.4-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.3-2.2-.3-4.6-1.1-4.6-4.9 0-1.1.4-2 1-2.7-.1-.2-.4-1.2.1-2.5 0 0 .8-.3 2.7 1 .8-.2 1.6-.3 2.5-.3s1.7.1 2.5.3c1.9-1.3 2.7-1 2.7-1 .5 1.3.2 2.3.1 2.5.6.7 1 1.6 1 2.7 0 3.8-2.3 4.7-4.6 4.9.4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.1 7-9.5C20.4 4.5 15.8 0 10.2 0z"/>
-            </svg>
-            <span>GitHub</span>
-          </button>
-          <button type="button" className="social-button" disabled>
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M10 0C4.477 0 0 4.477 0 10c0 4.991 3.657 9.128 8.438 9.879V12.89h-2.54V10h2.54V7.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V10h2.773l-.443 2.89h-2.33v6.989C16.343 19.129 20 14.99 20 10c0-5.523-4.477-10-10-10z"/>
-            </svg>
-            <span>Facebook</span>
-          </button>
-          <button type="button" className="social-button" disabled>
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M17.05 2.05c-2.467-2.467-6.633-2.467-9.1 0-2.241 2.241-2.438 5.775-.59 8.238l-5.31 5.31a1 1 0 101.414 1.414l5.31-5.31c2.463 1.848 5.997 1.651 8.238-.59 2.467-2.467 2.467-6.633 0-9.1zM10 12a2 2 0 100-4 2 2 0 000 4z"/>
-            </svg>
-            <span>Apple</span>
-          </button>
-        </div>
 
         {/* Sign up link */}
         <div className="login-signup">
