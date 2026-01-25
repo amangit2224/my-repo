@@ -1,5 +1,3 @@
-// src/pages/HealthTrends.js
-// 🔥 NEW HEALTH TRENDS - Compare 2 Reports Side-by-Side!
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { reportAPI } from '../utils/api';
@@ -16,8 +14,9 @@ import '../App.css';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
-function HealthTrends() {
+function HealthTrends({ darkMode, setDarkMode }) {
   const navigate = useNavigate();
+  const username = localStorage.getItem('username');
   const [report1, setReport1] = useState(null);
   const [report2, setReport2] = useState(null);
   const [comparing, setComparing] = useState(false);
@@ -33,16 +32,18 @@ function HealthTrends() {
     navigate('/login');
   };
 
+  const toggleDarkMode = () => {
+    setDarkMode(!darkMode);
+  };
+
   const handleFileSelect = (fileNum, file) => {
     if (!file) return;
     
-    // Validate file type
     if (file.type !== 'application/pdf') {
       setError('Please upload PDF files only');
       return;
     }
     
-    // Validate file size (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
       setError('File size must be less than 10MB');
       return;
@@ -81,7 +82,6 @@ function HealthTrends() {
       formData.append('report1', report1);
       formData.append('report2', report2);
 
-      // Use your existing API utility
       const response = await reportAPI.compareReports(formData);
       setComparisonData(response.data);
     } catch (err) {
@@ -106,99 +106,123 @@ function HealthTrends() {
   };
 
   const getChangeColor = (change, testName) => {
-    // For some tests, increase is bad (e.g., cholesterol, glucose)
     const lowerIsBetter = ['cholesterol', 'ldl', 'triglycerides', 'glucose', 'hba1c'];
     const isLowerBetter = lowerIsBetter.some(t => testName.toLowerCase().includes(t));
     
-    if (change > 0) return isLowerBetter ? '#EF4444' : '#10B981'; // Red or Green
-    if (change < 0) return isLowerBetter ? '#10B981' : '#EF4444'; // Green or Red
-    return '#6B7280'; // Gray
+    if (change > 0) return isLowerBetter ? '#EF4444' : '#10B981';
+    if (change < 0) return isLowerBetter ? '#10B981' : '#EF4444';
+    return '#6B7280';
   };
 
   // Render upload interface
   if (!comparisonData) {
     return (
-      <div className="dashboard-container">
-        {/* Header */}
-        <div className="dashboard-header">
-          <h1>📊 Health Trends - Compare Reports</h1>
-          <div className="user-info">
-            <button onClick={() => navigate('/dashboard')} className="btn-secondary">
-              Back
-            </button>
-            <button onClick={handleLogout} className="btn-logout">
-              Logout
-            </button>
-          </div>
-        </div>
+      <div className="dashboard-wrapper">
+        {/* Modern Navbar */}
+        <nav className="modern-navbar">
+          <div className="navbar-content">
+            <div className="navbar-logo" onClick={() => navigate('/dashboard')}>
+              <svg width="36" height="36" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect width="48" height="48" rx="12" fill="#2563EB"/>
+                <rect x="14" y="10" width="20" height="28" rx="2" fill="white"/>
+                <line x1="18" y1="16" x2="30" y2="16" stroke="#2563EB" strokeWidth="1.5" strokeLinecap="round"/>
+                <line x1="18" y1="20" x2="30" y2="20" stroke="#2563EB" strokeWidth="1.5" strokeLinecap="round"/>
+                <line x1="18" y1="24" x2="26" y2="24" stroke="#2563EB" strokeWidth="1.5" strokeLinecap="round"/>
+                <circle cx="24" cy="31" r="4" fill="#2563EB"/>
+                <path d="M24 29v4M22 31h4" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+              <span className="navbar-brand">MedLens</span>
+            </div>
 
-        {/* Upload Section */}
-        <div className="upload-section" style={{ padding: 32, maxWidth: 1000, margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: 32 }}>
-            <h2 style={{ marginBottom: 12, fontSize: 24 }}>Compare Your Health Reports</h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: 16 }}>
-              Upload two medical reports to see how your health has changed over time
-            </p>
+            <div className="navbar-links">
+              <a href="/dashboard" className="nav-link">Dashboard</a>
+              <a href="/history" className="nav-link">History</a>
+              <a href="/health" className="nav-link active">Analytics</a>
+            </div>
+
+            <div className="navbar-right">
+              <button onClick={toggleDarkMode} className="icon-button">
+                {darkMode ? (
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd"/>
+                  </svg>
+                ) : (
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>
+                  </svg>
+                )}
+              </button>
+              
+              <button onClick={handleLogout} className="navbar-logout-btn">
+                Logout
+              </button>
+              
+              <div className="navbar-profile">
+                <div className="profile-avatar">
+                  {username?.charAt(0).toUpperCase()}
+                </div>
+              </div>
+            </div>
+          </div>
+        </nav>
+
+        <div className="health-trends-container">
+          {/* Hero Section */}
+          <div className="trends-hero">
+            <div className="trends-hero-icon">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+              </svg>
+            </div>
+            <h1>Compare Health Reports</h1>
+            <p>Upload two medical reports to track your health progress over time</p>
           </div>
 
-          {/* Error Message */}
+          {/* Error Alert */}
           {error && (
-            <div style={{
-              padding: 16,
-              background: '#FEE2E2',
-              border: '1px solid #EF4444',
-              borderRadius: 8,
-              color: '#DC2626',
-              marginBottom: 24,
-              textAlign: 'center'
-            }}>
+            <div className="health-alert health-alert-error">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/>
+              </svg>
               {error}
             </div>
           )}
 
-          {/* Upload Boxes */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: 24,
-            marginBottom: 32
-          }}>
-            {/* Report 1 Upload */}
-            <div>
-              <h3 style={{ fontSize: 16, marginBottom: 12, color: 'var(--text-primary)' }}>
-                📄 Report 1 (Older)
-              </h3>
+          {/* Upload Grid */}
+          <div className="upload-grid">
+            {/* Report 1 */}
+            <div className="upload-column">
+              <div className="upload-column-header">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                <span>Report 1 (Older)</span>
+              </div>
               <div
+                className={`upload-dropzone ${report1 ? 'has-file' : ''}`}
                 onDrop={(e) => handleDrop(e, 1)}
                 onDragOver={handleDragOver}
                 onClick={() => fileInput1Ref.current?.click()}
-                style={{
-                  border: '2px dashed var(--primary)',
-                  borderRadius: 12,
-                  padding: 40,
-                  textAlign: 'center',
-                  cursor: 'pointer',
-                  background: report1 ? 'var(--primary-light)' : 'var(--bg-gray)',
-                  transition: 'all 0.3s'
-                }}
               >
                 {report1 ? (
                   <>
-                    <div style={{ fontSize: 48, marginBottom: 8 }}>✅</div>
-                    <div style={{ fontWeight: 600, color: 'var(--primary)', marginBottom: 4 }}>
-                      {report1.name}
+                    <div className="upload-success-icon">
+                      <svg width="40" height="40" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                      </svg>
                     </div>
-                    <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
-                      {(report1.size / 1024).toFixed(1)} KB
-                    </div>
+                    <div className="upload-file-name">{report1.name}</div>
+                    <div className="upload-file-size">{(report1.size / 1024).toFixed(1)} KB</div>
                   </>
                 ) : (
                   <>
-                    <div style={{ fontSize: 48, marginBottom: 8 }}>📄</div>
-                    <div style={{ fontWeight: 600, marginBottom: 4 }}>Drop file here</div>
-                    <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
-                      or click to browse
+                    <div className="upload-dropzone-icon">
+                      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                      </svg>
                     </div>
+                    <div className="upload-dropzone-text">Drop file here</div>
+                    <div className="upload-dropzone-subtext">or click to browse</div>
                   </>
                 )}
               </div>
@@ -211,42 +235,44 @@ function HealthTrends() {
               />
             </div>
 
-            {/* Report 2 Upload */}
-            <div>
-              <h3 style={{ fontSize: 16, marginBottom: 12, color: 'var(--text-primary)' }}>
-                📄 Report 2 (Newer)
-              </h3>
+            {/* VS Divider */}
+            <div className="vs-divider">
+              <div className="vs-circle">VS</div>
+            </div>
+
+            {/* Report 2 */}
+            <div className="upload-column">
+              <div className="upload-column-header">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                <span>Report 2 (Newer)</span>
+              </div>
               <div
+                className={`upload-dropzone ${report2 ? 'has-file' : ''}`}
                 onDrop={(e) => handleDrop(e, 2)}
                 onDragOver={handleDragOver}
                 onClick={() => fileInput2Ref.current?.click()}
-                style={{
-                  border: '2px dashed var(--primary)',
-                  borderRadius: 12,
-                  padding: 40,
-                  textAlign: 'center',
-                  cursor: 'pointer',
-                  background: report2 ? 'var(--primary-light)' : 'var(--bg-gray)',
-                  transition: 'all 0.3s'
-                }}
               >
                 {report2 ? (
                   <>
-                    <div style={{ fontSize: 48, marginBottom: 8 }}>✅</div>
-                    <div style={{ fontWeight: 600, color: 'var(--primary)', marginBottom: 4 }}>
-                      {report2.name}
+                    <div className="upload-success-icon">
+                      <svg width="40" height="40" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                      </svg>
                     </div>
-                    <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
-                      {(report2.size / 1024).toFixed(1)} KB
-                    </div>
+                    <div className="upload-file-name">{report2.name}</div>
+                    <div className="upload-file-size">{(report2.size / 1024).toFixed(1)} KB</div>
                   </>
                 ) : (
                   <>
-                    <div style={{ fontSize: 48, marginBottom: 8 }}>📄</div>
-                    <div style={{ fontWeight: 600, marginBottom: 4 }}>Drop file here</div>
-                    <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
-                      or click to browse
+                    <div className="upload-dropzone-icon">
+                      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                      </svg>
                     </div>
+                    <div className="upload-dropzone-text">Drop file here</div>
+                    <div className="upload-dropzone-subtext">or click to browse</div>
                   </>
                 )}
               </div>
@@ -261,44 +287,42 @@ function HealthTrends() {
           </div>
 
           {/* Compare Button */}
-          <div style={{ textAlign: 'center' }}>
+          <div className="compare-button-wrapper">
             <button
               onClick={compareReports}
               disabled={!report1 || !report2 || comparing}
-              className="btn-primary"
-              style={{
-                padding: '16px 48px',
-                fontSize: 16,
-                opacity: (!report1 || !report2 || comparing) ? 0.5 : 1,
-                cursor: (!report1 || !report2 || comparing) ? 'not-allowed' : 'pointer'
-              }}
+              className="btn-compare-reports"
             >
               {comparing ? (
                 <>
-                  <span className="spinner" style={{ marginRight: 8 }}></span>
+                  <span className="button-spinner"></span>
                   Comparing Reports...
                 </>
               ) : (
-                '🔍 Compare Reports'
+                <>
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd"/>
+                  </svg>
+                  Compare Reports
+                </>
               )}
             </button>
           </div>
 
-          {/* Info Box */}
-          <div style={{
-            marginTop: 40,
-            padding: 24,
-            background: 'var(--bg-gray)',
-            borderRadius: 12,
-            border: '1px solid #E5E7EB'
-          }}>
-            <h4 style={{ fontSize: 16, marginBottom: 12 }}>💡 How it works:</h4>
-            <ul style={{ paddingLeft: 20, color: 'var(--text-secondary)', lineHeight: 1.8 }}>
+          {/* Info Card */}
+          <div className="info-card">
+            <div className="info-card-header">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"/>
+              </svg>
+              <span>How it works</span>
+            </div>
+            <ul className="info-list">
               <li>Upload your older medical report as Report 1</li>
               <li>Upload your newer medical report as Report 2</li>
-              <li>Click "Compare Reports" to see the changes</li>
-              <li>View visual comparisons of all your test results</li>
-              <li>See percentage changes and health trends</li>
+              <li>Click "Compare Reports" to analyze the changes</li>
+              <li>View visual comparisons and percentage changes</li>
+              <li>Track your health progress over time</li>
             </ul>
           </div>
         </div>
@@ -306,104 +330,132 @@ function HealthTrends() {
     );
   }
 
-  // Render comparison results
+  // Results view - continuing below due to size
   return (
-    <div className="dashboard-container">
-      {/* Header */}
-      <div className="dashboard-header">
-        <h1>📈 Health Comparison Results</h1>
-        <div className="user-info">
-          <button onClick={resetComparison} className="btn-secondary">
+    <div className="dashboard-wrapper">
+      <nav className="modern-navbar">
+        <div className="navbar-content">
+          <div className="navbar-logo" onClick={() => navigate('/dashboard')}>
+            <svg width="36" height="36" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect width="48" height="48" rx="12" fill="#2563EB"/>
+              <rect x="14" y="10" width="20" height="28" rx="2" fill="white"/>
+              <line x1="18" y1="16" x2="30" y2="16" stroke="#2563EB" strokeWidth="1.5" strokeLinecap="round"/>
+              <line x1="18" y1="20" x2="30" y2="20" stroke="#2563EB" strokeWidth="1.5" strokeLinecap="round"/>
+              <line x1="18" y1="24" x2="26" y2="24" stroke="#2563EB" strokeWidth="1.5" strokeLinecap="round"/>
+              <circle cx="24" cy="31" r="4" fill="#2563EB"/>
+              <path d="M24 29v4M22 31h4" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+            <span className="navbar-brand">MedLens</span>
+          </div>
+
+          <div className="navbar-links">
+            <a href="/dashboard" className="nav-link">Dashboard</a>
+            <a href="/history" className="nav-link">History</a>
+            <a href="/health" className="nav-link active">Analytics</a>
+          </div>
+
+          <div className="navbar-right">
+            <button onClick={toggleDarkMode} className="icon-button">
+              {darkMode ? (
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd"/>
+                </svg>
+              ) : (
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>
+                </svg>
+              )}
+            </button>
+            
+            <button onClick={handleLogout} className="navbar-logout-btn">
+              Logout
+            </button>
+            
+            <div className="navbar-profile">
+              <div className="profile-avatar">
+                {username?.charAt(0).toUpperCase()}
+              </div>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <div className="health-trends-container">
+        {/* Results Header */}
+        <div className="results-header">
+          <h1>Health Comparison Results</h1>
+          <button onClick={resetComparison} className="btn-secondary-action">
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd"/>
+            </svg>
             New Comparison
           </button>
-          <button onClick={() => navigate('/dashboard')} className="btn-secondary">
-            Dashboard
-          </button>
-          <button onClick={handleLogout} className="btn-logout">
-            Logout
-          </button>
         </div>
-      </div>
 
-      {/* Results Section */}
-      <div className="upload-section" style={{ padding: 32, maxWidth: 1200, margin: '0 auto' }}>
-        {/* Report Info */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: 24,
-          marginBottom: 32
-        }}>
-          <div style={{
-            padding: 20,
-            background: 'var(--bg-gray)',
-            borderRadius: 12,
-            border: '2px solid var(--primary)'
-          }}>
-            <h3 style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 8 }}>
-              📄 Report 1 (Older)
-            </h3>
-            <div style={{ fontWeight: 600, fontSize: 16, color: 'var(--text-primary)' }}>
+        {/* Report Dates */}
+        <div className="report-dates-grid">
+          <div className="report-date-card">
+            <span className="report-date-label">Report 1 (Older)</span>
+            <span className="report-date-value">
               {comparisonData.report1_date ? new Date(comparisonData.report1_date).toLocaleDateString('en-GB') : 'Date N/A'}
-            </div>
+            </span>
           </div>
-          <div style={{
-            padding: 20,
-            background: 'var(--bg-gray)',
-            borderRadius: 12,
-            border: '2px solid var(--primary)'
-          }}>
-            <h3 style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 8 }}>
-              📄 Report 2 (Newer)
-            </h3>
-            <div style={{ fontWeight: 600, fontSize: 16, color: 'var(--text-primary)' }}>
+          <div className="report-date-card">
+            <span className="report-date-label">Report 2 (Newer)</span>
+            <span className="report-date-value">
               {comparisonData.report2_date ? new Date(comparisonData.report2_date).toLocaleDateString('en-GB') : 'Date N/A'}
-            </div>
+            </span>
           </div>
         </div>
 
-        {/* Overall Summary */}
+        {/* Summary Card */}
         {comparisonData.summary && (
-          <div style={{
-            padding: 24,
-            background: 'linear-gradient(135deg, #667EEA 0%, #764BA2 100%)',
-            borderRadius: 16,
-            marginBottom: 32,
-            color: 'white',
-            textAlign: 'center'
-          }}>
-            <h2 style={{ fontSize: 24, marginBottom: 12 }}>
-              {comparisonData.summary.improved_count > comparisonData.summary.worsened_count ? '🎉' : '⚠️'}
-              {' '}Overall Health Summary
-            </h2>
-            <div style={{ fontSize: 18, opacity: 0.9 }}>
-              <strong>{comparisonData.summary.improved_count}</strong> tests improved • 
-              <strong> {comparisonData.summary.worsened_count}</strong> tests worsened • 
-              <strong> {comparisonData.summary.stable_count}</strong> stable
+          <div className="summary-card">
+            <div className="summary-icon">
+              {comparisonData.summary.improved_count > comparisonData.summary.worsened_count ? (
+                <svg width="32" height="32" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                </svg>
+              ) : (
+                <svg width="32" height="32" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
+                </svg>
+              )}
+            </div>
+            <h2>Overall Health Summary</h2>
+            <div className="summary-stats">
+              <div className="summary-stat improved">
+                <span className="stat-value">{comparisonData.summary.improved_count}</span>
+                <span className="stat-label">Improved</span>
+              </div>
+              <div className="summary-stat worsened">
+                <span className="stat-value">{comparisonData.summary.worsened_count}</span>
+                <span className="stat-label">Worsened</span>
+              </div>
+              <div className="summary-stat stable">
+                <span className="stat-value">{comparisonData.summary.stable_count}</span>
+                <span className="stat-label">Stable</span>
+              </div>
             </div>
           </div>
         )}
 
         {/* Comparison Table */}
-        {comparisonData.comparisons && comparisonData.comparisons.length > 0 && (
-          <div style={{ marginBottom: 40 }}>
-            <h3 style={{ fontSize: 20, marginBottom: 20, fontWeight: 600 }}>
-              📊 Test-by-Test Comparison
-            </h3>
-            <div style={{
-              background: 'white',
-              borderRadius: 12,
-              overflow: 'hidden',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
-            }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        {comparisonData.comparisons && comparisonData.comparisons.length > 0 ? (
+          <>
+            <div className="section-title-wrapper">
+              <h2>Test-by-Test Comparison</h2>
+            </div>
+            
+            <div className="comparison-table-wrapper">
+              <table className="comparison-table">
                 <thead>
-                  <tr style={{ background: 'var(--bg-gray)' }}>
-                    <th style={{ padding: 16, textAlign: 'left', fontWeight: 600 }}>Test Name</th>
-                    <th style={{ padding: 16, textAlign: 'center', fontWeight: 600 }}>Report 1</th>
-                    <th style={{ padding: 16, textAlign: 'center', fontWeight: 600 }}>Report 2</th>
-                    <th style={{ padding: 16, textAlign: 'center', fontWeight: 600 }}>Change</th>
-                    <th style={{ padding: 16, textAlign: 'center', fontWeight: 600 }}>Status</th>
+                  <tr>
+                    <th>Test Name</th>
+                    <th>Report 1</th>
+                    <th>Report 2</th>
+                    <th>Change</th>
+                    <th>%</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -413,28 +465,14 @@ function HealthTrends() {
                     const changeColor = getChangeColor(change, test.name);
                     
                     return (
-                      <tr key={index} style={{ borderBottom: '1px solid #E5E7EB' }}>
-                        <td style={{ padding: 16, fontWeight: 600 }}>{test.name}</td>
-                        <td style={{ padding: 16, textAlign: 'center' }}>
-                          {test.value1} {test.unit}
-                        </td>
-                        <td style={{ padding: 16, textAlign: 'center' }}>
-                          {test.value2} {test.unit}
-                        </td>
-                        <td style={{
-                          padding: 16,
-                          textAlign: 'center',
-                          color: changeColor,
-                          fontWeight: 600
-                        }}>
+                      <tr key={index}>
+                        <td className="test-name">{test.name}</td>
+                        <td>{test.value1} {test.unit}</td>
+                        <td>{test.value2} {test.unit}</td>
+                        <td style={{ color: changeColor, fontWeight: 600 }}>
                           {getChangeIcon(change)} {Math.abs(change).toFixed(2)} {test.unit}
                         </td>
-                        <td style={{
-                          padding: 16,
-                          textAlign: 'center',
-                          color: changeColor,
-                          fontWeight: 600
-                        }}>
+                        <td style={{ color: changeColor, fontWeight: 600 }}>
                           {percentChange !== 'N/A' ? `${percentChange}%` : 'N/A'}
                         </td>
                       </tr>
@@ -443,49 +481,29 @@ function HealthTrends() {
                 </tbody>
               </table>
             </div>
-          </div>
-        )}
 
-        {/* Visual Charts */}
-        {comparisonData.comparisons && comparisonData.comparisons.length > 0 && (
-          <div>
-            <h3 style={{ fontSize: 20, marginBottom: 20, fontWeight: 600 }}>
-              📉 Visual Comparison
-            </h3>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
-              gap: 24
-            }}>
+            {/* Visual Charts */}
+            <div className="section-title-wrapper">
+              <h2>Visual Comparison</h2>
+            </div>
+            
+            <div className="charts-grid">
               {comparisonData.comparisons.slice(0, 6).map((test, index) => {
                 const chartData = {
                   labels: ['Report 1', 'Report 2'],
                   datasets: [{
                     label: `${test.name} (${test.unit})`,
                     data: [test.value1, test.value2],
-                    backgroundColor: [
-                      'rgba(79, 70, 229, 0.8)',
-                      'rgba(147, 51, 234, 0.8)'
-                    ],
-                    borderColor: [
-                      '#4F46E5',
-                      '#9333EA'
-                    ],
+                    backgroundColor: ['rgba(37, 99, 235, 0.8)', 'rgba(124, 58, 237, 0.8)'],
+                    borderColor: ['#2563EB', '#7C3AED'],
                     borderWidth: 2
                   }]
                 };
 
                 return (
-                  <div key={index} style={{
-                    background: 'white',
-                    padding: 24,
-                    borderRadius: 12,
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
-                  }}>
-                    <h4 style={{ marginBottom: 16, fontSize: 16, fontWeight: 600 }}>
-                      {test.name}
-                    </h4>
-                    <div style={{ height: 250 }}>
+                  <div key={index} className="chart-card">
+                    <h4>{test.name}</h4>
+                    <div className="chart-wrapper">
                       <Bar
                         data={chartData}
                         options={{
@@ -507,9 +525,7 @@ function HealthTrends() {
                                 callback: (value) => `${value} ${test.unit}`
                               }
                             },
-                            x: {
-                              grid: { display: false }
-                            }
+                            x: { grid: { display: false } }
                           }
                         }}
                       />
@@ -518,18 +534,17 @@ function HealthTrends() {
                 );
               })}
             </div>
-          </div>
-        )}
-
-        {/* No comparisons found */}
-        {(!comparisonData.comparisons || comparisonData.comparisons.length === 0) && (
-          <div className="empty-state">
-            <span className="empty-icon">📊</span>
-            <p>No matching tests found between the reports</p>
-            <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
-              Make sure both reports contain similar test results
-            </p>
-            <button onClick={resetComparison} className="btn-primary">
+          </>
+        ) : (
+          <div className="modern-empty-state">
+            <div className="empty-icon-wrapper">
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+              </svg>
+            </div>
+            <h3>No Matching Tests Found</h3>
+            <p>Make sure both reports contain similar test results for comparison</p>
+            <button onClick={resetComparison} className="btn-get-started">
               Try Different Reports
             </button>
           </div>
