@@ -6164,6 +6164,160 @@ body.dark-mode .original-text-content {
   }
 }
 
+/* ========================================
+   ENHANCED DASHBOARD COLORS - PROFESSIONAL
+   ======================================== */
+
+/* AI Enhancement - RICH GOLDEN GRADIENT (Like Gemini/Premium) */
+.option-icon.ai-icon {
+  background: linear-gradient(135deg, #F59E0B 0%, #FBBF24 50%, #FCD34D 100%);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.option-card:hover .ai-icon {
+  background: linear-gradient(135deg, #D97706 0%, #F59E0B 50%, #FBBF24 100%);
+  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4);
+  transform: scale(1.05);
+}
+
+/* Verify Authenticity - RICH GREEN (Trust/Security) */
+.option-icon.verify-icon {
+  background: linear-gradient(135deg, #10B981 0%, #34D399 50%, #6EE7B7 100%);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.option-card:hover .verify-icon {
+  background: linear-gradient(135deg, #059669 0%, #10B981 50%, #34D399 100%);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+  transform: scale(1.05);
+}
+
+/* View History - COOL GRAY (Past/Archive) */
+.action-icon-wrapper.history-gradient {
+  background: linear-gradient(135deg, #6B7280 0%, #9CA3AF 50%, #D1D5DB 100%);
+  box-shadow: 0 4px 12px rgba(107, 114, 128, 0.3);
+}
+
+.action-card-modern:hover .history-gradient {
+  background: linear-gradient(135deg, #4B5563 0%, #6B7280 50%, #9CA3AF 100%);
+  box-shadow: 0 6px 20px rgba(107, 114, 128, 0.4);
+  transform: scale(1.05);
+}
+
+/* Health Trends - VIBRANT PINK (Enhanced) */
+.action-icon-wrapper.health-gradient {
+  background: linear-gradient(135deg, #EC4899 0%, #F472B6 50%, #FBCFE8 100%);
+  box-shadow: 0 4px 12px rgba(236, 72, 153, 0.3);
+}
+
+.action-card-modern:hover .health-gradient {
+  background: linear-gradient(135deg, #DB2777 0%, #EC4899 50%, #F472B6 100%);
+  box-shadow: 0 6px 20px rgba(236, 72, 153, 0.4);
+  transform: scale(1.05);
+}
+
+/* Jargon Buster - BRIGHT CYAN (Knowledge/Learning) */
+.action-icon-wrapper.jargon-gradient {
+  background: linear-gradient(135deg, #06B6D4 0%, #22D3EE 50%, #A5F3FC 100%);
+  box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);
+}
+
+.action-card-modern:hover .jargon-gradient {
+  background: linear-gradient(135deg, #0891B2 0%, #06B6D4 50%, #22D3EE 100%);
+  box-shadow: 0 6px 20px rgba(6, 182, 212, 0.4);
+  transform: scale(1.05);
+}
+
+/* Icon Wrapper Base Styles */
+.option-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+.action-icon-wrapper {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+/* Shimmer Effect on AI Enhancement (Premium Feel) */
+.ai-icon::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  animation: shimmer 3s infinite;
+}
+
+@keyframes shimmer {
+  0% { left: -100%; }
+  100% { left: 200%; }
+}
+
+/* Pulse Effect on Verify Icon (Trust Signal) */
+.verify-icon::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+  background: inherit;
+  opacity: 0;
+  animation: pulse-verify 2s infinite;
+}
+
+@keyframes pulse-verify {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+/* Dark Mode Adjustments */
+body.dark-mode .option-icon.ai-icon {
+  background: linear-gradient(135deg, #D97706 0%, #F59E0B 50%, #FBBF24 100%);
+}
+
+body.dark-mode .option-icon.verify-icon {
+  background: linear-gradient(135deg, #059669 0%, #10B981 50%, #34D399 100%);
+}
+
+body.dark-mode .action-icon-wrapper.history-gradient {
+  background: linear-gradient(135deg, #4B5563 0%, #6B7280 50%, #9CA3AF 100%);
+}
+
+body.dark-mode .action-icon-wrapper.health-gradient {
+  background: linear-gradient(135deg, #DB2777 0%, #EC4899 50%, #F472B6 100%);
+}
+
+body.dark-mode .action-icon-wrapper.jargon-gradient {
+  background: linear-gradient(135deg, #0891B2 0%, #06B6D4 50%, #22D3EE 100%);
+}
+
 /* keep prints readable */
 @media print {
   body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
