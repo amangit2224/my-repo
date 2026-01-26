@@ -59,7 +59,7 @@ function App() {
           path="/history"
           element={
             <ProtectedRoute>
-              <History />
+              <History darkMode={darkMode} setDarkMode={setDarkMode} />
             </ProtectedRoute>
           }
         />
@@ -67,7 +67,7 @@ function App() {
           path="/report/:reportId"
           element={
             <ProtectedRoute>
-              <ReportDetails />
+              <ReportDetails darkMode={darkMode} setDarkMode={setDarkMode} />
             </ProtectedRoute>
           }
         />
@@ -75,7 +75,7 @@ function App() {
           path="/jargon"
           element={
             <ProtectedRoute>
-              <JargonBuster />
+              <JargonBuster darkMode={darkMode} setDarkMode={setDarkMode} />
             </ProtectedRoute>
           }
         />
@@ -83,7 +83,7 @@ function App() {
           path="/health"
           element={
             <ProtectedRoute>
-              <HealthTrends />
+              <HealthTrends darkMode={darkMode} setDarkMode={setDarkMode} />
             </ProtectedRoute>
           }
         />
@@ -91,7 +91,7 @@ function App() {
           path="/risk-assessment/:reportId"
           element={
             <ProtectedRoute>
-              <HealthRiskAssessment />
+              <HealthRiskAssessment darkMode={darkMode} setDarkMode={setDarkMode} />
             </ProtectedRoute>
           }
         />
@@ -110,7 +110,6 @@ function App() {
       </Routes>
     </Router>
   );
-  
 }
 
 export default App;

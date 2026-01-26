@@ -198,6 +198,12 @@ function Dashboard({ darkMode, setDarkMode }) {
       setUploadProgress(100);
       setProcessingStage('Complete!');
       
+      // FIXED: Handle both 'id' and '_id' from backend
+      const reportId = response.data.report_id || response.data.id || response.data._id;
+      
+      console.log('Backend response:', response.data); // Debug log
+      console.log('Report ID extracted:', reportId); // Debug log
+      
       const method = response.data.method_used || response.data.method || 'unknown';
       const methodText = method === 'rule_based_only' ? 'Rule-based analysis' : 
                         method === 'rule_based_with_ai' ? 'Rule-based + AI enhancement' : 
@@ -217,13 +223,14 @@ function Dashboard({ darkMode, setDarkMode }) {
         setVerifyReport(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
         
-        const reportId = response.data.report_id;
-        
-        if (reportId && reportId !== 'undefined') {
+        // FIXED: Better ID checking
+        if (reportId && reportId !== 'undefined' && reportId !== null) {
+          console.log('Navigating to:', `/report/${reportId}`); // Debug log
           navigate(`/report/${reportId}`);
           setTimeout(() => fetchReports(), 1000);
         } else {
-          setUploadError('Upload successful but navigation failed');
+          console.error('No valid report ID received:', response.data); // Debug log
+          setUploadError('Upload successful but report ID not found. Check History page.');
           fetchReports();
         }
       }, 1500);
