@@ -386,7 +386,7 @@ function Dashboard({ darkMode, setDarkMode }) {
                 <div className="upload-empty-state">
                   <div className="upload-icon-wrapper">
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 1 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
                     </svg>
                   </div>
                   <h3>Drop your file here</h3>
@@ -505,6 +505,23 @@ function Dashboard({ darkMode, setDarkMode }) {
               <div className="action-card-content">
                 <h3>Jargon Buster</h3>
                 <p>Understand medical terms</p>
+              </div>
+              <div className="action-arrow">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd"/>
+                </svg>
+              </div>
+            </div>
+
+            <div className="action-card-modern" onClick={() => navigate('/nearby-doctors')}>
+              <div className="action-icon-wrapper doctor-gradient">
+                <svg width="24" height="24" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd"/>
+                </svg>
+              </div>
+              <div className="action-card-content">
+                <h3>Find Nearby Doctor</h3>
+                <p>Discover hospitals & clinics</p>
               </div>
               <div className="action-arrow">
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
