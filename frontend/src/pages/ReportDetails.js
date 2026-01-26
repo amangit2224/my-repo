@@ -500,7 +500,7 @@ function ReportDetails({ darkMode, setDarkMode }) {
                 </svg>
               </div>
               <div className="action-card-content">
-                <h3>{chatOpen ? 'Close Chat' : 'Chat with Report'}</h3>
+                <h3>{chatOpen ? 'Close Chat' : 'Chat with your Report'}</h3>
                 <p>Ask questions about your medical report</p>
               </div>
               <div className="action-card-arrow">
