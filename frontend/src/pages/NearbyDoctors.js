@@ -13,7 +13,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
 });
 
-// Custom hospital icon
+// Custom hospital icon (kept red as in original)
 const hospitalIcon = new L.Icon({
   iconUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAiIGhlaWdodD0iMzAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIxMCIgY3k9IjEwIiByPSI5IiBmaWxsPSIjRUY0NDQ0Ii8+PHBhdGggZD0iTTEwIDZWMTRNNiAxMEgxNCIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48L3N2Zz4=',
   iconSize: [30, 30],
@@ -242,19 +242,12 @@ function NearbyDoctors({ darkMode, setDarkMode }) {
           <div className="navbar-content">
             <div className="navbar-logo" onClick={() => navigate('/dashboard')}>
               <svg width="36" height="36" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                  <linearGradient id="manila-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#C19A6B" />
-                    <stop offset="50%" stopColor="#D2AC7C" />
-                    <stop offset="100%" stopColor="#D4A574" />
-                  </linearGradient>
-                </defs>
-                <rect width="48" height="48" rx="12" fill="url(#manila-gradient)"/>
+                <rect width="48" height="48" rx="12" fill="#2563EB"/>
                 <rect x="14" y="10" width="20" height="28" rx="2" fill="white"/>
-                <line x1="18" y1="16" x2="30" y2="16" stroke="#8B6F47" strokeWidth="1.5" strokeLinecap="round"/>
-                <line x1="18" y1="20" x2="30" y2="20" stroke="#8B6F47" strokeWidth="1.5" strokeLinecap="round"/>
-                <line x1="18" y1="24" x2="26" y2="24" stroke="#8B6F47" strokeWidth="1.5" strokeLinecap="round"/>
-                <circle cx="24" cy="31" r="4" fill="#8B6F47"/>
+                <line x1="18" y1="16" x2="30" y2="16" stroke="#2563EB" strokeWidth="1.5" strokeLinecap="round"/>
+                <line x1="18" y1="20" x2="30" y2="20" stroke="#2563EB" strokeWidth="1.5" strokeLinecap="round"/>
+                <line x1="18" y1="24" x2="26" y2="24" stroke="#2563EB" strokeWidth="1.5" strokeLinecap="round"/>
+                <circle cx="24" cy="31" r="4" fill="#2563EB"/>
                 <path d="M24 29v4M22 31h4" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
               </svg>
               <span className="navbar-brand">MedLens</span>
@@ -303,24 +296,17 @@ function NearbyDoctors({ darkMode, setDarkMode }) {
 
   return (
     <div className="dashboard-wrapper">
-      {/* Modern Navbar - same as above, reused */}
+      {/* Modern Navbar */}
       <nav className="modern-navbar">
         <div className="navbar-content">
           <div className="navbar-logo" onClick={() => navigate('/dashboard')}>
             <svg width="36" height="36" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                <linearGradient id="manila-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#C19A6B" />
-                  <stop offset="50%" stopColor="#D2AC7C" />
-                  <stop offset="100%" stopColor="#D4A574" />
-                </linearGradient>
-              </defs>
-              <rect width="48" height="48" rx="12" fill="url(#manila-gradient)"/>
+              <rect width="48" height="48" rx="12" fill="#2563EB"/>
               <rect x="14" y="10" width="20" height="28" rx="2" fill="white"/>
-              <line x1="18" y1="16" x2="30" y2="16" stroke="#8B6F47" strokeWidth="1.5" strokeLinecap="round"/>
-              <line x1="18" y1="20" x2="30" y2="20" stroke="#8B6F47" strokeWidth="1.5" strokeLinecap="round"/>
-              <line x1="18" y1="24" x2="26" y2="24" stroke="#8B6F47" strokeWidth="1.5" strokeLinecap="round"/>
-              <circle cx="24" cy="31" r="4" fill="#8B6F47"/>
+              <line x1="18" y1="16" x2="30" y2="16" stroke="#2563EB" strokeWidth="1.5" strokeLinecap="round"/>
+              <line x1="18" y1="20" x2="30" y2="20" stroke="#2563EB" strokeWidth="1.5" strokeLinecap="round"/>
+              <line x1="18" y1="24" x2="26" y2="24" stroke="#2563EB" strokeWidth="1.5" strokeLinecap="round"/>
+              <circle cx="24" cy="31" r="4" fill="#2563EB"/>
               <path d="M24 29v4M22 31h4" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
             </svg>
             <span className="navbar-brand">MedLens</span>
@@ -489,30 +475,32 @@ function NearbyDoctors({ darkMode, setDarkMode }) {
             <div className="hospitals-grid">
               {filteredHospitals.map(hospital => (
                 <div key={hospital.id} className="hospital-card">
-                  <div className="hospital-icon">
-                    <svg width="24" height="24" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M10 2a1 1 0 011 1v1.323l3.954 1.582 1.599-.8a1 1 0 01.894 1.79l-1.233.616 1.738 5.42a1 1 0 01-.285 1.05A3.989 3.989 0 0115 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.715-5.349L11 6.477V16h2a1 1 0 110 2H7a1 1 0 110-2h2V6.477L6.237 7.582l1.715 5.349a1 1 0 01-.285 1.05A3.989 3.989 0 015 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.738-5.42-1.233-.617a1 1 0 01.894-1.788l1.599.799L9 4.323V3a1 1 0 011-1z"/>
-                    </svg>
-                  </div>
-                  
-                  <div className="hospital-info">
-                    <h3>{hospital.name}</h3>
-                    <div className="hospital-meta">
-                      <span className="hospital-rating">
-                        ⭐ {hospital.rating}
-                      </span>
-                      <span className="hospital-distance">
-                        📍 {hospital.distance.toFixed(1)} km
-                      </span>
-                      {hospital.emergency && (
-                        <span className="hospital-emergency">
-                          24/7 Emergency
-                        </span>
-                      )}
+                  <div className="hospital-card-top">
+                    <div className="hospital-icon">
+                      <svg width="24" height="24" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M10 2a1 1 0 011 1v1.323l3.954 1.582 1.599-.8a1 1 0 01.894 1.79l-1.233.616 1.738 5.42a1 1 0 01-.285 1.05A3.989 3.989 0 0115 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.715-5.349L11 6.477V16h2a1 1 0 110 2H7a1 1 0 110-2h2V6.477L6.237 7.582l1.715 5.349a1 1 0 01-.285 1.05A3.989 3.989 0 015 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.738-5.42-1.233-.617a1 1 0 01.894-1.788l1.599.799L9 4.323V3a1 1 0 011-1z"/>
+                      </svg>
                     </div>
-                    <p className="hospital-type">{hospital.type}</p>
-                    <p className="hospital-address">{hospital.address}</p>
-                    <p className="hospital-phone">📞 {hospital.phone}</p>
+                    
+                    <div className="hospital-info">
+                      <h3>{hospital.name}</h3>
+                      <div className="hospital-meta">
+                        <span className="hospital-rating">
+                          ⭐ {hospital.rating}
+                        </span>
+                        <span className="hospital-distance">
+                          📍 {hospital.distance.toFixed(1)} km
+                        </span>
+                        {hospital.emergency && (
+                          <span className="hospital-emergency">
+                            24/7 Emergency
+                          </span>
+                        )}
+                      </div>
+                      <p className="hospital-type">{hospital.type}</p>
+                      <p className="hospital-address">{hospital.address}</p>
+                      <p className="hospital-phone">📞 {hospital.phone}</p>
+                    </div>
                   </div>
 
                   <button 
