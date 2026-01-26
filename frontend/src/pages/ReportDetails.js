@@ -1,240 +1,248 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { reportAPI } from '../utils/api';
+import { useNavigate } from 'react-router-dom';
+import { reportAPI, getApiErrorMessage } from '../utils/api';
 import '../App.css';
-import { jsPDF } from 'jspdf';
-import DietModal from '../components/DietModal';
-import ChatSection from '../components/ChatSection';
-import ReactMarkdown from 'react-markdown';
 
-function ReportDetails({ darkMode, setDarkMode }) {
-  const { reportId } = useParams();
+function Dashboard({ darkMode, setDarkMode }) {
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [fileSize, setFileSize] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const [uploadSuccess, setUploadSuccess] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [processingStage, setProcessingStage] = useState('');
+  const [useAI, setUseAI] = useState(false);
+  const [verifyReport, setVerifyReport] = useState(false);
+  const fileInputRef = useRef(null);
   const navigate = useNavigate();
   const username = localStorage.getItem('username');
-  const [report, setReport] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const [dietModalOpen, setDietModalOpen] = useState(false);
-  const [dietPlan, setDietPlan] = useState(null);
-  const [loadingDiet, setLoadingDiet] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
-  const printRef = useRef();
+
+  // Get greeting based on time
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 18) return 'Good Afternoon';
+    return 'Good Evening';
+  };
 
   useEffect(() => {
-    if (!reportId || reportId === 'undefined') {
-      setLoading(false);
-      return;
-    }
-    
-    reportAPI.getDetails(reportId)
-      .then(res => {
-        setReport(res.data);
-      })
-      .catch((err) => {
-        console.error('Failed to load report:', err);
-        alert('Failed to load report');
-      })
-      .finally(() => setLoading(false));
-  }, [reportId]);
+    fetchReports();
+  }, []);
 
-  const fetchDietRecommendations = async () => {
-    setLoadingDiet(true);
-    setDietModalOpen(true);
-    
+  const fetchReports = async () => {
     try {
-      const response = await reportAPI.getDietRecommendations(reportId);
-      setDietPlan(response.data.diet_plan);
+      await reportAPI.getHistory();
     } catch (error) {
-      console.error('Error fetching diet recommendations:', error);
-      alert(error.response?.data?.error || 'Failed to load diet recommendations');
-      setDietModalOpen(false);
-    } finally {
-      setLoadingDiet(false);
+      console.error('Error fetching reports:', error);
     }
   };
 
-  const speakSummary = () => {
-    if (!report?.plain_language_summary || isSpeaking) return;
-    const text = report.plain_language_summary.replace(/[*→#]/g, '');
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.9;
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    window.speechSynthesis.speak(utterance);
+  const formatFileSize = (bytes) => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
   };
 
-  const stopSpeaking = () => {
-    window.speechSynthesis.cancel();
-    setIsSpeaking(false);
+  const validateFile = (file) => {
+    const isPDF = file.type === 'application/pdf';
+    const isImage = file.type.startsWith('image/');
+    const sizeMB = file.size / (1024 * 1024);
+    const sizeFormatted = formatFileSize(file.size);
+
+    if (!isPDF && !isImage) {
+      return {
+        valid: false,
+        error: `Invalid file type. Only PDF, JPG, and PNG files are allowed.`,
+        details: `You uploaded: ${file.type || 'unknown type'}`
+      };
+    }
+
+    if (isPDF && sizeMB > 50) {
+      return {
+        valid: false,
+        error: `PDF file is too large (${sizeFormatted})`,
+        details: `Maximum size for PDFs is 50 MB. Please compress your PDF or split it into smaller files.`
+      };
+    }
+
+    if (isImage && sizeMB > 5) {
+      return {
+        valid: false,
+        error: `Image file is too large (${sizeFormatted})`,
+        details: `Maximum size for images is 5 MB. Please compress your image before uploading.`
+      };
+    }
+
+    return {
+      valid: true,
+      error: null,
+      details: null
+    };
   };
 
-  const exportToPDF = async () => {
-    if (!report) return;
-
-    const pdf = new jsPDF('p', 'pt', 'a4');
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const margin = 40;
-    const maxWidth = pageWidth - (margin * 2);
-    let yPosition = margin;
-
-    // Helper function to add new page if needed
-    const checkAddPage = (heightNeeded) => {
-      if (yPosition + heightNeeded > pageHeight - margin) {
-        pdf.addPage();
-        yPosition = margin;
-        return true;
-      }
-      return false;
-    };
-
-    // Helper function to add wrapped text
-    const addText = (text, fontSize, fontStyle = 'normal', color = [0, 0, 0]) => {
-      pdf.setFontSize(fontSize);
-      pdf.setFont('helvetica', fontStyle);
-      pdf.setTextColor(...color);
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const validation = validateFile(file);
       
-      const lines = pdf.splitTextToSize(text, maxWidth);
-      const lineHeight = fontSize * 1.2;
-      
-      lines.forEach((line) => {
-        checkAddPage(lineHeight);
-        pdf.text(line, margin, yPosition);
-        yPosition += lineHeight;
-      });
-    };
-
-    // Header - Report Name
-    pdf.setFillColor(37, 99, 235); // Blue background
-    pdf.rect(0, 0, pageWidth, 80, 'F');
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(24);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text(report.filename, margin, 50);
-    
-    pdf.setFontSize(11);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(`Uploaded: ${report.uploaded_at}`, margin, 68);
-    
-    yPosition = 100;
-
-    // Verification Section (if enabled)
-    if (report.verification_enabled && report.verification) {
-      checkAddPage(80);
-      
-      const trustScore = report.verification.trust_score;
-      const verificationColor = trustScore >= 70 ? [16, 185, 129] : 
-                                trustScore >= 50 ? [245, 158, 11] : [239, 68, 68];
-      
-      // Verification box
-      pdf.setDrawColor(...verificationColor);
-      pdf.setLineWidth(2);
-      pdf.rect(margin, yPosition, maxWidth, 60, 'S');
-      
-      yPosition += 20;
-      pdf.setFontSize(14);
-      pdf.setFont('helvetica', 'bold');
-      pdf.setTextColor(...verificationColor);
-      pdf.text(`${report.verification.risk_level} - Trust Score: ${trustScore}/100`, margin + 10, yPosition);
-      
-      yPosition += 20;
-      
-      if (report.verification.findings && report.verification.findings.length > 0) {
-        pdf.setFontSize(10);
-        pdf.setFont('helvetica', 'normal');
-        pdf.setTextColor(0, 0, 0);
-        pdf.text('Findings:', margin + 10, yPosition);
-        yPosition += 15;
+      if (!validation.valid) {
+        setUploadError(validation.error);
+        setSelectedFile(null);
+        setFileSize(null);
         
-        report.verification.findings.forEach((finding) => {
-          checkAddPage(15);
-          const findingLines = pdf.splitTextToSize(`• ${finding}`, maxWidth - 20);
-          findingLines.forEach((line) => {
-            pdf.text(line, margin + 15, yPosition);
-            yPosition += 12;
-          });
-        });
-      }
-      
-      yPosition += 20;
-    }
-
-    // Summary Section Header
-    checkAddPage(40);
-    pdf.setFillColor(240, 240, 245);
-    pdf.rect(margin, yPosition, maxWidth, 30, 'F');
-    pdf.setFontSize(16);
-    pdf.setFont('helvetica', 'bold');
-    pdf.setTextColor(0, 0, 0);
-    pdf.text('Plain Language Summary', margin + 10, yPosition + 20);
-    yPosition += 45;
-
-    // Process summary text - remove markdown and format
-    let summaryText = report.plain_language_summary;
-    
-    // Split by lines
-    const lines = summaryText.split('\n');
-    
-    lines.forEach((line) => {
-      line = line.trim();
-      if (!line) {
-        yPosition += 10; // Empty line spacing
+        if (validation.details) {
+          setTimeout(() => {
+            setUploadError(validation.details);
+          }, 100);
+        }
         return;
       }
       
-      // Check for headers and format accordingly
-      if (line.startsWith('####')) {
-        // H4 - Small header
-        checkAddPage(25);
-        const text = line.replace(/^####\s*/, '');
-        addText(text, 11, 'bold', [0, 0, 0]);
-        yPosition += 5;
-      } else if (line.startsWith('###')) {
-        // H3 - Medium header
-        checkAddPage(30);
-        const text = line.replace(/^###\s*/, '');
-        addText(text, 13, 'bold', [37, 99, 235]);
-        yPosition += 8;
-      } else if (line.startsWith('##')) {
-        // H2 - Large header
-        checkAddPage(35);
-        const text = line.replace(/^##\s*/, '');
-        addText(text, 15, 'bold', [37, 99, 235]);
-        yPosition += 10;
-      } else if (line.startsWith('#')) {
-        // H1 - Main header
-        checkAddPage(40);
-        const text = line.replace(/^#\s*/, '');
-        addText(text, 17, 'bold', [37, 99, 235]);
-        yPosition += 12;
-      } else {
-        // Regular text - handle bold
-        let processedLine = line;
-        
-        // Remove markdown bold markers but keep the emphasis in formatting
-        processedLine = processedLine.replace(/\*\*/g, '');
-        
-        checkAddPage(20);
-        addText(processedLine, 10, 'normal', [50, 50, 50]);
-        yPosition += 3;
-      }
-    });
+      setSelectedFile(file);
+      setFileSize(file.size);
+      setUploadError('');
+      setUploadSuccess('');
+    }
+  };
 
-    // Footer
-    const totalPages = pdf.internal.pages.length - 1;
-    for (let i = 1; i <= totalPages; i++) {
-      pdf.setPage(i);
-      pdf.setFontSize(9);
-      pdf.setFont('helvetica', 'normal');
-      pdf.setTextColor(150, 150, 150);
-      pdf.text(`Generated by MedLens - Page ${i} of ${totalPages}`, 
-               pageWidth / 2, 
-               pageHeight - 20, 
-               { align: 'center' });
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const files = e.dataTransfer.files;
+    if (files && files[0]) {
+      const validation = validateFile(files[0]);
+      
+      if (!validation.valid) {
+        setUploadError(validation.error);
+        setSelectedFile(null);
+        setFileSize(null);
+        
+        if (validation.details) {
+          setTimeout(() => {
+            setUploadError(validation.details);
+          }, 2000);
+        }
+        return;
+      }
+      
+      setSelectedFile(files[0]);
+      setFileSize(files[0].size);
+      setUploadError('');
+      setUploadSuccess('');
+    }
+  };
+
+  const handleRemoveFile = (e) => {
+    e.stopPropagation();
+    setSelectedFile(null);
+    setFileSize(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile) return;
+
+    const validation = validateFile(selectedFile);
+    if (!validation.valid) {
+      setUploadError(validation.error);
+      return;
     }
 
-    // Save PDF
-    pdf.save(`${report.filename.replace(/\.[^/.]+$/, '')}_summary.pdf`);
+    setUploading(true);
+    setUploadError('');
+    setUploadSuccess('');
+    setUploadProgress(0);
+    setProcessingStage('Uploading file...');
+
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+    formData.append('use_ai', useAI);
+    formData.append('verify_report', verifyReport);
+
+    const stages = [
+      { progress: 20, message: 'Uploading file...' },
+      { progress: 40, message: 'Extracting text...' },
+      { progress: 60, message: verifyReport ? 'Verifying authenticity...' : 'Analyzing report...' },
+      { progress: 80, message: useAI ? 'Enhancing with AI...' : 'Generating summary...' },
+      { progress: 90, message: 'Almost done...' }
+    ];
+
+    let currentStage = 0;
+    const interval = setInterval(() => {
+      if (currentStage < stages.length) {
+        setUploadProgress(stages[currentStage].progress);
+        setProcessingStage(stages[currentStage].message);
+        currentStage++;
+      }
+    }, 1000);
+
+    try {
+      const response = await reportAPI.upload(formData);
+      
+      clearInterval(interval);
+      setUploadProgress(100);
+      setProcessingStage('Complete!');
+      
+      const method = response.data.method_used || response.data.method || 'unknown';
+      const methodText = method === 'rule_based_only' ? 'Rule-based analysis' : 
+                        method === 'rule_based_with_ai' ? 'Rule-based + AI enhancement' : 
+                        'AI analysis';
+      
+      let successMessage = `Report processed successfully using ${methodText}!`;
+      if (response.data.verification_enabled) {
+        successMessage += ' Verification completed.';
+      }
+      
+      setUploadSuccess(successMessage);
+      
+      setTimeout(() => {
+        setSelectedFile(null);
+        setFileSize(null);
+        setUseAI(false);
+        setVerifyReport(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        
+        const reportId = response.data.report_id;
+        
+        if (reportId && reportId !== 'undefined') {
+          navigate(`/report/${reportId}`);
+          setTimeout(() => fetchReports(), 1000);
+        } else {
+          setUploadError('Upload successful but navigation failed');
+          fetchReports();
+        }
+      }, 1500);
+      
+    } catch (error) {
+      clearInterval(interval);
+      console.error('Upload error:', error);
+      
+      const errorMessage = getApiErrorMessage(error);
+      setUploadError(errorMessage);
+      setProcessingStage('');
+      
+    } finally {
+      setTimeout(() => {
+        setUploading(false);
+        setUploadProgress(0);
+        setProcessingStage('');
+      }, 1500);
+    }
   };
 
   const handleLogout = () => {
@@ -247,39 +255,13 @@ function ReportDetails({ darkMode, setDarkMode }) {
     setDarkMode(!darkMode);
   };
 
-  if (loading) {
-    return (
-      <div className="modern-loading-state">
-        <div className="loading-spinner"></div>
-        <h3>Loading report...</h3>
-        <p>Please wait while we fetch your medical data</p>
-      </div>
-    );
-  }
-
-  if (!report) {
-    return (
-      <div className="modern-error-state">
-        <div className="error-icon-wrapper">
-          <svg width="64" height="64" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
-          </svg>
-        </div>
-        <h2>Report Not Found</h2>
-        <p>The report you're looking for doesn't exist or has been deleted</p>
-        <button onClick={() => navigate('/dashboard')} className="btn-get-started">
-          Back to Dashboard
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div className="dashboard-wrapper">
       {/* Modern Navbar */}
       <nav className="modern-navbar">
         <div className="navbar-content">
-          <div className="navbar-logo" onClick={() => navigate('/dashboard')}>
+          {/* Logo */}
+          <div className="navbar-logo">
             <svg width="36" height="36" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
               <rect width="48" height="48" rx="12" fill="#2563EB"/>
               <rect x="14" y="10" width="20" height="28" rx="2" fill="white"/>
@@ -292,12 +274,14 @@ function ReportDetails({ darkMode, setDarkMode }) {
             <span className="navbar-brand">MedLens</span>
           </div>
 
+          {/* Nav Links */}
           <div className="navbar-links">
-            <a href="/dashboard" className="nav-link">Dashboard</a>
+            <a href="/dashboard" className="nav-link active">Dashboard</a>
             <a href="/history" className="nav-link">History</a>
             <a href="/health" className="nav-link">Analytics</a>
           </div>
 
+          {/* Right Section */}
           <div className="navbar-right">
             <button onClick={toggleDarkMode} className="icon-button">
               {darkMode ? (
@@ -324,225 +308,232 @@ function ReportDetails({ darkMode, setDarkMode }) {
         </div>
       </nav>
 
-      <div className="report-details-container">
-        {/* Header Actions */}
-        <div className="report-actions-header">
-          <button onClick={() => navigate('/dashboard')} className="btn-back-action">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd"/>
-            </svg>
-            Back to Dashboard
-          </button>
-          <div className="action-buttons">
-            <button onClick={isSpeaking ? stopSpeaking : speakSummary} className="btn-action">
-              {isSpeaking ? (
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clipRule="evenodd"/>
-                </svg>
-              ) : (
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z" clipRule="evenodd"/>
-                </svg>
-              )}
-              {isSpeaking ? 'Stop' : 'Read Aloud'}
-            </button>
-            <button onClick={exportToPDF} className="btn-action btn-primary-action">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" clipRule="evenodd"/>
-              </svg>
-              Export to PDF
-            </button>
+      <div className="dashboard-container">
+        {/* Greeting Section */}
+        <div className="greeting-section">
+          <div>
+            <h1 className="greeting-title">{getGreeting()}, {username}!</h1>
+            <p className="greeting-subtitle">Ready to analyze your medical reports</p>
           </div>
         </div>
 
-        <div ref={printRef} className="report-content">
-          {/* Report Header */}
-          <div className="report-info-card">
-            <div className="report-file-icon">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-              </svg>
+        {/* Main Content Grid */}
+        <div className="dashboard-grid">
+          {/* Upload Section */}
+          <div className="upload-card">
+            <div className="card-header">
+              <h2>Upload New Report</h2>
+              <p>Drag and drop or click to select</p>
             </div>
-            <div className="report-info-content">
-              <h1>{report.filename}</h1>
-              <div className="report-meta">
-                <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd"/>
-                </svg>
-                Uploaded: {report.uploaded_at}
-              </div>
-            </div>
-          </div>
+            
+            {/* AI & Verification Options */}
+            <div className="options-grid">
+              <label className="option-card">
+                <input
+                  type="checkbox"
+                  checked={useAI}
+                  onChange={(e) => setUseAI(e.target.checked)}
+                  className="option-checkbox"
+                />
+                <div className="option-icon ai-icon">
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                  </svg>
+                </div>
+                <div className="option-content">
+                  <span className="option-title">AI Enhancement</span>
+                  <span className="option-desc">Polish with Gemini AI</span>
+                </div>
+              </label>
 
-          {/* Verification Badge */}
-          {report.verification_enabled && report.verification && (
-            <div className={`verification-card ${
-              report.verification.trust_score >= 70 ? 'verified' : 
-              report.verification.trust_score >= 50 ? 'warning' : 'danger'
-            }`}>
-              <div className="verification-header">
-                <div className="verification-icon">
-                  {report.verification.trust_score >= 70 ? (
-                    <svg width="32" height="32" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+              <label className="option-card">
+                <input
+                  type="checkbox"
+                  checked={verifyReport}
+                  onChange={(e) => setVerifyReport(e.target.checked)}
+                  className="option-checkbox"
+                />
+                <div className="option-icon verify-icon">
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                  </svg>
+                </div>
+                <div className="option-content">
+                  <span className="option-title">Verify Authenticity</span>
+                  <span className="option-desc">Check for tampering</span>
+                </div>
+              </label>
+            </div>
+
+            {/* Upload Box */}
+            <div
+              className={`modern-upload-box ${isDragging ? 'dragging' : ''}`}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={() => !uploading && fileInputRef.current?.click()}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={handleFileChange}
+                disabled={uploading}
+                style={{ display: 'none' }}
+              />
+
+              {!selectedFile ? (
+                <div className="upload-empty-state">
+                  <div className="upload-icon-wrapper">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
                     </svg>
-                  ) : report.verification.trust_score >= 50 ? (
-                    <svg width="32" height="32" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
+                  </div>
+                  <h3>Drop your file here</h3>
+                  <p>or click to browse</p>
+                  <div className="file-requirements">
+                    <span>PDF up to 50MB</span>
+                    <span>•</span>
+                    <span>Images up to 5MB</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="file-selected" onClick={(e) => e.stopPropagation()}>
+                  <div className="file-icon">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                     </svg>
-                  ) : (
-                    <svg width="32" height="32" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/>
-                    </svg>
+                  </div>
+                  <div className="file-info">
+                    <span className="file-name">{selectedFile.name}</span>
+                    <span className="file-size">{formatFileSize(fileSize)}</span>
+                  </div>
+                  {!uploading && (
+                    <button className="file-remove-btn" onClick={handleRemoveFile}>
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
+                      </svg>
+                    </button>
                   )}
                 </div>
-                <div className="verification-info">
-                  <h3>{report.verification.risk_level}</h3>
-                  <div className="trust-score-wrapper">
-                    <span className="trust-label">Trust Score</span>
-                    <div className="trust-score-bar">
-                      <div 
-                        className="trust-score-fill"
-                        style={{ width: `${report.verification.trust_score}%` }}
-                      ></div>
-                    </div>
-                    <span className="trust-value">{report.verification.trust_score}/100</span>
-                  </div>
-                </div>
-              </div>
-
-              {report.verification.findings && report.verification.findings.length > 0 && (
-                <div className="verification-section">
-                  <div className="section-label">
-                    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
-                      <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd"/>
-                    </svg>
-                    Findings
-                  </div>
-                  <ul className="verification-list">
-                    {report.verification.findings.map((finding, idx) => (
-                      <li key={idx}>{finding}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {report.verification.recommendations && report.verification.recommendations.length > 0 && (
-                <div className="verification-section">
-                  <div className="section-label">
-                    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1h4v1a2 2 0 11-4 0zM12 14c.015-.34.208-.646.477-.859a4 4 0 10-4.954 0c.27.213.462.519.476.859h4.002z"/>
-                    </svg>
-                    Recommendations
-                  </div>
-                  <ul className="verification-list">
-                    {report.verification.recommendations.map((rec, idx) => (
-                      <li key={idx}>{rec}</li>
-                    ))}
-                  </ul>
-                </div>
               )}
             </div>
-          )}
 
-          {/* Summary Section with Scroll */}
-          <div className="summary-section-modern">
-            <h2>Plain Language Summary</h2>
-            <div className="summary-scrollable markdown-content">
-              <ReactMarkdown>
-                {report.plain_language_summary}
-              </ReactMarkdown>
-            </div>
+            {selectedFile && !uploading && (
+              <button onClick={handleUpload} className="upload-submit-btn">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13a1 1 0 102 0V9.414l1.293 1.293a1 1 0 001.414-1.414z" clipRule="evenodd"/>
+                </svg>
+                {`Upload & ${useAI ? 'Analyze with AI' : 'Analyze'}`}
+              </button>
+            )}
+
+            {uploading && (
+              <div className="modern-upload-progress">
+                <div className="progress-track">
+                  <div className="progress-bar-fill" style={{ width: `${uploadProgress}%` }}></div>
+                </div>
+                <div className="progress-info">
+                  <span className="progress-stage">{processingStage}</span>
+                  <span className="progress-percent">{uploadProgress}%</span>
+                </div>
+              </div>
+            )}
+
+            {uploadError && (
+              <div className="alert alert-error">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/>
+                </svg>
+                {uploadError}
+              </div>
+            )}
+            {uploadSuccess && (
+              <div className="alert alert-success">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                </svg>
+                {uploadSuccess}
+              </div>
+            )}
           </div>
 
-          {/* Action Cards Grid */}
-          <div className="action-cards-grid">
-            <div className="action-card-feature" onClick={() => navigate(`/risk-assessment/${reportId}`)}>
-              <div className="action-card-icon risk-icon">
+          {/* Quick Actions */}
+          <div className="quick-actions-grid">
+            <h2 className="section-title">Quick Actions</h2>
+            
+            <div className="action-card-modern" onClick={() => navigate('/history')}>
+              <div className="action-icon-wrapper history-gradient">
                 <svg width="24" height="24" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd"/>
                 </svg>
               </div>
               <div className="action-card-content">
-                <h3>Health Risk Assessment</h3>
-                <p>Calculate your health risks based on this report</p>
+                <h3>View History</h3>
+                <p>See all your uploaded reports</p>
               </div>
-              <div className="action-card-arrow">
+              <div className="action-arrow">
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd"/>
                 </svg>
               </div>
             </div>
 
-            <div className="action-card-feature" onClick={fetchDietRecommendations}>
-              <div className="action-card-icon diet-icon">
-                <svg width="24" height="24" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 0l-2 2a1 1 0 101.414 1.414L8 10.414l1.293 1.293a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+            <div className="action-card-modern" onClick={() => navigate('/health')}>
+              <div className="action-icon-wrapper health-gradient">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
                 </svg>
               </div>
               <div className="action-card-content">
-                <h3>Personalized Diet Plan</h3>
-                <p>Get nutrition recommendations tailored to your results</p>
+                <h3>Health Trends</h3>
+                <p>Track your health over time</p>
               </div>
-              <div className="action-card-arrow">
+              <div className="action-arrow">
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd"/>
                 </svg>
               </div>
             </div>
 
-            <div className="action-card-feature" onClick={() => setChatOpen(!chatOpen)}>
-              <div className="action-card-icon chat-icon">
-                <svg width="24" height="24" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd"/>
+            <div className="action-card-modern" onClick={() => navigate('/jargon')}>
+              <div className="action-icon-wrapper jargon-gradient">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                 </svg>
               </div>
               <div className="action-card-content">
-                <h3>{chatOpen ? 'Close Chat' : 'Chat with your Report'}</h3>
-                <p>Ask questions about your medical report</p>
+                <h3>Jargon Buster</h3>
+                <p>Understand medical terms</p>
               </div>
-              <div className="action-card-arrow">
+              <div className="action-arrow">
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd"/>
                 </svg>
               </div>
             </div>
-          </div>
 
-          {/* Chat Section */}
-          <ChatSection 
-            reportId={reportId}
-            isOpen={chatOpen}
-            onClose={() => setChatOpen(false)}
-          />
-
-          {/* Original Text - Collapsible */}
-          <div className="original-text-section-modern">
-            <details>
-              <summary>
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V8z" clipRule="evenodd"/>
+            <div className="action-card-modern" onClick={() => navigate('/nearby-doctors')}>
+              <div className="action-icon-wrapper doctor-gradient">
+                <svg width="24" height="24" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd"/>
                 </svg>
-                Original Extracted Text
-              </summary>
-              <div className="original-text-content">
-                {report.extracted_text}
               </div>
-            </details>
+              <div className="action-card-content">
+                <h3>Find Nearby Doctor</h3>
+                <p>Discover hospitals & clinics</p>
+              </div>
+              <div className="action-arrow">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd"/>
+                </svg>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-
-      {/* Diet Modal */}
-      <DietModal 
-        isOpen={dietModalOpen}
-        onClose={() => setDietModalOpen(false)}
-        dietPlan={dietPlan}
-        loading={loadingDiet}
-      />
     </div>
   );
 }
 
-export default ReportDetails;
+export default Dashboard;

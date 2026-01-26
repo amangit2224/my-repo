@@ -10,6 +10,7 @@ import HealthTrends from './pages/HealthTrends';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import HealthRiskAssessment from './pages/HealthRiskAssessment';
+import NearbyDoctors from './pages/NearbyDoctors';
 import './App.css';
 
 function App() {
@@ -94,6 +95,14 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/nearby-doctors"
+          element={
+            <ProtectedRoute>
+              <NearbyDoctors darkMode={darkMode} setDarkMode={setDarkMode} />
+            </ProtectedRoute>
+          }
+        />
         
         {/* Default Route */}
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -101,6 +110,7 @@ function App() {
       </Routes>
     </Router>
   );
+  
 }
 
 export default App;
