@@ -506,7 +506,7 @@ function NearbyDoctors({ darkMode, setDarkMode }) {
                       </span>
                       {hospital.emergency && (
                         <span className="hospital-emergency">
-                          🚨 24/7 Emergency
+                          24/7 Emergency
                         </span>
                       )}
                     </div>
