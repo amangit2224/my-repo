@@ -6318,6 +6318,113 @@ body.dark-mode .action-icon-wrapper.jargon-gradient {
   background: linear-gradient(135deg, #0891B2 0%, #06B6D4 50%, #22D3EE 100%);
 }
 
+/* ========================================
+   HEALTH TRENDS - TEAL/MEDICAL GRADIENT
+   Professional Analytics Color Scheme
+   ======================================== */
+
+/* Hero Icon - Teal Gradient (Medical/Clinical) */
+.trends-hero-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0891B2 0%, #06B6D4 50%, #22D3EE 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  box-shadow: 0 8px 24px rgba(8, 145, 178, 0.3);
+  margin: 0 auto 24px;
+}
+
+/* VS Circle - Teal */
+.vs-circle {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0891B2, #06B6D4);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(8, 145, 178, 0.3);
+  border: 4px solid white;
+}
+
+/* Upload Success Icon - Teal */
+.upload-success-icon {
+  color: #06B6D4;
+  margin-bottom: 12px;
+}
+
+/* Compare Button - Teal Gradient */
+.btn-compare-reports {
+  background: linear-gradient(135deg, #0891B2, #06B6D4);
+  color: white;
+  border: none;
+  padding: 14px 32px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 4px 12px rgba(8, 145, 178, 0.3);
+  transition: all 0.3s;
+}
+
+.btn-compare-reports:hover:not(:disabled) {
+  background: linear-gradient(135deg, #0E7490, #0891B2);
+  box-shadow: 0 6px 20px rgba(8, 145, 178, 0.4);
+  transform: translateY(-2px);
+}
+
+.btn-compare-reports:disabled {
+  background: #D1D5DB;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Summary Card - Improved Stats in Teal */
+.summary-stat.improved {
+  color: #0891B2;
+}
+
+.summary-stat.improved .stat-value {
+  color: #0891B2;
+}
+
+/* Chart Card Borders - Teal Accent */
+.chart-card {
+  border-top: 3px solid #06B6D4;
+}
+
+/* Primary Action Button - Teal */
+.btn-primary-action {
+  background: linear-gradient(135deg, #0891B2, #06B6D4);
+  color: white;
+}
+
+.btn-primary-action:hover {
+  background: linear-gradient(135deg, #0E7490, #0891B2);
+}
+
+/* Dark Mode Adjustments */
+body.dark-mode .trends-hero-icon {
+  background: linear-gradient(135deg, #0E7490 0%, #0891B2 50%, #06B6D4 100%);
+}
+
+body.dark-mode .vs-circle {
+  background: linear-gradient(135deg, #0E7490, #0891B2);
+}
+
+body.dark-mode .btn-compare-reports {
+  background: linear-gradient(135deg, #0E7490, #0891B2);
+}
+
 /* keep prints readable */
 @media print {
   body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
