@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
@@ -12,19 +11,27 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import HealthRiskAssessment from './pages/HealthRiskAssessment';
 import NearbyDoctors from './pages/NearbyDoctors';
-
 import './App.css';
 
 function App() {
-  const [darkMode, setDarkMode] = useState(
-    localStorage.getItem('darkMode') === 'true'
-  );
+  // Initialize dark mode from localStorage
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('darkMode');
+    return saved === 'true';
+  });
 
+  // Apply dark mode to body
   useEffect(() => {
-    document.body.classList.toggle('dark-mode', darkMode);
+    if (darkMode) {
+      document.body.classList.add('dark-mode');
+    } else {
+      document.body.classList.remove('dark-mode');
+    }
+    // Save to localStorage
     localStorage.setItem('darkMode', darkMode);
   }, [darkMode]);
 
+  // Protected Route Component
   const ProtectedRoute = ({ children }) => {
     const token = localStorage.getItem('token');
     return token ? children : <Navigate to="/login" replace />;
@@ -33,13 +40,13 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* Public */}
+        {/* Public Routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
-
-        {/* Protected */}
+        
+        {/* Protected Routes */}
         <Route
           path="/dashboard"
           element={
@@ -48,7 +55,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/history"
           element={
@@ -57,7 +63,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/report/:reportId"
           element={
@@ -66,16 +71,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
-        <Route
-          path="/risk-assessment/:reportId"
-          element={
-            <ProtectedRoute>
-              <HealthRiskAssessment darkMode={darkMode} setDarkMode={setDarkMode} />
-            </ProtectedRoute>
-          }
-        />
-
         <Route
           path="/jargon"
           element={
@@ -84,7 +79,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/health"
           element={
@@ -93,7 +87,14 @@ function App() {
             </ProtectedRoute>
           }
         />
-
+        <Route
+          path="/risk-assessment/:reportId"
+          element={
+            <ProtectedRoute>
+              <HealthRiskAssessment darkMode={darkMode} setDarkMode={setDarkMode} />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/nearby-doctors"
           element={
@@ -102,10 +103,10 @@ function App() {
             </ProtectedRoute>
           }
         />
-
-        {/* Defaults */}
+        
+        {/* Default Route */}
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </Router>
   );
