@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { reportAPI } from '../utils/api';
 import '../App.css';
-import './ReportDetailsStyles.css';
 import { jsPDF } from 'jspdf';
 import DietModal from '../components/DietModal';
 import ChatSection from '../components/ChatSection';
