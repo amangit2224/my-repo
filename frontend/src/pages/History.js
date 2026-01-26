@@ -10,6 +10,9 @@ function History({ darkMode, setDarkMode }) {
   const navigate = useNavigate();
   const username = localStorage.getItem('username');
 
+  // ✅ ADDED: Helper to get consistent report ID
+  const getReportId = (r) => r._id || r.id || r.report_id;
+
   useEffect(() => {
     loadHistory();
   }, []);
@@ -178,7 +181,8 @@ function History({ darkMode, setDarkMode }) {
                 
                 <div className="timeline-items">
                   {grouped[label].map((r, index) => (
-                    <div key={r.id} className="modern-timeline-card" style={{ animationDelay: `${index * 0.1}s` }}>
+                    // ✅ FIXED: Using getReportId for key prop
+                    <div key={getReportId(r)} className="modern-timeline-card" style={{ animationDelay: `${index * 0.1}s` }}>
                       <div className="timeline-card-icon">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
@@ -201,8 +205,9 @@ function History({ darkMode, setDarkMode }) {
                           {r.plain_summary?.length > 150 && '...'}
                         </p>
                         
+                        {/* ✅ FIXED: Using getReportId for navigation */}
                         <button 
-                          onClick={() => navigate(`/report/${r.id}`)} 
+                          onClick={() => navigate(`/report/${getReportId(r)}`)} 
                           className="btn-view-report"
                         >
                           View Full Report
