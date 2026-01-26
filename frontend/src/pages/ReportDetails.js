@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { reportAPI } from '../utils/api';
 import '../App.css';
+import './ReportDetailsStyles.css';
 import { jsPDF } from 'jspdf';
-import html2canvas from 'html2canvas';
 import DietModal from '../components/DietModal';
 import ChatSection from '../components/ChatSection';
 import ReactMarkdown from 'react-markdown';
@@ -70,41 +70,171 @@ function ReportDetails({ darkMode, setDarkMode }) {
   };
 
   const exportToPDF = async () => {
-    const element = printRef.current;
-    if (!element) return;
-
-    const canvas = await html2canvas(element, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: getComputedStyle(document.body).getPropertyValue('--bg').trim() || '#FFFFFF',
-    });
+    if (!report) return;
 
     const pdf = new jsPDF('p', 'pt', 'a4');
-    const pageWidthPt = pdf.internal.pageSize.getWidth();
-    const pageHeightPt = pdf.internal.pageSize.getHeight();
-    const pxPerPt = canvas.width / pageWidthPt;
-    const pageHeightPx = Math.floor(pageHeightPt * pxPerPt);
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 40;
+    const maxWidth = pageWidth - (margin * 2);
+    let yPosition = margin;
 
-    let y = 0;
-    let pageCount = 0;
+    // Helper function to add new page if needed
+    const checkAddPage = (heightNeeded) => {
+      if (yPosition + heightNeeded > pageHeight - margin) {
+        pdf.addPage();
+        yPosition = margin;
+        return true;
+      }
+      return false;
+    };
 
-    while (y < canvas.height) {
-      const sliceHeightPx = Math.min(pageHeightPx, canvas.height - y);
-      const tmpCanvas = document.createElement('canvas');
-      tmpCanvas.width = canvas.width;
-      tmpCanvas.height = sliceHeightPx;
-      const tmpCtx = tmpCanvas.getContext('2d');
-      tmpCtx.drawImage(canvas, 0, y, canvas.width, sliceHeightPx, 0, 0, canvas.width, sliceHeightPx);
+    // Helper function to add wrapped text
+    const addText = (text, fontSize, fontStyle = 'normal', color = [0, 0, 0]) => {
+      pdf.setFontSize(fontSize);
+      pdf.setFont('helvetica', fontStyle);
+      pdf.setTextColor(...color);
+      
+      const lines = pdf.splitTextToSize(text, maxWidth);
+      const lineHeight = fontSize * 1.2;
+      
+      lines.forEach((line) => {
+        checkAddPage(lineHeight);
+        pdf.text(line, margin, yPosition);
+        yPosition += lineHeight;
+      });
+    };
 
-      const imgData = tmpCanvas.toDataURL('image/png');
-      const imgHeightPt = sliceHeightPx / pxPerPt;
+    // Header - Report Name
+    pdf.setFillColor(37, 99, 235); // Blue background
+    pdf.rect(0, 0, pageWidth, 80, 'F');
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFontSize(24);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(report.filename, margin, 50);
+    
+    pdf.setFontSize(11);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(`Uploaded: ${report.uploaded_at}`, margin, 68);
+    
+    yPosition = 100;
 
-      if (pageCount > 0) pdf.addPage();
-      pdf.addImage(imgData, 'PNG', 10, 10, pageWidthPt - 20, imgHeightPt);
-      y += sliceHeightPx;
-      pageCount += 1;
+    // Verification Section (if enabled)
+    if (report.verification_enabled && report.verification) {
+      checkAddPage(80);
+      
+      const trustScore = report.verification.trust_score;
+      const verificationColor = trustScore >= 70 ? [16, 185, 129] : 
+                                trustScore >= 50 ? [245, 158, 11] : [239, 68, 68];
+      
+      // Verification box
+      pdf.setDrawColor(...verificationColor);
+      pdf.setLineWidth(2);
+      pdf.rect(margin, yPosition, maxWidth, 60, 'S');
+      
+      yPosition += 20;
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(...verificationColor);
+      pdf.text(`${report.verification.risk_level} - Trust Score: ${trustScore}/100`, margin + 10, yPosition);
+      
+      yPosition += 20;
+      
+      if (report.verification.findings && report.verification.findings.length > 0) {
+        pdf.setFontSize(10);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(0, 0, 0);
+        pdf.text('Findings:', margin + 10, yPosition);
+        yPosition += 15;
+        
+        report.verification.findings.forEach((finding) => {
+          checkAddPage(15);
+          const findingLines = pdf.splitTextToSize(`• ${finding}`, maxWidth - 20);
+          findingLines.forEach((line) => {
+            pdf.text(line, margin + 15, yPosition);
+            yPosition += 12;
+          });
+        });
+      }
+      
+      yPosition += 20;
     }
 
+    // Summary Section Header
+    checkAddPage(40);
+    pdf.setFillColor(240, 240, 245);
+    pdf.rect(margin, yPosition, maxWidth, 30, 'F');
+    pdf.setFontSize(16);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(0, 0, 0);
+    pdf.text('Plain Language Summary', margin + 10, yPosition + 20);
+    yPosition += 45;
+
+    // Process summary text - remove markdown and format
+    let summaryText = report.plain_language_summary;
+    
+    // Split by lines
+    const lines = summaryText.split('\n');
+    
+    lines.forEach((line) => {
+      line = line.trim();
+      if (!line) {
+        yPosition += 10; // Empty line spacing
+        return;
+      }
+      
+      // Check for headers and format accordingly
+      if (line.startsWith('####')) {
+        // H4 - Small header
+        checkAddPage(25);
+        const text = line.replace(/^####\s*/, '');
+        addText(text, 11, 'bold', [0, 0, 0]);
+        yPosition += 5;
+      } else if (line.startsWith('###')) {
+        // H3 - Medium header
+        checkAddPage(30);
+        const text = line.replace(/^###\s*/, '');
+        addText(text, 13, 'bold', [37, 99, 235]);
+        yPosition += 8;
+      } else if (line.startsWith('##')) {
+        // H2 - Large header
+        checkAddPage(35);
+        const text = line.replace(/^##\s*/, '');
+        addText(text, 15, 'bold', [37, 99, 235]);
+        yPosition += 10;
+      } else if (line.startsWith('#')) {
+        // H1 - Main header
+        checkAddPage(40);
+        const text = line.replace(/^#\s*/, '');
+        addText(text, 17, 'bold', [37, 99, 235]);
+        yPosition += 12;
+      } else {
+        // Regular text - handle bold
+        let processedLine = line;
+        
+        // Remove markdown bold markers but keep the emphasis in formatting
+        processedLine = processedLine.replace(/\*\*/g, '');
+        
+        checkAddPage(20);
+        addText(processedLine, 10, 'normal', [50, 50, 50]);
+        yPosition += 3;
+      }
+    });
+
+    // Footer
+    const totalPages = pdf.internal.pages.length - 1;
+    for (let i = 1; i <= totalPages; i++) {
+      pdf.setPage(i);
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(150, 150, 150);
+      pdf.text(`Generated by MedLens - Page ${i} of ${totalPages}`, 
+               pageWidth / 2, 
+               pageHeight - 20, 
+               { align: 'center' });
+    }
+
+    // Save PDF
     pdf.save(`${report.filename.replace(/\.[^/.]+$/, '')}_summary.pdf`);
   };
 
