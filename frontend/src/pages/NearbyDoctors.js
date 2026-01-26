@@ -153,6 +153,7 @@ function NearbyDoctors({ darkMode, setDarkMode }) {
     if (userLocation) {
       filterHospitalsByRadius();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userLocation, selectedRadius]);
 
   const getUserLocation = () => {
