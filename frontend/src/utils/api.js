@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // ✅ UPDATED: Now uses your new Railway URL
 const API_BASE_URL = 
-  process.env.REACT_APP_API_URL || 'https://medlens.up.railway.app';
+  process.env.REACT_APP_API_URL || 'https://my-repo-production-276b.up.railway.app';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
