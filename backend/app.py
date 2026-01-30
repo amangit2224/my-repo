@@ -1,9 +1,11 @@
 import os
 import sys
 from dotenv import load_dotenv
-from flask import Flask
+from flask import Flask, jsonify
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from pymongo import MongoClient
 from config import Config
 
@@ -17,11 +19,24 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 app = Flask(__name__)
 app.config.from_object(Config)
 
-# ✅ FIXED CORS (THIS IS THE KEY FIX)
+# ✅ PRODUCTION CORS - Only allow your Vercel frontend
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 CORS(
     app,
-    resources={r"/api/*": {"origins": "*"}},
-    supports_credentials=True
+    resources={r"/api/*": {
+        "origins": [FRONTEND_URL, "https://*.vercel.app"],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"],
+        "supports_credentials": True
+    }}
+)
+
+# ✅ RATE LIMITING - Prevent abuse
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://"
 )
 
 jwt = JWTManager(app)
@@ -30,9 +45,9 @@ jwt = JWTManager(app)
 try:
     client = MongoClient(os.getenv("MONGODB_URI"))
     db = client.get_database()
-    print("Connected to MongoDB successfully")
+    print("✅ Connected to MongoDB successfully")
 except Exception as e:
-    print("MongoDB connection failed:", e)
+    print(f"❌ MongoDB connection failed: {e}")
     sys.exit(1)
 
 # Attach db to app
@@ -54,17 +69,60 @@ app.register_blueprint(report_bp, url_prefix='/api/report')
 app.register_blueprint(jargon_bp, url_prefix='/api/jargon')
 app.register_blueprint(password_reset_bp, url_prefix='/api')
 
-# ✅ FIX: Explicit OPTIONS handler for preflight
+# OPTIONS handler for preflight
 @app.route('/api/<path:path>', methods=['OPTIONS'])
 def api_options(path):
     return '', 200
 
 @app.route('/')
 def home():
-    return {
-        'message': 'Medical Report Summarizer API is running',
-        'status': 'success'
-    }
+    return jsonify({
+        'message': 'Medical Report Summarizer API',
+        'status': 'active',
+        'version': '2.0',
+        'disclaimer': 'Educational use only. Not for medical diagnosis or treatment.'
+    })
+
+# ✅ HEALTH CHECK - Railway needs this
+@app.route('/api/health')
+def health_check():
+    return jsonify({
+        'status': 'healthy',
+        'service': 'medical-report-api'
+    })
+
+# ✅ DISCLAIMER ENDPOINT
+@app.route('/api/disclaimer')
+def get_disclaimer():
+    return jsonify({
+        'disclaimer': '''⚠️ IMPORTANT MEDICAL DISCLAIMER
+        
+This application is an educational tool for demonstration purposes only.
+
+- NOT a substitute for professional medical advice, diagnosis, or treatment
+- Always consult qualified healthcare professionals for medical concerns
+- Do not rely solely on this tool for health decisions
+- Summaries are AI-generated and may contain errors
+- Emergency? Call your local emergency services immediately
+
+By using this service, you acknowledge these limitations.'''
+    })
+
+# Error handlers
+@app.errorhandler(429)
+def ratelimit_handler(e):
+    return jsonify({
+        'error': 'Rate limit exceeded',
+        'message': 'Too many requests. Please try again later.'
+    }), 429
+
+@app.errorhandler(500)
+def internal_error(e):
+    return jsonify({
+        'error': 'Internal server error',
+        'message': 'Something went wrong. Please try again later.'
+    }), 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
