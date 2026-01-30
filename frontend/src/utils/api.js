@@ -1,9 +1,8 @@
 import axios from 'axios';
 
-const API_BASE_URL =
-  process.env.NODE_ENV === 'production'
-    ? 'https://medical-backend-wbqv.onrender.com'
-    : 'http://localhost:5000';
+// ✅ FIXED: Now uses Railway URL instead of old Render URL
+const API_BASE_URL = 
+  process.env.REACT_APP_API_URL || 'https://splendid-smile.up.railway.app';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
