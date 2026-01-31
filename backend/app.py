@@ -52,7 +52,7 @@ app.db = db
 
 # Create uploads folder
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
-    os.makedirs(app.config['UPLOAD_FOLDER'])
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 # Import blueprints AFTER app creation
 from routes.auth import auth_bp
