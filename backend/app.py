@@ -19,16 +19,13 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 app = Flask(__name__)
 app.config.from_object(Config)
 
-# ✅ PRODUCTION CORS - Only allow your Vercel frontend
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+# ✅ CORS - Allow your Vercel frontend
 CORS(
     app,
-    resources={r"/api/*": {
-        "origins": [FRONTEND_URL, "https://*.vercel.app"],
-        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"],
-        "supports_credentials": True
-    }}
+    resources={r"/*": {"origins": "*"}},
+    supports_credentials=True,
+    allow_headers=["Content-Type", "Authorization"],
+    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
 )
 
 # ✅ RATE LIMITING - Prevent abuse
@@ -69,11 +66,6 @@ app.register_blueprint(report_bp, url_prefix='/api/report')
 app.register_blueprint(jargon_bp, url_prefix='/api/jargon')
 app.register_blueprint(password_reset_bp, url_prefix='/api')
 
-# OPTIONS handler for preflight
-@app.route('/api/<path:path>', methods=['OPTIONS'])
-def api_options(path):
-    return '', 200
-
 @app.route('/')
 def home():
     return jsonify({
@@ -83,7 +75,6 @@ def home():
         'disclaimer': 'Educational use only. Not for medical diagnosis or treatment.'
     })
 
-# ✅ HEALTH CHECK - Railway needs this
 @app.route('/api/health')
 def health_check():
     return jsonify({
@@ -91,7 +82,6 @@ def health_check():
         'service': 'medical-report-api'
     })
 
-# ✅ DISCLAIMER ENDPOINT
 @app.route('/api/disclaimer')
 def get_disclaimer():
     return jsonify({
@@ -108,7 +98,6 @@ This application is an educational tool for demonstration purposes only.
 By using this service, you acknowledge these limitations.'''
     })
 
-# Error handlers
 @app.errorhandler(429)
 def ratelimit_handler(e):
     return jsonify({
@@ -124,5 +113,5 @@ def internal_error(e):
     }), 500
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    # Local development only - Railway uses Gunicorn
+    app.run(host='0.0.0.0', port=int(os.getenv('PORT', 5000)))
