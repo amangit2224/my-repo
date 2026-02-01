@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // ✅ UPDATED: Now uses your new Railway URL
 const API_BASE_URL = 
-  process.env.REACT_APP_API_URL || 'https://used-dorthea-pesuniversity26-a40d36a8.koyeb.app/api';
+  process.env.REACT_APP_API_URL || 'https://used-dorthea-pesuniversity26-a40d36a8.koyeb.app';
 
 const api = axios.create({
   baseURL: API_BASE_URL,

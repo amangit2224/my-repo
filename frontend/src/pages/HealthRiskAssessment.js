@@ -28,7 +28,7 @@ function HealthRiskAssessment({ darkMode, setDarkMode }) {
     try {
       const token = localStorage.getItem('token'); // ← ADD THIS MISSING LINE!
       const API_BASE_URL = process.env.REACT_APP_API_URL || 
-      'https://used-dorthea-pesuniversity26-a40d36a8.koyeb.app/api';
+      'https://used-dorthea-pesuniversity26-a40d36a8.koyeb.app';
 
       const response = await axios.get(
         `${API_BASE_URL}/api/report/calculate-risks/${reportId}`,
