@@ -1,9 +1,8 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from datetime import datetime, timedelta
-from models.user import User  # ✅ IMPORT User model
+from models.user import User
 from utils.token_utils import generate_token
 from utils.email_service import send_reset_email
-from database import db
 import os
 import re
 
@@ -11,9 +10,6 @@ password_reset_bp = Blueprint("password_reset", __name__)
 
 EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
 
-# ─────────────────────────────
-# FORGOT PASSWORD
-# ─────────────────────────────
 @password_reset_bp.route("/forgot-password", methods=["POST"])
 def forgot_password():
     data = request.get_json(force=True)
@@ -24,13 +20,13 @@ def forgot_password():
     if not email or not EMAIL_REGEX.match(email):
         return jsonify({"message": response_msg}), 200
 
-    user = db.users.find_one({"email": email})
+    user = current_app.db['users'].find_one({"email": email})
     if not user:
         return jsonify({"message": response_msg}), 200
 
     token = generate_token()
 
-    db.password_resets.insert_one({
+    current_app.db['password_resets'].insert_one({
         "email": email,
         "token": token,
         "expires_at": datetime.utcnow() + timedelta(hours=1),
@@ -45,10 +41,6 @@ def forgot_password():
 
     return jsonify({"message": response_msg}), 200
 
-
-# ─────────────────────────────
-# RESET PASSWORD ✅ FIXED!
-# ─────────────────────────────
 @password_reset_bp.route("/reset-password", methods=["POST"])
 def reset_password():
     data = request.get_json(force=True)
@@ -59,10 +51,10 @@ def reset_password():
     if not token or not password:
         return jsonify({"error": "Invalid request"}), 400
 
-    if len(password) < 6:  # ✅ Match your signup validation (6 chars minimum)
+    if len(password) < 6:
         return jsonify({"error": "Password must be at least 6 characters"}), 400
 
-    record = db.password_resets.find_one({
+    record = current_app.db['password_resets'].find_one({
         "token": token,
         "used": False,
         "expires_at": {"$gt": datetime.utcnow()}
@@ -71,16 +63,14 @@ def reset_password():
     if not record:
         return jsonify({"error": "Invalid or expired link"}), 400
 
-    # ✅ USE THE SAME HASHING METHOD AS SIGNUP (User model)
     hashed_password = User.hash_password(password)
 
-    # ✅ UPDATE THE CORRECT FIELD: password_hash (not password!)
-    db.users.update_one(
+    current_app.db['users'].update_one(
         {"email": record["email"]},
-        {"$set": {"password_hash": hashed_password}}  # ✅ CORRECT FIELD!
+        {"$set": {"password_hash": hashed_password}}
     )
 
-    db.password_resets.update_one(
+    current_app.db['password_resets'].update_one(
         {"_id": record["_id"]},
         {"$set": {"used": True}}
     )

@@ -1,7 +1,6 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import create_access_token
 from models.user import User
-from app import db                # ← IMPORT db FROM app.py (NO localhost!)
 import re
 
 auth_bp = Blueprint('auth', __name__)
@@ -27,7 +26,7 @@ def signup():
         if len(password) < 6:
             return jsonify({'error': 'Password must be at least 6 characters'}), 400
 
-        users_collection = db['users']
+        users_collection = current_app.db['users']
 
         if users_collection.find_one({'email': email}):
             return jsonify({'error': 'Email already registered'}), 400
@@ -53,7 +52,7 @@ def login():
         if not email or not password:
             return jsonify({'error': 'Email and password are required'}), 400
 
-        users_collection = db['users']
+        users_collection = current_app.db['users']
         user = users_collection.find_one({'email': email})
 
         if not user or not User.check_password(user['password_hash'], password):

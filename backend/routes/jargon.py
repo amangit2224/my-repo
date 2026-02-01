@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from utils.ai_explainer import explain_medical_term
 
 jargon_bp = Blueprint('jargon', __name__)
