@@ -43,7 +43,7 @@ def extract_text_from_pdf_with_ai(filepath):
                 "contents": [{
                     "parts": [
                         {
-                            "text": "Extract all text from this medical report PDF. Include test names, values, units, and reference ranges. Output plain text only, no formatting."
+                            "text": "This is a PharmEasy/Thyrocare medical lab report PDF. Extract ALL visible test names, their exact numerical values, units (like mg/dL, %), and any reference ranges or notes. Output in clean plain text format. Preserve as much structure as possible: list each test on a new line like 'TEST NAME: value unit (reference if present)'. Include text from EVERY page, especially tables on pages 3-5. Do NOT summarize, interpret or add explanations — extract raw text only."
                         },
                         {
                             "inline_data": {

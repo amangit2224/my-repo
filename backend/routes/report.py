@@ -68,60 +68,51 @@ def validate_file_size(file):
 def extract_tests_from_raw_text(text):
     """
     Extract test values DIRECTLY from OCR text using regex
-    Reliable fallback for Thyrocare-style reports
+    Reliable fallback for Thyrocare/PharmEasy reports
     """
     tests = []
     
     print(f"\n{'='*60}")
-    print(f"📄 REGEX EXTRACTION FROM RAW TEXT")
+    print(f"📄 REGEX EXTRACTION FROM RAW TEXT (UPDATED ROBUST VERSION)")
     print(f"{'='*60}\n")
     
     patterns = [
-        # Lipid panel
-        ('Total Cholesterol', r'TOTAL CHOLESTEROL.*?(\d+)\s*mg/dL', 'mg/dL'),
-        ('HDL', r'HDL CHOLESTEROL.*?DIRECT.*?(\d+)\s*mg/dL', 'mg/dL'),
-        ('LDL', r'LDL CHOLESTEROL.*?DIRECT.*?(\d+)\s*mg/dL', 'mg/dL'),
-        ('Triglycerides', r'TRIGLYCERIDES.*?(\d+)\s*mg/dL', 'mg/dL'),
-        ('VLDL', r'VLDL CHOLESTEROL.*?CALCULATED.*?([\d.]+)\s*mg/dL', 'mg/dL'),
+        # Lipid panel - super flexible, handles table jumbling, variants
+        ('Total Cholesterol', r'(?:TOTAL\s+CHOLESTEROL|TOTAL\s+CHOL|Cholesterol\s+Total).*?(\d{2,3}(?:\.\d+)?)\s*mg/dL', 'mg/dL'),
+        ('HDL', r'(?:HDL\s+CHOLESTEROL|HDL\s+Direct|HDL).*?(\d{2,3})\s*mg/dL', 'mg/dL'),
+        ('LDL', r'(?:LDL\s+CHOLESTEROL|LDL\s+Direct|LDL).*?(\d{2,3})\s*mg/dL', 'mg/dL'),
+        ('Triglycerides', r'(?:TRIGLYCERIDES|TRIG\s+Direct|Triglycerides).*?(\d{2,3})\s*mg/dL', 'mg/dL'),
+        ('VLDL', r'(?:VLDL\s+CHOLESTEROL|VLDL).*?(?:CALCULATED)?.*?(\d{2,3}(?:\.\d+)?)\s*mg/dL', 'mg/dL'),
         
-        # Diabetes
-        ('HbA1c', r'(?:HbA1c|HBA1C|Glycosylated Hemoglobin).*?([\d.]+)\s*%', '%'),
-        ('Fasting Glucose', r'(?:FASTING|GLUCOSE FASTING).*?(\d+)\s*mg/dL', 'mg/dL'),
-        ('Post Prandial Glucose', r'(?:POST PRANDIAL|PP|2 HRS).*?(\d+)\s*mg/dL', 'mg/dL'),
-        ('Random Glucose', r'(?:RANDOM|GLUCOSE RANDOM).*?(\d+)\s*mg/dL', 'mg/dL'),
+        # HbA1c - handles your exact format "HbA1c - (HPLC)" etc.
+        ('HbA1c', r'(?:HbA1c|HBA1C|Glycosylated\s+Hemoglobin|HbA1c\s+-\s*\(HPLC\)).*?([\d.]{3,4})\s*%', '%'),
         
-        # Kidney
-        ('Creatinine', r'CREATININE.*?([\d.]+)\s*mg/dL', 'mg/dL'),
-        ('Urea', r'(?:UREA|BLOOD UREA).*?(\d+)\s*mg/dL', 'mg/dL'),
-        ('BUN', r'BUN.*?(\d+)\s*mg/dL', 'mg/dL'),
+        # Troponin I - common PharmEasy/Thyrocare naming
+        ('Troponin I', r'(?:TROPONIN\s+I|TROPONIN-I|Troponin\s*I\s*Heart\s*Attack\s*Risk).*?([\d.]+)\s*pg/mL', 'pg/mL'),
         
-        # Liver
-        ('ALT', r'(?:ALT|SGPT).*?(\d+)\s*U/L', 'U/L'),
-        ('AST', r'(?:AST|SGOT).*?(\d+)\s*U/L', 'U/L'),
-        ('Bilirubin Total', r'(?:TOTAL BILIRUBIN|BILIRUBIN TOTAL).*?([\d.]+)\s*mg/dL', 'mg/dL'),
-        
-        # Others (add more as needed)
-        ('Troponin I', r'TROPONIN I.*?([\d.]+)\s*pg/mL', 'pg/mL'),
+        # Glucose (for future reports, even if not in these two)
+        ('Fasting Glucose', r'(?:Fasting\s+Plasma\s+Glucose|GLUCOSE\s+FASTING|FASTING\s+GLUCOSE).*?(\d+)\s*mg/dL', 'mg/dL'),
+        ('Post Prandial Glucose', r'(?:Post\s+Prandial\s+Glucose|GLUCOSE\s+POST\s+PRANDIAL|2\s+HRS\s+POST\s+PRANDIAL).*?(\d+)\s*mg/dL', 'mg/dL'),
     ]
     
     for test_name, pattern, unit in patterns:
-        matches = re.findall(pattern, text, re.IGNORECASE | re.DOTALL)
+        matches = re.findall(pattern, text, re.IGNORECASE | re.DOTALL | re.MULTILINE)
         if matches:
             try:
-                value_str = matches[0]
+                value_str = matches[0]  # take first match
                 value = float(value_str)
-                if 0.01 <= value <= 10000:  # reasonable range
+                if 0.01 <= value <= 10000:
                     tests.append({
                         'name': test_name,
                         'value': value,
                         'unit': unit,
-                        'status': 'NORMAL'  # you can improve this later
+                        'status': 'NORMAL'
                     })
                     print(f"   ✓ {test_name:22} = {value} {unit}")
-            except (ValueError, IndexError):
-                pass
+            except (ValueError, IndexError) as e:
+                print(f"   ✗ Failed to parse {test_name}: {matches} ({e})")
     
-    print(f"\n   → Extracted {len(tests)} tests")
+    print(f"\n   → Extracted {len(tests)} tests total")
     print(f"{'='*60}\n")
     
     return tests
@@ -868,7 +859,14 @@ def compare_reports():
         print("Using direct REGEX extraction (bypassing MedicalReportParser)...\n")
         
         tests1 = extract_tests_from_raw_text(text1)
+        print("\nDEBUG - REPORT 1 EXTRACTED TESTS:")
+        for t in tests1:
+            print(f"  - {t['name']}: {t['value']} {t['unit']}")
+        
         tests2 = extract_tests_from_raw_text(text2)
+        print("\nDEBUG - REPORT 2 EXTRACTED TESTS:")
+        for t in tests2:
+            print(f"  - {t['name']}: {t['value']} {t['unit']}")
         
         if len(tests1) == 0 or len(tests2) == 0:
             return jsonify({
