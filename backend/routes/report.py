@@ -29,7 +29,7 @@ try:
     utils_path = os.path.join(os.path.dirname(__file__), '..', 'utils')
     if utils_path not in sys.path:
         sys.path.insert(0, utils_path)
-   
+  
     from utils.report_parser import MedicalReportParser
     from utils.template_summarizer import TemplateSummarizer
     RULE_BASED_AVAILABLE = True
@@ -62,6 +62,69 @@ def validate_file_size(file):
     size = file.tell()
     file.seek(0) # Reset to beginning
     return size <= MAX_FILE_SIZE, size
+# ============================================
+# REGEX EXTRACTION FUNCTION (ADDED FOR FIX)
+# ============================================
+def extract_tests_from_raw_text(text):
+    """
+    Extract test values DIRECTLY from OCR text using regex
+    Reliable fallback for Thyrocare-style reports
+    """
+    tests = []
+    
+    print(f"\n{'='*60}")
+    print(f"📄 REGEX EXTRACTION FROM RAW TEXT")
+    print(f"{'='*60}\n")
+    
+    patterns = [
+        # Lipid panel
+        ('Total Cholesterol', r'TOTAL CHOLESTEROL.*?(\d+)\s*mg/dL', 'mg/dL'),
+        ('HDL', r'HDL CHOLESTEROL.*?DIRECT.*?(\d+)\s*mg/dL', 'mg/dL'),
+        ('LDL', r'LDL CHOLESTEROL.*?DIRECT.*?(\d+)\s*mg/dL', 'mg/dL'),
+        ('Triglycerides', r'TRIGLYCERIDES.*?(\d+)\s*mg/dL', 'mg/dL'),
+        ('VLDL', r'VLDL CHOLESTEROL.*?CALCULATED.*?([\d.]+)\s*mg/dL', 'mg/dL'),
+        
+        # Diabetes
+        ('HbA1c', r'(?:HbA1c|HBA1C|Glycosylated Hemoglobin).*?([\d.]+)\s*%', '%'),
+        ('Fasting Glucose', r'(?:FASTING|GLUCOSE FASTING).*?(\d+)\s*mg/dL', 'mg/dL'),
+        ('Post Prandial Glucose', r'(?:POST PRANDIAL|PP|2 HRS).*?(\d+)\s*mg/dL', 'mg/dL'),
+        ('Random Glucose', r'(?:RANDOM|GLUCOSE RANDOM).*?(\d+)\s*mg/dL', 'mg/dL'),
+        
+        # Kidney
+        ('Creatinine', r'CREATININE.*?([\d.]+)\s*mg/dL', 'mg/dL'),
+        ('Urea', r'(?:UREA|BLOOD UREA).*?(\d+)\s*mg/dL', 'mg/dL'),
+        ('BUN', r'BUN.*?(\d+)\s*mg/dL', 'mg/dL'),
+        
+        # Liver
+        ('ALT', r'(?:ALT|SGPT).*?(\d+)\s*U/L', 'U/L'),
+        ('AST', r'(?:AST|SGOT).*?(\d+)\s*U/L', 'U/L'),
+        ('Bilirubin Total', r'(?:TOTAL BILIRUBIN|BILIRUBIN TOTAL).*?([\d.]+)\s*mg/dL', 'mg/dL'),
+        
+        # Others (add more as needed)
+        ('Troponin I', r'TROPONIN I.*?([\d.]+)\s*pg/mL', 'pg/mL'),
+    ]
+    
+    for test_name, pattern, unit in patterns:
+        matches = re.findall(pattern, text, re.IGNORECASE | re.DOTALL)
+        if matches:
+            try:
+                value_str = matches[0]
+                value = float(value_str)
+                if 0.01 <= value <= 10000:  # reasonable range
+                    tests.append({
+                        'name': test_name,
+                        'value': value,
+                        'unit': unit,
+                        'status': 'NORMAL'  # you can improve this later
+                    })
+                    print(f"   ✓ {test_name:22} = {value} {unit}")
+            except (ValueError, IndexError):
+                pass
+    
+    print(f"\n   → Extracted {len(tests)} tests")
+    print(f"{'='*60}\n")
+    
+    return tests
 # ============================================
 # MAIN UPLOAD ENDPOINT
 # ============================================
@@ -108,14 +171,14 @@ def upload_report():
             try:
                 print("🔍 VERIFICATION ENABLED - Running forensics...")
                 from utils.pdf_forensics import PDFForensics
-               
+              
                 forensics = PDFForensics()
                 verification_result = forensics.analyze_pdf(filepath)
-               
+              
                 print(f"✅ Verification complete!")
                 print(f" Trust Score: {verification_result['trust_score']}/100")
                 print(f" Risk Level: {verification_result['risk_level']}")
-               
+              
             except Exception as e:
                 print(f"❌ Verification failed: {e}")
                 import traceback
@@ -134,13 +197,13 @@ def upload_report():
         # ============================================
         extracted_text = None
         extraction_method = None
-       
+      
         # Try PyPDF2 first (FASTEST) - ONLY for PDFs
         if filepath.lower().endswith('.pdf') and OCR_AVAILABLE and callable(process_file):
             try:
                 print("🔄 Trying PyPDF2 (fast local extraction)...")
                 extracted_text = process_file(filepath)
-               
+              
                 # Check if text is meaningful (more than 50 chars)
                 if extracted_text and len(extracted_text.strip()) > 50:
                     extraction_method = "PyPDF2 (local)"
@@ -157,16 +220,16 @@ def upload_report():
             try:
                 print("📸 PyPDF2 failed/insufficient text → Trying Gemini AI OCR...")
                 from utils.ai_summarizer import extract_text_from_pdf_with_ai
-               
+              
                 extracted_text = extract_text_from_pdf_with_ai(filepath)
-               
+              
                 if extracted_text and len(extracted_text.strip()) > 50:
                     extraction_method = "Gemini AI OCR"
                     print(f"✅ Gemini AI SUCCESS! Extracted {len(extracted_text)} chars")
                 else:
                     print(f"❌ Gemini AI returned insufficient text")
                     extracted_text = None
-                   
+                  
             except Exception as e:
                 print(f"❌ Gemini AI OCR failed: {e}")
                 import traceback
@@ -175,12 +238,12 @@ def upload_report():
         if not extracted_text or len(extracted_text.strip()) < 50:
             error_msg = 'Could not extract text from report'
             details = 'File may be corrupted, password-protected, or severely damaged. '
-           
+          
             if filepath.lower().endswith('.pdf'):
                 details += 'PDF appears to be scanned but OCR failed. Try a clearer scan or digital PDF.'
             else:
                 details += 'Image quality may be too low for text recognition.'
-           
+          
             return jsonify({
                 'error': error_msg,
                 'details': details
@@ -195,11 +258,11 @@ def upload_report():
         # ============================================
         rule_based_summary = None
         parsed_data = None
-       
+      
         if RULE_BASED_AVAILABLE and extracted_text:
             try:
                 print("🧪 RUNNING RULE-BASED SYSTEM (YOUR CODE)...")
-               
+              
                 # Parse the report
                 parser = MedicalReportParser()
                 parsed_data = parser.parse_report(
@@ -207,17 +270,17 @@ def upload_report():
                     gender="female", # TODO: Get from user profile
                     age=50 # TODO: Get from user profile
                 )
-               
+              
                 print(f"📊 Parsed {parsed_data['total_tests']} tests from report")
                 print(f"📋 Report type: {parsed_data['report_type']}")
-               
+              
                 # Generate summary using template system
                 summarizer = TemplateSummarizer()
                 rule_based_summary = summarizer.generate_summary(parsed_data)
-               
+              
                 print(f"✅ RULE-BASED SUMMARY GENERATED! ({len(rule_based_summary)} chars)")
                 print(f"{'='*60}\n")
-               
+              
             except Exception as e:
                 print(f"❌ Rule-based system error: {e}")
                 import traceback
@@ -230,22 +293,22 @@ def upload_report():
             try:
                 print("⚕️ MEDICAL VALIDATION - Checking value plausibility...")
                 from utils.medical_validator import MedicalValidator
-               
+              
                 validator = MedicalValidator()
                 medical_validation = validator.validate_report(parsed_data)
-               
+              
                 print(f"✅ Medical validation complete!")
                 print(f" Medical Suspicion: {medical_validation['suspicion_score']}")
-               
+              
                 # Combine PDF forensics + medical validation
                 if verification_result:
                     combined_suspicion = verification_result.get('suspicion_score', 0) + medical_validation['suspicion_score']
-                   
+                  
                     # Recalculate trust score
                     verification_result['trust_score'] = max(0, 100 - combined_suspicion)
                     verification_result['findings'].extend(medical_validation['findings'])
                     verification_result['medical_validation'] = medical_validation
-                   
+                  
                     # Redetermine risk level
                     trust_score = verification_result['trust_score']
                     if trust_score >= 90:
@@ -258,10 +321,10 @@ def upload_report():
                         verification_result['risk_level'] = "High Risk"
                     else:
                         verification_result['risk_level'] = "Critical - Likely Fake"
-                   
+                  
                     print(f" Combined Trust Score: {verification_result['trust_score']}/100")
                     print(f" Final Risk Level: {verification_result['risk_level']}")
-               
+              
             except Exception as e:
                 print(f"❌ Medical validation failed: {e}")
                 import traceback
@@ -278,9 +341,9 @@ def upload_report():
             try:
                 print("✨ AI ENHANCEMENT ENABLED - Polishing summary...")
                 from utils.ai_summarizer import enhance_summary_with_ai
-               
+              
                 ai_enhanced_summary = enhance_summary_with_ai(rule_based_summary)
-               
+              
                 # Check if AI actually returned something different
                 if ai_enhanced_summary and ai_enhanced_summary != rule_based_summary:
                     ai_enhancement_success = True
@@ -288,7 +351,7 @@ def upload_report():
                 else:
                     print(f"⚠️ AI enhancement returned same content (likely failed)")
                     ai_enhanced_summary = None
-               
+              
             except Exception as e:
                 print(f"❌ AI enhancement failed: {e}")
                 import traceback
@@ -306,7 +369,7 @@ def upload_report():
         # ============================================
         ai_summary = None
         quick_summary = None
-       
+      
         if not rule_based_summary:
             print("🚨 Rule-based failed, using AI fallback...")
             try:
@@ -323,7 +386,7 @@ def upload_report():
         # ============================================
         # STEP 5: PREPARE FINAL SUMMARY
         # ============================================
-       
+      
         if not final_summary:
             return jsonify({'error': 'Summary generation failed'}), 500
         summary_data = {
@@ -373,7 +436,7 @@ def upload_report():
         }
         result = reports_collection.insert_one(report_data)
         report_id = str(result.inserted_id)
-       
+      
         print(f"💾 Saved to database - Report ID: {report_id}\n")
         # Update user's reports array
         users_collection = current_app.db['users']
@@ -413,7 +476,7 @@ def get_history():
     try:
         if not BSON_AVAILABLE:
             return jsonify({'error': 'Database features unavailable'}), 500
-           
+          
         current_user = get_jwt_identity()
         reports_collection = current_app.db['reports']
         reports = list(reports_collection.find(
@@ -450,7 +513,7 @@ def get_report_details(report_id):
     try:
         if not BSON_AVAILABLE:
             return jsonify({'error': 'Database features unavailable'}), 500
-           
+          
         current_user = get_jwt_identity()
         reports_collection = current_app.db['reports']
         report = reports_collection.find_one({
@@ -480,13 +543,12 @@ def get_report_details(report_id):
         }), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-    
+   
     # ============================================
 # 🔥 ADD THIS TO YOUR report.py FILE 🔥
 # ============================================
 # Add this endpoint AFTER the /details/<report_id> endpoint (around line 500)
 # This is the MISSING endpoint that your frontend is calling!
-
 @report_bp.route('/verify-authenticity/<report_id>', methods=['GET'])
 @jwt_required()
 def verify_report_authenticity(report_id):
@@ -498,50 +560,50 @@ def verify_report_authenticity(report_id):
     try:
         if not BSON_AVAILABLE:
             return jsonify({'error': 'Database features unavailable'}), 500
-        
+       
         current_user = get_jwt_identity()
-        
+       
         # Fetch the report from database
         reports_collection = current_app.db['reports']
         report = reports_collection.find_one({
             '_id': ObjectId(report_id),
             'user_email': current_user
         })
-        
+       
         if not report:
             return jsonify({'error': 'Report not found'}), 404
-        
+       
         print(f"\n{'='*60}")
         print(f"🔍 VERIFYING REPORT AUTHENTICITY")
         print(f"Report ID: {report_id}")
         print(f"User: {current_user}")
         print(f"Filename: {report.get('original_filename', 'Unknown')}")
         print(f"{'='*60}\n")
-        
+       
         filepath = report.get('filepath')
-        
+       
         if not filepath or not os.path.exists(filepath):
             return jsonify({
                 'error': 'Report file not found',
                 'details': 'The original PDF file is no longer available'
             }), 404
-        
+       
         # ============================================
         # STEP 1: PDF FORENSICS
         # ============================================
         verification_result = None
-        
+       
         try:
             print("🔍 Running PDF forensics...")
             from utils.pdf_forensics import PDFForensics
-            
+           
             forensics = PDFForensics()
             verification_result = forensics.analyze_pdf(filepath)
-            
+           
             print(f"✅ PDF Forensics complete!")
-            print(f"   Trust Score: {verification_result['trust_score']}/100")
-            print(f"   Risk Level: {verification_result['risk_level']}")
-            
+            print(f" Trust Score: {verification_result['trust_score']}/100")
+            print(f" Risk Level: {verification_result['risk_level']}")
+           
         except Exception as e:
             print(f"❌ PDF Forensics failed: {e}")
             import traceback
@@ -554,15 +616,15 @@ def verify_report_authenticity(report_id):
                 'findings': [f'Verification error: {str(e)}'],
                 'recommendations': ['Unable to verify - manual review required']
             }
-        
+       
         # ============================================
         # STEP 2: RE-PARSE WITH FIXED PARSER 🔧
         # ============================================
         parsed_data = None
-        
+       
         # Get OCR text (either from database or re-extract)
         extracted_text = report.get('extracted_text')
-        
+       
         if not extracted_text or len(extracted_text.strip()) < 50:
             print("⚠️ No OCR text in database, re-extracting...")
             # Re-extract if needed
@@ -572,33 +634,33 @@ def verify_report_authenticity(report_id):
                 except Exception as e:
                     print(f"❌ Text extraction failed: {e}")
                     extracted_text = None
-        
+       
         if extracted_text and len(extracted_text.strip()) >= 50:
             try:
                 print("🧪 RE-PARSING REPORT WITH FIXED PARSER...")
-                
+               
                 if not RULE_BASED_AVAILABLE:
                     raise Exception("Parser not available")
-                
+               
                 from utils.report_parser import MedicalReportParser
-                
+               
                 # 🔥 RE-PARSE with the FIXED parser
                 parser = MedicalReportParser()
                 parsed_data = parser.parse_report(
                     extracted_text,
-                    gender=report.get('gender', 'female'),  # Get from report if stored
-                    age=report.get('age', 50)  # Get from report if stored
+                    gender=report.get('gender', 'female'), # Get from report if stored
+                    age=report.get('age', 50) # Get from report if stored
                 )
-                
+               
                 print(f"✅ RE-PARSED: Found {parsed_data['total_tests']} tests")
                 print(f"📋 Report type: {parsed_data['report_type']}")
-                
+               
                 # 🔍 DEBUG: Print extracted values
                 print(f"\n📊 EXTRACTED TEST VALUES:")
                 for test in parsed_data.get('all_results', []):
-                    print(f"   • {test['term']}: {test['value']} {test['unit']}")
+                    print(f" • {test['term']}: {test['value']} {test['unit']}")
                 print()
-                
+               
             except Exception as e:
                 print(f"❌ Re-parsing failed: {e}")
                 import traceback
@@ -608,35 +670,35 @@ def verify_report_authenticity(report_id):
         else:
             print("⚠️ Using cached parsed_data from database")
             parsed_data = report.get('parsed_data')
-        
+       
         # ============================================
         # STEP 3: MEDICAL VALIDATION 🔧
         # ============================================
         medical_validation = None
-        
+       
         if parsed_data and parsed_data.get('all_results'):
             try:
                 print("⚕️ MEDICAL VALIDATION - Checking value plausibility...")
                 from utils.medical_validator import MedicalValidator
-                
+               
                 validator = MedicalValidator()
                 medical_validation = validator.validate_report(parsed_data)
-                
+               
                 print(f"✅ Medical validation complete!")
-                print(f"   Medical Suspicion: {medical_validation['suspicion_score']}")
-                print(f"   Validated: {medical_validation['validated']}")
-                
+                print(f" Medical Suspicion: {medical_validation['suspicion_score']}")
+                print(f" Validated: {medical_validation['validated']}")
+               
                 # Combine PDF forensics + medical validation
                 if verification_result:
                     pdf_suspicion = verification_result.get('suspicion_score', 0)
                     medical_suspicion = medical_validation['suspicion_score']
                     combined_suspicion = pdf_suspicion + medical_suspicion
-                    
+                   
                     # Recalculate trust score
                     verification_result['trust_score'] = max(0, 100 - combined_suspicion)
                     verification_result['findings'].extend(medical_validation['findings'])
                     verification_result['medical_validation'] = medical_validation
-                    
+                   
                     # Redetermine risk level based on combined score
                     trust_score = verification_result['trust_score']
                     if trust_score >= 90:
@@ -649,21 +711,21 @@ def verify_report_authenticity(report_id):
                         verification_result['risk_level'] = "High Risk"
                     else:
                         verification_result['risk_level'] = "Critical - Likely Fake"
-                    
+                   
                     print(f"\n📊 FINAL RESULTS:")
-                    print(f"   PDF Suspicion: {pdf_suspicion}")
-                    print(f"   Medical Suspicion: {medical_suspicion}")
-                    print(f"   Combined Suspicion: {combined_suspicion}")
-                    print(f"   Trust Score: {verification_result['trust_score']}/100")
-                    print(f"   Risk Level: {verification_result['risk_level']}")
-                
+                    print(f" PDF Suspicion: {pdf_suspicion}")
+                    print(f" Medical Suspicion: {medical_suspicion}")
+                    print(f" Combined Suspicion: {combined_suspicion}")
+                    print(f" Trust Score: {verification_result['trust_score']}/100")
+                    print(f" Risk Level: {verification_result['risk_level']}")
+               
             except Exception as e:
                 print(f"❌ Medical validation failed: {e}")
                 import traceback
                 traceback.print_exc()
         else:
             print("⚠️ No parsed data available for medical validation")
-        
+       
         # ============================================
         # STEP 4: UPDATE DATABASE WITH NEW RESULTS
         # ============================================
@@ -674,23 +736,23 @@ def verify_report_authenticity(report_id):
                 'medical_validation': medical_validation,
                 'last_verified_at': datetime.now(IST).strftime("%Y-%m-%d %I:%M %p")
             }
-            
+           
             # Also update parsed_data if we re-parsed
             if parsed_data:
                 update_data['parsed_data'] = parsed_data
-            
+           
             reports_collection.update_one(
                 {'_id': ObjectId(report_id)},
                 {'$set': update_data}
             )
-            
+           
             print(f"💾 Updated report in database")
-            
+           
         except Exception as e:
             print(f"⚠️ Failed to update database: {e}")
-        
+       
         print(f"{'='*60}\n")
-        
+       
         # ============================================
         # STEP 5: RETURN RESULTS
         # ============================================
@@ -703,7 +765,7 @@ def verify_report_authenticity(report_id):
             'parsed_data_available': parsed_data is not None,
             'tests_found': len(parsed_data.get('all_results', [])) if parsed_data else 0
         }), 200
-        
+       
     except Exception as e:
         print(f"\n❌ ERROR in verify_report_authenticity:")
         print(f"{'='*60}")
@@ -714,238 +776,146 @@ def verify_report_authenticity(report_id):
             'error': 'Verification failed',
             'details': str(e)
         }), 500
-
-
 # ============================================
 # 🔧 INSTRUCTIONS TO ADD THIS CODE:
 # ============================================
 """
 1. Open your backend/routes/report.py file
-
 2. Find the line with:
    @report_bp.route('/details/<report_id>', methods=['GET'])
-
 3. Scroll down to the END of that function (around line 500)
-
 4. PASTE the entire verify_report_authenticity function above
-
 5. Save the file
-
 6. Restart your Flask server
-
 7. Test by clicking "Verify Authenticity" on a report
-
 That's it! The endpoint will now:
 ✅ Re-parse the report with the FIXED parser
 ✅ Run medical validation with correct values
 ✅ Show proper trust scores
 """
 # ============================================
-# 🔥 COMPARE TWO REPORTS 🔥 - IMPROVED WITH BETTER ERROR HANDLING
+# 🔥 COMPARE TWO REPORTS 🔥 - FIXED WITH REGEX EXTRACTION
 # ============================================
 @report_bp.route('/compare', methods=['POST'])
 @jwt_required()
 def compare_reports():
-    """
-    IMPROVED: Compare two uploaded medical reports using MedicalReportParser
-    With better error handling and timeout management
-    """
     temp_files = []
-   
+    
     try:
         current_user = get_jwt_identity()
-       
-        # Get uploaded files
+        
         if 'report1' not in request.files or 'report2' not in request.files:
             return jsonify({'error': 'Both reports are required'}), 400
-       
+        
         file1 = request.files['report1']
         file2 = request.files['report2']
-       
+        
         if not file1.filename or not file2.filename:
             return jsonify({'error': 'Both files must have filenames'}), 400
-       
-        # Validate file types
+        
         if not (file1.filename.lower().endswith('.pdf') and file2.filename.lower().endswith('.pdf')):
             return jsonify({'error': 'Only PDF files are allowed for comparison'}), 400
-       
-        # Validate file sizes
+        
         is_valid1, size1 = validate_file_size(file1)
         is_valid2, size2 = validate_file_size(file2)
-       
-        if not is_valid1:
+        
+        if not is_valid1 or not is_valid2:
             return jsonify({
-                'error': f'Report 1 too large. Maximum size is {MAX_FILE_SIZE/(1024*1024):.1f}MB',
-                'file_size': f'{size1/(1024*1024):.1f}MB'
+                'error': 'One or both files exceed size limit',
+                'max_size_mb': MAX_FILE_SIZE / (1024*1024),
+                'report1_size_mb': size1 / (1024*1024),
+                'report2_size_mb': size2 / (1024*1024)
             }), 400
-           
-        if not is_valid2:
-            return jsonify({
-                'error': f'Report 2 too large. Maximum size is {MAX_FILE_SIZE/(1024*1024):.1f}MB',
-                'file_size': f'{size2/(1024*1024):.1f}MB'
-            }), 400
-       
-        # Save files temporarily
+        
+        # Save temporarily
         upload_folder = os.path.join(os.getcwd(), 'uploads', 'temp')
         os.makedirs(upload_folder, exist_ok=True)
-       
+        
         timestamp = datetime.now(IST).strftime('%Y%m%d_%H%M%S')
         filename1 = secure_filename(f"temp1_{timestamp}_{file1.filename}")
         filename2 = secure_filename(f"temp2_{timestamp}_{file2.filename}")
-       
+        
         filepath1 = os.path.join(upload_folder, filename1)
         filepath2 = os.path.join(upload_folder, filename2)
-       
+        
         file1.save(filepath1)
         file2.save(filepath2)
-       
+        
         temp_files = [filepath1, filepath2]
-       
+        
         print(f"\n{'='*60}")
-        print(f"🔍 COMPARING REPORTS (Using MedicalReportParser):")
-        print(f"📄 Report 1: {file1.filename} ({size1/(1024*1024):.1f}MB)")
-        print(f"📄 Report 2: {file2.filename} ({size2/(1024*1024):.1f}MB)")
+        print("🔥 COMPARING REPORTS (REGEX MODE)")
+        print(f"Report 1: {file1.filename}  ({size1/(1024*1024):.1f} MB)")
+        print(f"Report 2: {file2.filename}  ({size2/(1024*1024):.1f} MB)")
         print(f"{'='*60}\n")
-       
-        # ============================================
-        # 🔥 IMPROVED TEXT EXTRACTION WITH TIMEOUT WARNING
-        # ============================================
-       
+        
+        # Text extraction
         start_time = time.time()
-       
-        # Extract with better error messages
-        print("📄 Extracting text from Report 1...")
+        
         text1 = extract_text_from_report_with_retry(filepath1, "Report 1")
-       
         if not text1:
-            return jsonify({
-                'error': 'Failed to extract text from Report 1',
-                'details': 'The file may be corrupted, password-protected, or in an unsupported format.',
-                'suggestion': 'Try using a different PDF or ensure it is not scanned. Digital PDFs work best.'
-            }), 400
-       
-        print("📄 Extracting text from Report 2...")
+            return jsonify({'error': 'Could not extract text from Report 1'}), 400
+            
         text2 = extract_text_from_report_with_retry(filepath2, "Report 2")
-       
         if not text2:
-            return jsonify({
-                'error': 'Failed to extract text from Report 2',
-                'details': 'The file may be corrupted, password-protected, or in an unsupported format.',
-                'suggestion': 'Try using a different PDF or ensure it is not scanned. Digital PDFs work best.'
-            }), 400
-       
-        extraction_time = time.time() - start_time
-        print(f"⏱️ Text extraction took {extraction_time:.1f}s")
-        print(f"✅ Text extracted: Report1={len(text1)} chars, Report2={len(text2)} chars\n")
-       
-        # ============================================
-        # PARSE USING YOUR EXISTING PARSER
-        # ============================================
-       
-        if not RULE_BASED_AVAILABLE:
-            return jsonify({
-                'error': 'Report parser not available',
-                'details': 'Internal system error - MedicalReportParser is required.',
-                'suggestion': 'Please contact support if this issue persists.'
-            }), 500
-       
-        from utils.report_parser import MedicalReportParser
-       
-        parser = MedicalReportParser()
-       
-        print("🧪 Parsing reports...")
-        parse_start = time.time()
-       
-        try:
-            parsed1 = parser.parse_report(text1, gender="female", age=50)
-            parsed2 = parser.parse_report(text2, gender="female", age=50)
-        except Exception as e:
-            print(f"❌ Parser error: {e}")
-            return jsonify({
-                'error': 'Failed to parse medical reports',
-                'details': f'Parser error: {str(e)}',
-                'suggestion': 'Reports may be in an unsupported format. Ensure they contain standard medical test results.'
-            }), 400
-       
-        parse_time = time.time() - parse_start
-        print(f"⏱️ Parsing took {parse_time:.1f}s")
-       
-        # Extract tests from parsed data
-        tests1 = extract_tests_from_parsed_data(parsed1)
-        tests2 = extract_tests_from_parsed_data(parsed2)
-       
-        print(f"\n📊 Found {len(tests1)} tests in Report 1")
-        print(f"📊 Found {len(tests2)} tests in Report 2\n")
-       
-        # Check if any tests found
+            return jsonify({'error': 'Could not extract text from Report 2'}), 400
+        
+        print(f"Text extraction took {time.time() - start_time:.1f} seconds\n")
+        
+        # ────────────────────────────────────────────
+        #  THE FIX: use regex instead of parser
+        # ────────────────────────────────────────────
+        print("Using direct REGEX extraction (bypassing MedicalReportParser)...\n")
+        
+        tests1 = extract_tests_from_raw_text(text1)
+        tests2 = extract_tests_from_raw_text(text2)
+        
         if len(tests1) == 0 or len(tests2) == 0:
             return jsonify({
-                'error': 'No test results found in one or both reports',
-                'details': f'Report 1: {len(tests1)} tests found, Report 2: {len(tests2)} tests found',
-                'suggestion': 'Ensure both reports contain standard medical test results with numerical values and units.',
+                'error': 'No numerical test results detected in one or both reports',
                 'report1_tests': len(tests1),
                 'report2_tests': len(tests2)
             }), 400
-       
-        # Debug: Show sample tests
-        if len(tests1) > 0:
-            print("📋 Sample from Report 1:")
-            for test in tests1[:3]:
-                print(f" - {test['name']}: {test['value']} {test['unit']}")
-       
-        if len(tests2) > 0:
-            print("📋 Sample from Report 2:")
-            for test in tests2[:3]:
-                print(f" - {test['name']}: {test['value']} {test['unit']}")
-       
-        # Compare tests
+        
+        # Compare
         comparisons = compare_test_results(tests1, tests2)
-       
-        print(f"\n✅ Found {len(comparisons)} matching tests\n")
-       
-        # If no matches, try fuzzy matching
-        if len(comparisons) == 0 and len(tests1) > 0 and len(tests2) > 0:
-            print("⚠️ No exact matches, trying fuzzy matching...")
+        
+        if len(comparisons) == 0:
+            print("No exact matches → trying fuzzy matching...")
             comparisons = fuzzy_match_tests(tests1, tests2)
-            print(f"✅ Fuzzy matching found {len(comparisons)} matches\n")
-       
-        # If still no matches
+        
         if len(comparisons) == 0:
             return jsonify({
-                'error': 'No matching tests found between reports',
-                'details': f'Report 1 has {len(tests1)} tests, Report 2 has {len(tests2)} tests, but none match.',
-                'suggestion': 'Ensure both reports are from the same lab or contain similar types of tests.',
-                'report1_sample_tests': [t['name'] for t in tests1[:5]],
-                'report2_sample_tests': [t['name'] for t in tests2[:5]]
+                'error': 'No matching tests found between the two reports',
+                'report1_sample': [t['name'] for t in tests1[:6]],
+                'report2_sample': [t['name'] for t in tests2[:6]]
             }), 400
-       
-        # Calculate summary
+        
+        # Summary stats
         improved = worsened = stable = 0
-        lower_is_better = ['cholesterol', 'ldl', 'triglycerides', 'glucose', 'hba1c',
-                          'creatinine', 'urea', 'bilirubin', 'sgpt', 'sgot', 'alt', 'ast']
-       
+        lower_is_better = {'cholesterol', 'ldl', 'triglycerides', 'glucose', 'hba1c',
+                          'creatinine', 'urea', 'bilirubin', 'sgpt', 'sgot', 'alt', 'ast', 'vldl'}
+        
         for comp in comparisons:
-            change = comp['change']
-            is_lower_better = any(t in comp['name'].lower() for t in lower_is_better)
-           
-            if abs(change) < 0.01:
+            delta = comp['change']
+            name_lower = comp['name'].lower()
+            is_lower_better = any(k in name_lower for k in lower_is_better)
+            
+            if abs(delta) < 0.01:
                 stable += 1
                 comp['status'] = 'stable'
-            elif (change < 0 and is_lower_better) or (change > 0 and not is_lower_better):
+            elif (delta < 0 and is_lower_better) or (delta > 0 and not is_lower_better):
                 improved += 1
                 comp['status'] = 'improved'
             else:
                 worsened += 1
                 comp['status'] = 'worsened'
-       
+        
         date1 = extract_date_from_text(text1)
         date2 = extract_date_from_text(text2)
-       
+        
         total_time = time.time() - start_time
-        print(f"✅ Comparison complete in {total_time:.1f}s")
-        print(f"📈 Summary: {improved} improved, {worsened} worsened, {stable} stable")
-        print(f"{'='*60}\n")
-       
+        
         return jsonify({
             'success': True,
             'comparisons': comparisons,
@@ -954,54 +924,29 @@ def compare_reports():
                 'improved_count': improved,
                 'worsened_count': worsened,
                 'stable_count': stable,
-                'improvement_percentage': (improved / len(comparisons) * 100) if comparisons else 0
+                'improvement_percentage': round((improved / len(comparisons) * 100), 1) if comparisons else 0
             },
             'report1_date': date1,
             'report2_date': date2,
-            'report1_total_tests': len(tests1),
-            'report2_total_tests': len(tests2),
+            'report1_total_tests_found': len(tests1),
+            'report2_total_tests_found': len(tests2),
             'report1_filename': file1.filename,
             'report2_filename': file2.filename,
-            'processing_time': f"{total_time:.1f}s"
+            'processing_time_seconds': round(total_time, 1)
         }), 200
-       
+        
     except Exception as e:
-        print(f"\n❌ ERROR in compare_reports:")
-        print(f"{'='*60}")
         import traceback
         traceback.print_exc()
-        print(f"{'='*60}\n")
-       
-        # Better error messages
-        error_msg = str(e)
-        if 'timeout' in error_msg.lower():
-            return jsonify({
-                'error': 'Request timed out',
-                'details': 'Processing took too long. This usually happens with scanned PDFs.',
-                'suggestion': 'Try using digital PDFs instead of scanned images for faster processing.'
-            }), 504
-        elif 'api' in error_msg.lower() or 'gemini' in error_msg.lower():
-            return jsonify({
-                'error': 'AI service temporarily unavailable',
-                'details': 'The text extraction service is experiencing issues.',
-                'suggestion': 'Please try again in a few moments.'
-            }), 503
-        else:
-            return jsonify({
-                'error': 'Failed to compare reports',
-                'details': error_msg,
-                'suggestion': 'Please ensure both files are valid medical reports in PDF format.'
-            }), 500
-       
+        return jsonify({'error': str(e)}), 500
+        
     finally:
-        # Clean up temporary files
-        for filepath in temp_files:
+        for path in temp_files:
             try:
-                if os.path.exists(filepath):
-                    os.remove(filepath)
-                    print(f"🧹 Cleaned up: {os.path.basename(filepath)}")
-            except Exception as e:
-                print(f"⚠️ Failed to clean up {filepath}: {e}")
+                if os.path.exists(path):
+                    os.remove(path)
+            except:
+                pass
 # ============================================
 # 🔥 IMPROVED HELPER FUNCTIONS
 # ============================================
@@ -1022,21 +967,21 @@ def extract_text_from_report_with_retry(filepath, report_name, max_retries=2):
             else:
                 print(f"❌ All {max_retries} attempts failed")
                 return None
-   
+  
     return None
 def extract_text_from_report(filepath, report_name):
     """
     Extract text from a report using PyPDF2 or AI fallback
     """
     text = None
-   
+  
     # Try PyPDF2 first (FAST - usually <1 second)
     if OCR_AVAILABLE and callable(process_file):
         try:
             print(f"🔄 {report_name}: Trying PyPDF2 (fast)...")
             start = time.time()
             text = process_file(filepath)
-           
+          
             if text and len(text.strip()) > 50:
                 elapsed = time.time() - start
                 print(f"✅ {report_name}: PyPDF2 success in {elapsed:.1f}s")
@@ -1045,25 +990,25 @@ def extract_text_from_report(filepath, report_name):
                 print(f"⚠️ {report_name}: PyPDF2 returned minimal text")
         except Exception as e:
             print(f"❌ {report_name} PyPDF2 failed: {e}")
-   
+  
     # AI OCR fallback with timing
     try:
         print(f"🔄 {report_name}: Trying AI OCR (may take 10-30s for scanned PDFs)...")
         start = time.time()
-       
+      
         from utils.ai_summarizer import extract_text_from_pdf_with_ai
-       
+      
         text = extract_text_from_pdf_with_ai(filepath)
-       
+      
         elapsed = time.time() - start
-       
+      
         if text and len(text.strip()) >= 50:
             print(f"✅ {report_name}: AI OCR success in {elapsed:.1f}s")
             return text
         else:
             print(f"❌ {report_name}: AI OCR returned insufficient text")
             return None
-           
+          
     except Exception as e:
         print(f"❌ {report_name} AI OCR failed: {e}")
         return None
@@ -1073,21 +1018,21 @@ def extract_tests_from_parsed_data(parsed_data):
     This converts your parser's format to the comparison format
     """
     tests = []
-   
+  
     if not parsed_data:
         return tests
-   
+  
     # Check if parsed_data has 'all_results'
     if 'all_results' in parsed_data:
         for test in parsed_data['all_results']:
             name = test.get('term', '')
             value = test.get('value')
             unit = test.get('unit', '')
-           
+          
             # Skip if no value
             if value is None or name == '':
                 continue
-           
+          
             # Convert value to float
             try:
                 if isinstance(value, str):
@@ -1096,14 +1041,14 @@ def extract_tests_from_parsed_data(parsed_data):
                     value = float(value)
             except (ValueError, AttributeError):
                 continue
-           
+          
             tests.append({
                 'name': name,
                 'value': value,
                 'unit': unit,
                 'status': test.get('status', 'NORMAL')
             })
-   
+  
     # Fallback: Try categories structure
     elif 'categories' in parsed_data:
         for category_name, category_data in parsed_data.get('categories', {}).items():
@@ -1112,10 +1057,10 @@ def extract_tests_from_parsed_data(parsed_data):
                     name = test.get('name', '')
                     value = test.get('value')
                     unit = test.get('unit', '')
-                   
+                  
                     if value is None or name == '':
                         continue
-                   
+                  
                     try:
                         if isinstance(value, str):
                             value = float(value.strip().replace(',', ''))
@@ -1123,31 +1068,31 @@ def extract_tests_from_parsed_data(parsed_data):
                             value = float(value)
                     except (ValueError, AttributeError):
                         continue
-                   
+                  
                     tests.append({
                         'name': name,
                         'value': value,
                         'unit': unit,
                         'status': test.get('status', 'NORMAL')
                     })
-   
+  
     return tests
 def compare_test_results(tests1, tests2):
     """
     Compare two lists of test results and find matches
     """
     comparisons = []
-   
+  
     # Create lookup dictionaries (case-insensitive)
     tests1_dict = {test['name'].lower(): test for test in tests1}
     tests2_dict = {test['name'].lower(): test for test in tests2}
-   
+  
     # Find matches
     for name_lower in tests1_dict:
         if name_lower in tests2_dict:
             test1 = tests1_dict[name_lower]
             test2 = tests2_dict[name_lower]
-           
+          
             # Check if units match (case-insensitive)
             if test1['unit'].lower() == test2['unit'].lower():
                 comparisons.append({
@@ -1158,7 +1103,7 @@ def compare_test_results(tests1, tests2):
                     'change': test2['value'] - test1['value'],
                     'percent_change': ((test2['value'] - test1['value']) / test1['value'] * 100) if test1['value'] != 0 else 0
                 })
-   
+  
     return comparisons
 def fuzzy_match_tests(tests1, tests2):
     """
@@ -1167,26 +1112,26 @@ def fuzzy_match_tests(tests1, tests2):
     """
     comparisons = []
     used_tests2 = set()
-   
+  
     for test1 in tests1:
         best_match = None
         best_ratio = 0.0
-       
+      
         for test2 in tests2:
             if test2['name'] in used_tests2:
                 continue
-           
+          
             # Calculate similarity
             ratio = SequenceMatcher(None,
                                    test1['name'].lower(),
                                    test2['name'].lower()).ratio()
-           
+          
             # Check if units match and similarity is good
             if ratio > 0.75 and test1['unit'].lower() == test2['unit'].lower():
                 if ratio > best_ratio:
                     best_ratio = ratio
                     best_match = test2
-       
+      
         # If we found a match
         if best_match:
             comparisons.append({
@@ -1199,7 +1144,7 @@ def fuzzy_match_tests(tests1, tests2):
                 'match_confidence': best_ratio
             })
             used_tests2.add(best_match['name'])
-   
+  
     return comparisons
 def extract_date_from_text(text):
     """
@@ -1212,7 +1157,7 @@ def extract_date_from_text(text):
         r'(\d{4})[/-](\d{1,2})[/-](\d{1,2})', # YYYY/MM/DD or YYYY-MM-DD
         r'(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+(\d{1,2}),?\s+(\d{4})', # Month DD, YYYY
     ]
-   
+  
     for pattern in date_patterns:
         matches = re.findall(pattern, text, re.IGNORECASE)
         for match in matches:
@@ -1232,11 +1177,11 @@ def extract_date_from_text(text):
                         month_name, day, year = groups
                         month_num = datetime.strptime(month_name[:3], '%b').month
                         date_obj = datetime(int(year), month_num, int(day))
-                   
+                  
                     return date_obj.strftime("%Y-%m-%d")
             except:
                 continue
-   
+  
     return None
 # ============================================
 # 🔥 HEALTH RISK CALCULATOR ENDPOINT 🔥
@@ -1251,22 +1196,22 @@ def calculate_health_risks(report_id):
     try:
         if not BSON_AVAILABLE:
             return jsonify({'error': 'Database features unavailable'}), 500
-           
+          
         current_user = get_jwt_identity()
-       
+      
         # Fetch the report
         reports_collection = current_app.db['reports']
         report = reports_collection.find_one({
             '_id': ObjectId(report_id),
             'user_email': current_user
         })
-       
+      
         if not report:
             return jsonify({'error': 'Report not found'}), 404
-       
+      
         # Get parsed data from report
         parsed_data = report.get('parsed_data', {})
-       
+      
         print(f"\n{'='*60}")
         print(f"🧮 CALCULATING HEALTH RISKS")
         print(f"Report ID: {report_id}")
@@ -1274,25 +1219,25 @@ def calculate_health_risks(report_id):
         print(f"{'='*60}")
         print(f"Parsed data keys: {list(parsed_data.keys()) if parsed_data else 'NONE'}")
         print(f"{'='*60}\n")
-       
+      
         # Extract test values
         test_values = {}
-       
+      
         # METHOD 1: Try parsed_data['all_results'] (YOUR PARSER FORMAT!)
         if parsed_data and 'all_results' in parsed_data:
             tests = parsed_data['all_results']
             print(f"📋 METHOD 1: Found {len(tests)} tests in parsed_data['all_results']")
-           
+          
             for test in tests:
                 test_name = str(test.get('term', '')).lower()
                 test_value = test.get('value')
                 test_unit = test.get('unit', '')
-               
+              
                 print(f" Test: {test.get('term')} = {test_value} {test_unit}")
-               
+              
                 if test_value is None:
                     continue
-               
+              
                 try:
                     if isinstance(test_value, str):
                         test_value = test_value.strip().replace(',', '')
@@ -1302,7 +1247,7 @@ def calculate_health_risks(report_id):
                 except Exception as e:
                     print(f" ❌ ERROR converting {test_value}: {e}")
                     continue
-               
+              
                 # Map test names to standardized keys
                 if 'total' in test_name and 'cholesterol' in test_name:
                     test_values['total_cholesterol'] = test_value
@@ -1330,22 +1275,22 @@ def calculate_health_risks(report_id):
                     print(f" ✅ Mapped to: urea")
                 else:
                     print(f" ⚠️ No mapping for this test")
-       
+      
         # METHOD 2: Try parsed_data['tests'] (fallback)
         elif parsed_data and 'tests' in parsed_data:
             tests = parsed_data['tests']
             print(f"📋 METHOD 2: Found {len(tests)} tests in parsed_data['tests']")
-           
+          
             for test in tests:
                 test_name = str(test.get('name', '')).lower()
                 test_value = test.get('value')
                 test_unit = test.get('unit', '')
-               
+              
                 print(f" Test: {test.get('name')} = {test_value} {test_unit}")
-               
+              
                 if test_value is None:
                     continue
-               
+              
                 try:
                     if isinstance(test_value, str):
                         test_value = test_value.strip().replace(',', '')
@@ -1355,7 +1300,7 @@ def calculate_health_risks(report_id):
                 except Exception as e:
                     print(f" ❌ ERROR converting {test_value}: {e}")
                     continue
-               
+              
                 # Same mapping logic
                 if 'total' in test_name and 'cholesterol' in test_name:
                     test_values['total_cholesterol'] = test_value
@@ -1373,23 +1318,23 @@ def calculate_health_risks(report_id):
                     test_values['creatinine'] = test_value
                 elif 'urea' in test_name or 'bun' in test_name:
                     test_values['urea'] = test_value
-       
+      
         # METHOD 3: Try categories structure
         if not test_values and parsed_data and 'categories' in parsed_data:
             print(f"📋 METHOD 3: Trying categories structure")
             categories = parsed_data['categories']
             print(f" Found categories: {list(categories.keys())}")
-           
+          
             for category_name, category_data in categories.items():
                 if isinstance(category_data, dict) and 'tests' in category_data:
                     print(f" Category '{category_name}' has {len(category_data['tests'])} tests")
                     for test in category_data['tests']:
                         test_name = str(test.get('name', '')).lower()
                         test_value = test.get('value')
-                       
+                      
                         if test_value is None:
                             continue
-                       
+                      
                         try:
                             if isinstance(test_value, str):
                                 test_value = float(test_value.strip().replace(',', ''))
@@ -1397,7 +1342,7 @@ def calculate_health_risks(report_id):
                                 test_value = float(test_value)
                         except:
                             continue
-                       
+                      
                         # Same mapping logic
                         if 'total' in test_name and 'cholesterol' in test_name:
                             test_values['total_cholesterol'] = test_value
@@ -1415,13 +1360,13 @@ def calculate_health_risks(report_id):
                             test_values['creatinine'] = test_value
                         elif 'urea' in test_name:
                             test_values['urea'] = test_value
-       
+      
         print(f"\n{'='*60}")
         print(f"📊 FINAL EXTRACTED TEST VALUES:")
         for key, value in test_values.items():
             print(f" {key}: {value}")
         print(f"{'='*60}\n")
-       
+      
         # Check if we have any test values
         if not test_values:
             return jsonify({
@@ -1434,10 +1379,10 @@ def calculate_health_risks(report_id):
                     'has_categories_key': 'categories' in parsed_data if parsed_data else False
                 }
             }), 400
-       
+      
         # Calculate risks
         risks = calculate_all_risks(test_values)
-       
+      
         return jsonify({
             'success': True,
             'risks': risks,
@@ -1445,7 +1390,7 @@ def calculate_health_risks(report_id):
             'report_id': report_id,
             'calculated_at': datetime.now(IST).strftime("%Y-%m-%d %I:%M %p")
         }), 200
-       
+      
     except Exception as e:
         print(f"\n❌ ERROR in calculate_health_risks:")
         print(f"{'='*60}")
@@ -1465,13 +1410,13 @@ def calculate_all_risks(test_values):
         'kidney': None,
         'recommendations': []
     }
-   
+  
     # ============================================
     # CARDIOVASCULAR RISK ASSESSMENT
     # ============================================
     cardio_risk = assess_cardiovascular_risk(test_values)
     risks['cardiovascular'] = cardio_risk
-   
+  
     # Deduct from overall score based on cardio risk
     if cardio_risk['level'] == 'HIGH':
         risks['overall_score'] -= 15
@@ -1479,13 +1424,13 @@ def calculate_all_risks(test_values):
     elif cardio_risk['level'] == 'MEDIUM':
         risks['overall_score'] -= 8
         risks['recommendations'].extend(cardio_risk['recommendations'])
-   
+  
     # ============================================
     # DIABETES RISK ASSESSMENT
     # ============================================
     diabetes_risk = assess_diabetes_risk(test_values)
     risks['diabetes'] = diabetes_risk
-   
+  
     # Deduct from overall score based on diabetes risk
     if diabetes_risk['level'] == 'DIABETIC':
         risks['overall_score'] -= 15
@@ -1493,13 +1438,13 @@ def calculate_all_risks(test_values):
     elif diabetes_risk['level'] == 'PREDIABETIC':
         risks['overall_score'] -= 10
         risks['recommendations'].extend(diabetes_risk['recommendations'])
-   
+  
     # ============================================
     # KIDNEY HEALTH ASSESSMENT
     # ============================================
     kidney_health = assess_kidney_health(test_values)
     risks['kidney'] = kidney_health
-   
+  
     # Deduct from overall score based on kidney health
     if kidney_health['level'] == 'HIGH_RISK':
         risks['overall_score'] -= 15
@@ -1507,10 +1452,10 @@ def calculate_all_risks(test_values):
     elif kidney_health['level'] == 'MODERATE_RISK':
         risks['overall_score'] -= 8
         risks['recommendations'].extend(kidney_health['recommendations'])
-   
+  
     # Ensure score doesn't go below 0
     risks['overall_score'] = max(0, risks['overall_score'])
-   
+  
     # Determine overall health status
     if risks['overall_score'] >= 90:
         risks['overall_status'] = 'Excellent'
@@ -1527,10 +1472,10 @@ def calculate_all_risks(test_values):
     else:
         risks['overall_status'] = 'Critical'
         risks['overall_message'] = 'Immediate medical attention recommended. Please consult your doctor.'
-   
+  
     # Remove duplicate recommendations
     risks['recommendations'] = list(set(risks['recommendations']))
-   
+  
     return risks
 def assess_cardiovascular_risk(test_values):
     """
@@ -1542,14 +1487,14 @@ def assess_cardiovascular_risk(test_values):
         'factors': [],
         'recommendations': []
     }
-   
+  
     total_chol = test_values.get('total_cholesterol')
     hdl = test_values.get('hdl')
     ldl = test_values.get('ldl')
     triglycerides = test_values.get('triglycerides')
-   
+  
     risk_points = 0
-   
+  
     # Total Cholesterol assessment
     if total_chol is not None:
         if total_chol >= 240:
@@ -1560,7 +1505,7 @@ def assess_cardiovascular_risk(test_values):
             risk['factors'].append(f'Borderline High Cholesterol: {total_chol} mg/dL (200-239)')
         else:
             risk['factors'].append(f'Normal Total Cholesterol: {total_chol} mg/dL (<200)')
-   
+  
     # HDL assessment
     if hdl is not None:
         if hdl < 40:
@@ -1571,7 +1516,7 @@ def assess_cardiovascular_risk(test_values):
             risk['factors'].append(f'High HDL (Good Cholesterol): {hdl} mg/dL (>=60) - Protective!')
         else:
             risk['factors'].append(f'Normal HDL: {hdl} mg/dL (40-60)')
-   
+  
     # LDL assessment
     if ldl is not None:
         if ldl >= 160:
@@ -1585,7 +1530,7 @@ def assess_cardiovascular_risk(test_values):
             risk['factors'].append(f'Near Optimal LDL: {ldl} mg/dL (100-129)')
         else:
             risk['factors'].append(f'Optimal LDL: {ldl} mg/dL (<100)')
-   
+  
     # Triglycerides assessment
     if triglycerides is not None:
         if triglycerides >= 200:
@@ -1596,7 +1541,7 @@ def assess_cardiovascular_risk(test_values):
             risk['factors'].append(f'Borderline High Triglycerides: {triglycerides} mg/dL (150-199)')
         else:
             risk['factors'].append(f'Normal Triglycerides: {triglycerides} mg/dL (<150)')
-   
+  
     # Determine risk level
     if risk_points >= 5:
         risk['level'] = 'HIGH'
@@ -1623,9 +1568,9 @@ def assess_cardiovascular_risk(test_values):
             'Continue regular exercise',
             'Annual cholesterol screening recommended'
         ]
-   
+  
     risk['score'] = risk_points
-   
+  
     return risk
 def assess_diabetes_risk(test_values):
     """
@@ -1636,10 +1581,10 @@ def assess_diabetes_risk(test_values):
         'factors': [],
         'recommendations': []
     }
-   
+  
     hba1c = test_values.get('hba1c')
     fasting_glucose = test_values.get('fasting_glucose')
-   
+  
     # HbA1c assessment (primary indicator)
     if hba1c is not None:
         if hba1c >= 6.5:
@@ -1672,7 +1617,7 @@ def assess_diabetes_risk(test_values):
                 'Annual HbA1c screening recommended',
                 'Balanced diet with limited processed sugars'
             ]
-   
+  
     # Fasting Glucose assessment (secondary indicator)
     if fasting_glucose is not None:
         if fasting_glucose >= 126:
@@ -1687,7 +1632,7 @@ def assess_diabetes_risk(test_values):
             if risk['level'] == 'UNKNOWN':
                 risk['level'] = 'NORMAL'
             risk['factors'].append(f'Fasting Glucose: {fasting_glucose} mg/dL (<100 is normal)')
-   
+  
     return risk
 def assess_kidney_health(test_values):
     """
@@ -1698,12 +1643,12 @@ def assess_kidney_health(test_values):
         'factors': [],
         'recommendations': []
     }
-   
+  
     creatinine = test_values.get('creatinine')
     urea = test_values.get('urea')
-   
+  
     risk_points = 0
-   
+  
     # Creatinine assessment
     if creatinine is not None:
         if creatinine > 1.3: # Elevated for most adults
@@ -1714,7 +1659,7 @@ def assess_kidney_health(test_values):
             risk['factors'].append(f'Borderline Creatinine: {creatinine} mg/dL (>1.1)')
         else:
             risk['factors'].append(f'Normal Creatinine: {creatinine} mg/dL (<=1.1)')
-   
+  
     # Urea assessment
     if urea is not None:
         if urea > 45: # Elevated
@@ -1725,7 +1670,7 @@ def assess_kidney_health(test_values):
             risk['factors'].append(f'Borderline Urea: {urea} mg/dL (>40)')
         else:
             risk['factors'].append(f'Normal Urea: {urea} mg/dL (<=40)')
-   
+  
     # Determine risk level
     if risk_points >= 3:
         risk['level'] = 'HIGH_RISK'
@@ -1753,7 +1698,7 @@ def assess_kidney_health(test_values):
             'Maintain adequate hydration',
             'Annual kidney screening recommended'
         ]
-   
+  
     return risk
 # ============================================
 # 🔥 DIET RECOMMENDATIONS ENDPOINT 🔥
@@ -1768,34 +1713,34 @@ def get_diet_recommendations(report_id):
     try:
         if not BSON_AVAILABLE:
             return jsonify({'error': 'Database features unavailable'}), 500
-           
+          
         current_user = get_jwt_identity()
-       
+      
         # Fetch the report
         reports_collection = current_app.db['reports']
         report = reports_collection.find_one({
             '_id': ObjectId(report_id),
             'user_email': current_user
         })
-       
+      
         if not report:
             return jsonify({'error': 'Report not found'}), 404
-       
+      
         # Get parsed data from report
         parsed_data = report.get('parsed_data', {})
-       
+      
         if not parsed_data:
             return jsonify({
                 'error': 'No test data available',
                 'details': 'Report must be processed to generate diet recommendations'
             }), 400
-       
+      
         print(f"\n{'='*60}")
         print(f"🍎 GENERATING DIET RECOMMENDATIONS")
         print(f"Report ID: {report_id}")
         print(f"User: {current_user}")
         print(f"{'='*60}\n")
-       
+      
         # Import the diet recommender
         try:
             import sys
@@ -1803,29 +1748,29 @@ def get_diet_recommendations(report_id):
             utils_path = os.path.join(os.path.dirname(__file__), '..', 'utils')
             if utils_path not in sys.path:
                 sys.path.insert(0, utils_path)
-           
+          
             from diet_recommender import generate_diet_recommendations
-           
+          
             # Generate diet plan
             diet_plan = generate_diet_recommendations(parsed_data)
-           
+          
             print(f"✅ Diet plan generated successfully!")
             print(f"📋 Conditions detected: {diet_plan.get('conditions_detected', [])}")
             print(f"{'='*60}\n")
-           
+          
             # Save diet plan to report
             reports_collection.update_one(
                 {'_id': ObjectId(report_id)},
                 {'$set': {'diet_recommendations': diet_plan}}
             )
-           
+          
             return jsonify({
                 'success': True,
                 'diet_plan': diet_plan,
                 'report_id': report_id,
                 'generated_at': datetime.now(IST).strftime("%Y-%m-%d %I:%M %p")
             }), 200
-           
+          
         except ImportError as e:
             print(f"❌ Failed to import diet recommender: {e}")
             import traceback
@@ -1842,7 +1787,7 @@ def get_diet_recommendations(report_id):
                 'error': 'Failed to generate diet recommendations',
                 'details': str(e)
             }), 500
-       
+      
     except Exception as e:
         print(f"\n❌ ERROR in get_diet_recommendations:")
         print(f"{'='*60}")
@@ -1850,7 +1795,7 @@ def get_diet_recommendations(report_id):
         traceback.print_exc()
         print(f"{'='*60}\n")
         return jsonify({'error': str(e), 'type': 'exception'}), 500
-   
+  
 # ============================================
 # 🔥 CHAT WITH REPORT ENDPOINT 🔥
 # ============================================
@@ -1864,57 +1809,57 @@ def chat_with_report(report_id):
     try:
         if not BSON_AVAILABLE:
             return jsonify({'error': 'Database features unavailable'}), 500
-           
+          
         current_user = get_jwt_identity()
-       
+      
         # Get user's question and chat history
         data = request.get_json()
         user_question = data.get('question', '').strip()
         chat_history = data.get('history', []) # List of {role, content}
-       
+      
         if not user_question:
             return jsonify({'error': 'Question is required'}), 400
-       
+      
         # Fetch the report
         reports_collection = current_app.db['reports']
         report = reports_collection.find_one({
             '_id': ObjectId(report_id),
             'user_email': current_user
         })
-       
+      
         if not report:
             return jsonify({'error': 'Report not found'}), 404
-       
+      
         print(f"\n{'='*60}")
         print(f"💬 CHAT WITH REPORT")
         print(f"Report ID: {report_id}")
         print(f"Question: {user_question}")
         print(f"History length: {len(chat_history)}")
         print(f"{'='*60}\n")
-       
+      
         # Get report data
         plain_summary = report.get('plain_language_summary', '')
         parsed_data = report.get('parsed_data', {})
         extracted_text = report.get('extracted_text', '')
-       
+      
         # Build context for AI
         try:
             import requests
             import os
-           
+          
             # Use REST API with correct model
             GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
             url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
-           
+          
             headers = {"Content-Type": "application/json"}
-           
+          
             # Build comprehensive context
             context = f"""You are a helpful medical assistant analyzing a patient's medical report.
 REPORT SUMMARY:
 {plain_summary}
 AVAILABLE TEST DATA:
 """
-           
+          
             # Add test results if available
             if parsed_data and 'all_results' in parsed_data:
                 context += "\nTest Results:\n"
@@ -1925,7 +1870,7 @@ AVAILABLE TEST DATA:
                     status = test.get('status', '')
                     if term and value:
                         context += f"- {term}: {value} {unit} ({status})\n"
-           
+          
             context += f"""
 INSTRUCTIONS:
 1. Answer the user's question based on the report data above
@@ -1937,33 +1882,33 @@ INSTRUCTIONS:
 7. Keep responses concise but informative
 USER QUESTION: {user_question}
 Provide a helpful, accurate answer:"""
-           
+          
             # Build conversation history for context
             conversation = []
             for msg in chat_history[-6:]: # Keep last 6 messages for context
                 conversation.append(f"{msg['role'].upper()}: {msg['content']}")
-           
+          
             if conversation:
                 context = "CONVERSATION HISTORY:\n" + "\n".join(conversation) + "\n\n" + context
-           
+          
             # Generate response using REST API
             print("🤖 Generating AI response...")
-           
+          
             payload = {
                 "contents": [{
                     "parts": [{"text": context}]
                 }]
             }
-           
+          
             response = requests.post(url, headers=headers, json=payload, timeout=30)
-           
+          
             if response.status_code == 200:
                 result = response.json()
                 ai_answer = result['candidates'][0]['content']['parts'][0]['text']
-               
+              
                 print(f"✅ AI Response generated ({len(ai_answer)} chars)")
                 print(f"{'='*60}\n")
-               
+              
                 return jsonify({
                     'success': True,
                     'answer': ai_answer,
@@ -1973,7 +1918,7 @@ Provide a helpful, accurate answer:"""
             else:
                 error_detail = response.json() if response.text else response.text
                 raise Exception(f"Gemini API Error {response.status_code}: {error_detail}")
-           
+          
         except Exception as e:
             print(f"❌ AI generation failed: {e}")
             import traceback
@@ -1982,7 +1927,7 @@ Provide a helpful, accurate answer:"""
                 'error': 'Failed to generate response',
                 'details': str(e)
             }), 500
-       
+      
     except Exception as e:
         print(f"\n❌ ERROR in chat_with_report:")
         print(f"{'='*60}")
@@ -1999,51 +1944,51 @@ def get_chat_suggestions(report_id):
     try:
         if not BSON_AVAILABLE:
             return jsonify({'error': 'Database features unavailable'}), 500
-           
+          
         current_user = get_jwt_identity()
-       
+      
         # Fetch the report
         reports_collection = current_app.db['reports']
         report = reports_collection.find_one({
             '_id': ObjectId(report_id),
             'user_email': current_user
         })
-       
+      
         if not report:
             return jsonify({'error': 'Report not found'}), 404
-       
+      
         # Get parsed data
         parsed_data = report.get('parsed_data', {})
-       
+      
         # Build smart suggestions based on report
         suggestions = [
             "Can you explain my test results in simple terms?",
             "What do my abnormal values mean?",
             "What should I do to improve my health?"
         ]
-       
+      
         # Add condition-specific suggestions
         if parsed_data and 'all_results' in parsed_data:
             abnormal_tests = [t for t in parsed_data['all_results'] if t.get('status') in ['HIGH', 'LOW', 'CRITICAL']]
-           
+          
             if abnormal_tests:
                 # Add specific questions about abnormal tests
                 for test in abnormal_tests[:2]: # First 2 abnormal tests
                     term = test.get('term', '')
                     if term:
                         suggestions.append(f"Why is my {term} abnormal?")
-               
+              
                 suggestions.append("What foods should I eat based on my results?")
                 suggestions.append("Are these results concerning?")
-       
+      
         # Limit to 6 suggestions
         suggestions = suggestions[:6]
-       
+      
         return jsonify({
             'success': True,
             'suggestions': suggestions
         }), 200
-       
+      
     except Exception as e:
         print(f"❌ ERROR in get_chat_suggestions: {e}")
         return jsonify({'error': str(e)}), 500
@@ -2059,19 +2004,19 @@ def delete_report(report_id):
     try:
         if not BSON_AVAILABLE:
             return jsonify({'error': 'Database features unavailable'}), 500
-           
+          
         current_user = get_jwt_identity()
-       
+      
         # Fetch the report
         reports_collection = current_app.db['reports']
         report = reports_collection.find_one({
             '_id': ObjectId(report_id),
             'user_email': current_user
         })
-       
+      
         if not report:
             return jsonify({'error': 'Report not found'}), 404
-       
+      
         # Delete the file from uploads folder
         filepath = report.get('filepath')
         if filepath and os.path.exists(filepath):
@@ -2080,23 +2025,23 @@ def delete_report(report_id):
                 print(f"🗑️ Deleted file: {filepath}")
             except Exception as e:
                 print(f"⚠️ Failed to delete file {filepath}: {e}")
-       
+      
         # Delete from database
         result = reports_collection.delete_one({'_id': ObjectId(report_id)})
-       
+      
         # Remove from user's reports array
         users_collection = current_app.db['users']
         users_collection.update_one(
             {'email': current_user},
             {'$pull': {'reports': report_id}}
         )
-       
+      
         return jsonify({
             'success': True,
             'message': 'Report deleted successfully',
             'report_id': report_id
         }), 200
-       
+      
     except Exception as e:
         print(f"\n❌ ERROR in delete_report:")
         print(f"{'='*60}")
