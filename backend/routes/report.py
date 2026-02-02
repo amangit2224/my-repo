@@ -67,95 +67,135 @@ def validate_file_size(file):
 # ============================================
 def extract_tests_from_raw_text(text):
     """
-    Extract test values DIRECTLY from OCR text using ROBUST regex patterns
-    FIXED: Now handles ALL value ranges (including decimals like 5.9, 1.4, etc.)
+    🔥 FINAL WORKING VERSION - Extracts ACTUAL values, not reference ranges
+    
+    The key insight: Thyrocare format is:
+    TEST_NAME TECHNOLOGY VALUE UNIT < REFERENCE_RANGE
+    
+    We need to grab the number RIGHT AFTER the technology word, NOT the reference range!
     """
     tests = []
     
     print(f"\n{'='*60}")
-    print(f"📄 REGEX EXTRACTION FROM RAW TEXT (FIXED VERSION)")
+    print(f"📄 REGEX EXTRACTION (FINAL FIX)")
     print(f"{'='*60}\n")
     
-    # 🔧 FIXED PATTERNS - Now properly capture the VALUE column
-    # Strategy: Look for TEST_NAME, then skip TECHNOLOGY column, then grab VALUE
-    patterns = [
-        # Lipid panel - FIXED to capture values in correct column
-        ('Total Cholesterol', r'(?:TOTAL\s+CHOLESTEROL|CHOLESTEROL\s+TOTAL).*?(?:PHOTOMETRY|CALCULATED).*?(\d+(?:\.\d+)?)\s*mg/dL', 'mg/dL'),
-        ('HDL', r'HDL\s+CHOLESTEROL.*?(?:PHOTOMETRY|DIRECT).*?(\d+(?:\.\d+)?)\s*mg/dL', 'mg/dL'),
-        ('LDL', r'LDL\s+CHOLESTEROL.*?(?:PHOTOMETRY|DIRECT).*?(\d+(?:\.\d+)?)\s*mg/dL', 'mg/dL'),
-        ('Triglycerides', r'TRIGLYCERIDES.*?PHOTOMETRY.*?(\d+(?:\.\d+)?)\s*mg/dL', 'mg/dL'),
-        ('VLDL', r'VLDL\s+CHOLESTEROL.*?CALCULATED.*?(\d+(?:\.\d+)?)\s*mg/dL', 'mg/dL'),
-        
-        # HbA1c - FIXED to handle "H.P.L.C 5.9 %" format
-        ('HbA1c', r'HbA1c.*?(?:H\.P\.L\.C|HPLC).*?([\d.]+)\s*%', '%'),
-        
-        # Troponin I
-        ('Troponin I', r'TROPONIN\s+I.*?(?:C\.M\.I\.A|CMIA).*?([\d.]+)\s*pg/mL', 'pg/mL'),
-        
-        # Glucose (if present)
-        ('Glucose', r'(?:GLUCOSE|FASTING\s+GLUCOSE).*?(?:PHOTOMETRY|GLUCOSE).*?(\d+(?:\.\d+)?)\s*mg/dL', 'mg/dL'),
-    ]
+    # Split text into lines for better control
+    lines = text.split('\n')
     
-    # Also try SIMPLER patterns as fallback (without TECHNOLOGY column requirement)
-    fallback_patterns = [
-        ('Total Cholesterol', r'TOTAL\s+CHOLESTEROL.*?(\d+)\s*mg/dL', 'mg/dL'),
-        ('HDL', r'HDL(?:\s+CHOLESTEROL)?.*?(\d+)\s*mg/dL', 'mg/dL'),
-        ('LDL', r'LDL(?:\s+CHOLESTEROL)?.*?(\d+)\s*mg/dL', 'mg/dL'),
-        ('Triglycerides', r'TRIGLYCERIDES.*?(\d+)\s*mg/dL', 'mg/dL'),
-        ('HbA1c', r'HbA1c[^0-9]+([\d.]+)\s*%', '%'),
-        ('Troponin I', r'TROPONIN\s*I[^0-9]+([\d.]+)\s*(?:pg/mL|pg/ml)', 'pg/mL'),
-    ]
-    
-    extracted_names = set()
-    
-    # Try main patterns first
-    for test_name, pattern, unit in patterns:
-        if test_name in extracted_names:
+    # Process each line looking for test results
+    for line in lines:
+        line = line.strip()
+        if not line:
             continue
-            
-        matches = re.findall(pattern, text, re.IGNORECASE | re.DOTALL)
-        if matches:
-            try:
-                value_str = matches[0]
-                value = float(value_str)
-                
-                # Sanity check - realistic medical value ranges
-                if 0.01 <= value <= 10000:
-                    tests.append({
-                        'name': test_name,
-                        'value': value,
-                        'unit': unit,
-                        'status': 'NORMAL'
-                    })
-                    extracted_names.add(test_name)
-                    print(f"   ✓ {test_name:25} = {value:8} {unit:10} (main pattern)")
-                else:
-                    print(f"   ✗ {test_name:25} = {value:8} {unit:10} (out of range, skipped)")
-            except (ValueError, IndexError) as e:
-                print(f"   ✗ {test_name:25}: Failed to parse {matches} ({e})")
-    
-    # Try fallback patterns for any missing tests
-    for test_name, pattern, unit in fallback_patterns:
-        if test_name in extracted_names:
+        
+        # Skip ratio/calculated lines
+        if 'RATIO' in line.upper() or line.upper().startswith(('TC/', 'TRIG/', 'LDL/', 'HDL/')):
             continue
-            
-        matches = re.findall(pattern, text, re.IGNORECASE | re.DOTALL)
-        if matches:
-            try:
-                value_str = matches[0]
-                value = float(value_str)
-                
-                if 0.01 <= value <= 10000:
-                    tests.append({
-                        'name': test_name,
-                        'value': value,
-                        'unit': unit,
-                        'status': 'NORMAL'
-                    })
-                    extracted_names.add(test_name)
-                    print(f"   ✓ {test_name:25} = {value:8} {unit:10} (fallback pattern)")
-            except (ValueError, IndexError):
-                pass
+        
+        # ────────────────────────────────────────────
+        # TOTAL CHOLESTEROL
+        # ────────────────────────────────────────────
+        if 'TOTAL CHOLESTEROL' in line.upper() or 'CHOLESTEROL TOTAL' in line.upper():
+            # Match: "TOTAL CHOLESTEROL PHOTOMETRY 206 mg/dL < 200"
+            #                                     ^^^  (we want this)
+            match = re.search(r'(?:TOTAL\s+CHOLESTEROL|CHOLESTEROL\s+TOTAL)\s+\S+\s+(\d+(?:\.\d+)?)\s*mg/dL', line, re.IGNORECASE)
+            if match:
+                value = float(match.group(1))
+                tests.append({'name': 'Total Cholesterol', 'value': value, 'unit': 'mg/dL', 'status': 'NORMAL'})
+                print(f"   ✓ Total Cholesterol = {value} mg/dL")
+                continue
+        
+        # ────────────────────────────────────────────
+        # HDL CHOLESTEROL
+        # ────────────────────────────────────────────
+        if 'HDL' in line.upper() and 'CHOLESTEROL' in line.upper():
+            # Match: "HDL CHOLESTEROL - DIRECT PHOTOMETRY 46 mg/dL 40-60"
+            #                                            ^^  (we want this)
+            match = re.search(r'HDL\s+CHOLESTEROL.*?(?:PHOTOMETRY|DIRECT)\s+(\d+(?:\.\d+)?)\s*mg/dL', line, re.IGNORECASE)
+            if match:
+                value = float(match.group(1))
+                tests.append({'name': 'HDL', 'value': value, 'unit': 'mg/dL', 'status': 'NORMAL'})
+                print(f"   ✓ HDL = {value} mg/dL")
+                continue
+        
+        # ────────────────────────────────────────────
+        # LDL CHOLESTEROL
+        # ────────────────────────────────────────────
+        if 'LDL' in line.upper() and 'CHOLESTEROL' in line.upper():
+            # Match: "LDL CHOLESTEROL - DIRECT PHOTOMETRY 123 mg/dL < 100"
+            #                                            ^^^  (we want this)
+            match = re.search(r'LDL\s+CHOLESTEROL.*?(?:PHOTOMETRY|DIRECT)\s+(\d+(?:\.\d+)?)\s*mg/dL', line, re.IGNORECASE)
+            if match:
+                value = float(match.group(1))
+                tests.append({'name': 'LDL', 'value': value, 'unit': 'mg/dL', 'status': 'NORMAL'})
+                print(f"   ✓ LDL = {value} mg/dL")
+                continue
+        
+        # ────────────────────────────────────────────
+        # TRIGLYCERIDES
+        # ────────────────────────────────────────────
+        if 'TRIGLYCERIDE' in line.upper():
+            # Match: "TRIGLYCERIDES PHOTOMETRY 238 mg/dL < 150"
+            #                                  ^^^  (we want this)
+            match = re.search(r'TRIGLYCERIDE\w*\s+\S+\s+(\d+(?:\.\d+)?)\s*mg/dL', line, re.IGNORECASE)
+            if match:
+                value = float(match.group(1))
+                tests.append({'name': 'Triglycerides', 'value': value, 'unit': 'mg/dL', 'status': 'NORMAL'})
+                print(f"   ✓ Triglycerides = {value} mg/dL")
+                continue
+        
+        # ────────────────────────────────────────────
+        # VLDL CHOLESTEROL
+        # ────────────────────────────────────────────
+        if 'VLDL' in line.upper() and 'CHOLESTEROL' in line.upper():
+            # Match: "VLDL CHOLESTEROL CALCULATED 47.68 mg/dL 5 - 40"
+            #                                     ^^^^^  (we want this)
+            match = re.search(r'VLDL\s+CHOLESTEROL.*?CALCULATED\s+([\d.]+)\s*mg/dL', line, re.IGNORECASE)
+            if match:
+                value = float(match.group(1))
+                tests.append({'name': 'VLDL', 'value': value, 'unit': 'mg/dL', 'status': 'NORMAL'})
+                print(f"   ✓ VLDL = {value} mg/dL")
+                continue
+        
+        # ────────────────────────────────────────────
+        # HbA1c
+        # ────────────────────────────────────────────
+        if 'HBA1C' in line.upper() or 'HB A1C' in line.upper():
+            # Match: "HbA1c H.P.L.C 5.9 %"
+            #                      ^^^  (we want this)
+            match = re.search(r'HbA1c.*?(?:H\.P\.L\.C|HPLC)\s+([\d.]+)\s*%', line, re.IGNORECASE)
+            if match:
+                value = float(match.group(1))
+                tests.append({'name': 'HbA1c', 'value': value, 'unit': '%', 'status': 'NORMAL'})
+                print(f"   ✓ HbA1c = {value} %")
+                continue
+        
+        # ────────────────────────────────────────────
+        # TROPONIN I
+        # ────────────────────────────────────────────
+        if 'TROPONIN' in line.upper() and 'I' in line.upper():
+            # Match: "TROPONIN I HEART ATTACK RISK C.M.I.A 1.4 pg/mL"
+            #                                            ^^^  (we want this)
+            match = re.search(r'TROPONIN\s+I.*?(?:C\.M\.I\.A|CMIA)\s+([\d.]+)\s*pg/mL', line, re.IGNORECASE)
+            if match:
+                value = float(match.group(1))
+                tests.append({'name': 'Troponin I', 'value': value, 'unit': 'pg/mL', 'status': 'NORMAL'})
+                print(f"   ✓ Troponin I = {value} pg/mL")
+                continue
+        
+        # ────────────────────────────────────────────
+        # GLUCOSE
+        # ────────────────────────────────────────────
+        if 'GLUCOSE' in line.upper() and 'HbA1c' not in line:
+            # Match: "GLUCOSE PHOTOMETRY 95 mg/dL"
+            #                           ^^  (we want this)
+            match = re.search(r'GLUCOSE\s+\S+\s+(\d+(?:\.\d+)?)\s*mg/dL', line, re.IGNORECASE)
+            if match:
+                value = float(match.group(1))
+                tests.append({'name': 'Glucose', 'value': value, 'unit': 'mg/dL', 'status': 'NORMAL'})
+                print(f"   ✓ Glucose = {value} mg/dL")
+                continue
     
     print(f"\n   → Extracted {len(tests)} tests total")
     print(f"{'='*60}\n")
