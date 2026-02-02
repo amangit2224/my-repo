@@ -67,40 +67,59 @@ def validate_file_size(file):
 # ============================================
 def extract_tests_from_raw_text(text):
     """
-    Extract test values DIRECTLY from OCR text using regex
-    Reliable fallback for Thyrocare/PharmEasy reports
+    Extract test values DIRECTLY from OCR text using ROBUST regex patterns
+    FIXED: Now handles ALL value ranges (including decimals like 5.9, 1.4, etc.)
     """
     tests = []
     
     print(f"\n{'='*60}")
-    print(f"📄 REGEX EXTRACTION FROM RAW TEXT (UPDATED ROBUST VERSION)")
+    print(f"📄 REGEX EXTRACTION FROM RAW TEXT (FIXED VERSION)")
     print(f"{'='*60}\n")
     
+    # 🔧 FIXED PATTERNS - Now properly capture the VALUE column
+    # Strategy: Look for TEST_NAME, then skip TECHNOLOGY column, then grab VALUE
     patterns = [
-        # Lipid panel - super flexible, handles table jumbling, variants
-        ('Total Cholesterol', r'(?:TOTAL\s+CHOLESTEROL|TOTAL\s+CHOL|Cholesterol\s+Total).*?(\d{2,3}(?:\.\d+)?)\s*mg/dL', 'mg/dL'),
-        ('HDL', r'(?:HDL\s+CHOLESTEROL|HDL\s+Direct|HDL).*?(\d{2,3})\s*mg/dL', 'mg/dL'),
-        ('LDL', r'(?:LDL\s+CHOLESTEROL|LDL\s+Direct|LDL).*?(\d{2,3})\s*mg/dL', 'mg/dL'),
-        ('Triglycerides', r'(?:TRIGLYCERIDES|TRIG\s+Direct|Triglycerides).*?(\d{2,3})\s*mg/dL', 'mg/dL'),
-        ('VLDL', r'(?:VLDL\s+CHOLESTEROL|VLDL).*?(?:CALCULATED)?.*?(\d{2,3}(?:\.\d+)?)\s*mg/dL', 'mg/dL'),
+        # Lipid panel - FIXED to capture values in correct column
+        ('Total Cholesterol', r'(?:TOTAL\s+CHOLESTEROL|CHOLESTEROL\s+TOTAL).*?(?:PHOTOMETRY|CALCULATED).*?(\d+(?:\.\d+)?)\s*mg/dL', 'mg/dL'),
+        ('HDL', r'HDL\s+CHOLESTEROL.*?(?:PHOTOMETRY|DIRECT).*?(\d+(?:\.\d+)?)\s*mg/dL', 'mg/dL'),
+        ('LDL', r'LDL\s+CHOLESTEROL.*?(?:PHOTOMETRY|DIRECT).*?(\d+(?:\.\d+)?)\s*mg/dL', 'mg/dL'),
+        ('Triglycerides', r'TRIGLYCERIDES.*?PHOTOMETRY.*?(\d+(?:\.\d+)?)\s*mg/dL', 'mg/dL'),
+        ('VLDL', r'VLDL\s+CHOLESTEROL.*?CALCULATED.*?(\d+(?:\.\d+)?)\s*mg/dL', 'mg/dL'),
         
-        # HbA1c - handles your exact format "HbA1c - (HPLC)" etc.
-        ('HbA1c', r'(?:HbA1c|HBA1C|Glycosylated\s+Hemoglobin|HbA1c\s+-\s*\(HPLC\)).*?([\d.]{3,4})\s*%', '%'),
+        # HbA1c - FIXED to handle "H.P.L.C 5.9 %" format
+        ('HbA1c', r'HbA1c.*?(?:H\.P\.L\.C|HPLC).*?([\d.]+)\s*%', '%'),
         
-        # Troponin I - common PharmEasy/Thyrocare naming
-        ('Troponin I', r'(?:TROPONIN\s+I|TROPONIN-I|Troponin\s*I\s*Heart\s*Attack\s*Risk).*?([\d.]+)\s*pg/mL', 'pg/mL'),
+        # Troponin I
+        ('Troponin I', r'TROPONIN\s+I.*?(?:C\.M\.I\.A|CMIA).*?([\d.]+)\s*pg/mL', 'pg/mL'),
         
-        # Glucose (for future reports, even if not in these two)
-        ('Fasting Glucose', r'(?:Fasting\s+Plasma\s+Glucose|GLUCOSE\s+FASTING|FASTING\s+GLUCOSE).*?(\d+)\s*mg/dL', 'mg/dL'),
-        ('Post Prandial Glucose', r'(?:Post\s+Prandial\s+Glucose|GLUCOSE\s+POST\s+PRANDIAL|2\s+HRS\s+POST\s+PRANDIAL).*?(\d+)\s*mg/dL', 'mg/dL'),
+        # Glucose (if present)
+        ('Glucose', r'(?:GLUCOSE|FASTING\s+GLUCOSE).*?(?:PHOTOMETRY|GLUCOSE).*?(\d+(?:\.\d+)?)\s*mg/dL', 'mg/dL'),
     ]
     
+    # Also try SIMPLER patterns as fallback (without TECHNOLOGY column requirement)
+    fallback_patterns = [
+        ('Total Cholesterol', r'TOTAL\s+CHOLESTEROL.*?(\d+)\s*mg/dL', 'mg/dL'),
+        ('HDL', r'HDL(?:\s+CHOLESTEROL)?.*?(\d+)\s*mg/dL', 'mg/dL'),
+        ('LDL', r'LDL(?:\s+CHOLESTEROL)?.*?(\d+)\s*mg/dL', 'mg/dL'),
+        ('Triglycerides', r'TRIGLYCERIDES.*?(\d+)\s*mg/dL', 'mg/dL'),
+        ('HbA1c', r'HbA1c[^0-9]+([\d.]+)\s*%', '%'),
+        ('Troponin I', r'TROPONIN\s*I[^0-9]+([\d.]+)\s*(?:pg/mL|pg/ml)', 'pg/mL'),
+    ]
+    
+    extracted_names = set()
+    
+    # Try main patterns first
     for test_name, pattern, unit in patterns:
-        matches = re.findall(pattern, text, re.IGNORECASE | re.DOTALL | re.MULTILINE)
+        if test_name in extracted_names:
+            continue
+            
+        matches = re.findall(pattern, text, re.IGNORECASE | re.DOTALL)
         if matches:
             try:
-                value_str = matches[0]  # take first match
+                value_str = matches[0]
                 value = float(value_str)
+                
+                # Sanity check - realistic medical value ranges
                 if 0.01 <= value <= 10000:
                     tests.append({
                         'name': test_name,
@@ -108,9 +127,35 @@ def extract_tests_from_raw_text(text):
                         'unit': unit,
                         'status': 'NORMAL'
                     })
-                    print(f"   ✓ {test_name:22} = {value} {unit}")
+                    extracted_names.add(test_name)
+                    print(f"   ✓ {test_name:25} = {value:8} {unit:10} (main pattern)")
+                else:
+                    print(f"   ✗ {test_name:25} = {value:8} {unit:10} (out of range, skipped)")
             except (ValueError, IndexError) as e:
-                print(f"   ✗ Failed to parse {test_name}: {matches} ({e})")
+                print(f"   ✗ {test_name:25}: Failed to parse {matches} ({e})")
+    
+    # Try fallback patterns for any missing tests
+    for test_name, pattern, unit in fallback_patterns:
+        if test_name in extracted_names:
+            continue
+            
+        matches = re.findall(pattern, text, re.IGNORECASE | re.DOTALL)
+        if matches:
+            try:
+                value_str = matches[0]
+                value = float(value_str)
+                
+                if 0.01 <= value <= 10000:
+                    tests.append({
+                        'name': test_name,
+                        'value': value,
+                        'unit': unit,
+                        'status': 'NORMAL'
+                    })
+                    extracted_names.add(test_name)
+                    print(f"   ✓ {test_name:25} = {value:8} {unit:10} (fallback pattern)")
+            except (ValueError, IndexError):
+                pass
     
     print(f"\n   → Extracted {len(tests)} tests total")
     print(f"{'='*60}\n")
