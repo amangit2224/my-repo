@@ -22,7 +22,7 @@ function HealthTrends({ darkMode, setDarkMode }) {
   const [comparing, setComparing] = useState(false);
   const [comparisonData, setComparisonData] = useState(null);
   const [error, setError] = useState('');
-  
+
   const fileInput1Ref = useRef(null);
   const fileInput2Ref = useRef(null);
 
@@ -38,19 +38,19 @@ function HealthTrends({ darkMode, setDarkMode }) {
 
   const handleFileSelect = (fileNum, file) => {
     if (!file) return;
-    
+
     if (file.type !== 'application/pdf') {
       setError('Please upload PDF files only');
       return;
     }
-    
+
     if (file.size > 10 * 1024 * 1024) {
       setError('File size must be less than 10MB');
       return;
     }
-    
+
     setError('');
-    
+
     if (fileNum === 1) {
       setReport1(file);
     } else {
@@ -76,6 +76,7 @@ function HealthTrends({ darkMode, setDarkMode }) {
 
     setComparing(true);
     setError('');
+    setComparisonData(null); // Clear previous results
 
     try {
       const formData = new FormData();
@@ -83,10 +84,19 @@ function HealthTrends({ darkMode, setDarkMode }) {
       formData.append('report2', report2);
 
       const response = await reportAPI.compareReports(formData);
+
+      // ────────────────────────────────────────────
+      // DEBUG: Print full backend response
+      console.log("FULL COMPARISON API RESPONSE FROM BACKEND:", response.data);
+      // ────────────────────────────────────────────
+
       setComparisonData(response.data);
     } catch (err) {
       console.error('Comparison error:', err);
-      setError('Failed to compare reports. Please try again.');
+      setError(
+        err.response?.data?.error ||
+        'Failed to compare reports. Please try again.'
+      );
     } finally {
       setComparing(false);
     }
@@ -108,7 +118,7 @@ function HealthTrends({ darkMode, setDarkMode }) {
   const getChangeColor = (change, testName) => {
     const lowerIsBetter = ['cholesterol', 'ldl', 'triglycerides', 'glucose', 'hba1c'];
     const isLowerBetter = lowerIsBetter.some(t => testName.toLowerCase().includes(t));
-    
+
     if (change > 0) return isLowerBetter ? '#EF4444' : '#10B981';
     if (change < 0) return isLowerBetter ? '#10B981' : '#EF4444';
     return '#6B7280';
@@ -152,11 +162,11 @@ function HealthTrends({ darkMode, setDarkMode }) {
                   </svg>
                 )}
               </button>
-              
+
               <button onClick={handleLogout} className="navbar-logout-btn">
                 Logout
               </button>
-              
+
               <div className="navbar-profile">
                 <div className="profile-avatar">
                   {username?.charAt(0).toUpperCase()}
@@ -330,7 +340,9 @@ function HealthTrends({ darkMode, setDarkMode }) {
     );
   }
 
-  // Results view - continuing below due to size
+  // ────────────────────────────────────────────
+  // RESULTS VIEW (updated with better empty state handling)
+  // ────────────────────────────────────────────
   return (
     <div className="dashboard-wrapper">
       <nav className="modern-navbar">
@@ -366,11 +378,11 @@ function HealthTrends({ darkMode, setDarkMode }) {
                 </svg>
               )}
             </button>
-            
+
             <button onClick={handleLogout} className="navbar-logout-btn">
               Logout
             </button>
-            
+
             <div className="navbar-profile">
               <div className="profile-avatar">
                 {username?.charAt(0).toUpperCase()}
@@ -397,19 +409,23 @@ function HealthTrends({ darkMode, setDarkMode }) {
           <div className="report-date-card">
             <span className="report-date-label">Report 1 (Older)</span>
             <span className="report-date-value">
-              {comparisonData.report1_date ? new Date(comparisonData.report1_date).toLocaleDateString('en-GB') : 'Date N/A'}
+              {comparisonData?.report1_date
+                ? new Date(comparisonData.report1_date).toLocaleDateString('en-GB')
+                : 'Date N/A'}
             </span>
           </div>
           <div className="report-date-card">
             <span className="report-date-label">Report 2 (Newer)</span>
             <span className="report-date-value">
-              {comparisonData.report2_date ? new Date(comparisonData.report2_date).toLocaleDateString('en-GB') : 'Date N/A'}
+              {comparisonData?.report2_date
+                ? new Date(comparisonData.report2_date).toLocaleDateString('en-GB')
+                : 'Date N/A'}
             </span>
           </div>
         </div>
 
         {/* Summary Card */}
-        {comparisonData.summary && (
+        {comparisonData?.summary && (
           <div className="summary-card">
             <div className="summary-header">
               <div className="summary-icon">
@@ -443,12 +459,12 @@ function HealthTrends({ darkMode, setDarkMode }) {
         )}
 
         {/* Comparison Table */}
-        {comparisonData.comparisons && comparisonData.comparisons.length > 0 ? (
+        {comparisonData?.comparisons && comparisonData.comparisons.length > 0 ? (
           <>
             <div className="section-title-wrapper">
               <h2>Test-by-Test Comparison</h2>
             </div>
-            
+
             <div className="comparison-table-wrapper">
               <table className="comparison-table">
                 <thead>
@@ -465,7 +481,7 @@ function HealthTrends({ darkMode, setDarkMode }) {
                     const change = test.value2 - test.value1;
                     const percentChange = test.value1 !== 0 ? ((change / test.value1) * 100).toFixed(1) : 'N/A';
                     const changeColor = getChangeColor(change, test.name);
-                    
+
                     return (
                       <tr key={index}>
                         <td className="test-name">{test.name}</td>
@@ -488,7 +504,7 @@ function HealthTrends({ darkMode, setDarkMode }) {
             <div className="section-title-wrapper">
               <h2>Visual Comparison</h2>
             </div>
-            
+
             <div className="charts-grid">
               {comparisonData.comparisons.slice(0, 6).map((test, index) => {
                 const chartData = {
@@ -528,7 +544,7 @@ function HealthTrends({ darkMode, setDarkMode }) {
                           scales: {
                             y: {
                               beginAtZero: false,
-                              grid: { 
+                              grid: {
                                 color: '#E5E7EB',
                                 drawBorder: false
                               },
@@ -563,10 +579,18 @@ function HealthTrends({ darkMode, setDarkMode }) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
               </svg>
             </div>
-            <h3>No Matching Tests Found</h3>
-            <p>Make sure both reports contain similar test results for comparison</p>
+            <h3>
+              {comparisonData && comparisonData.comparisons?.length === 0
+                ? 'No matching tests found between reports'
+                : 'Upload and compare two reports to see results'}
+            </h3>
+            <p>
+              {comparisonData && comparisonData.comparisons?.length === 0
+                ? 'Make sure both reports contain similar tests (e.g., Lipid Profile, HbA1c).'
+                : 'Your comparison results will appear here once processed.'}
+            </p>
             <button onClick={resetComparison} className="btn-get-started">
-              Try Different Reports
+              Start New Comparison
             </button>
           </div>
         )}
