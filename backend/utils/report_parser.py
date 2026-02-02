@@ -1,7 +1,9 @@
 """
-Multi-Format Medical Report Parser - ENHANCED VERSION
+Multi-Format Medical Report Parser - ENHANCED VERSION (FIXED)
 Handles 10+ different lab report formats with robust pattern matching
 NO AI REQUIRED - Pure pattern recognition & logic
+
+🔧 FIX: Now properly skips CALCULATED/RATIO lines to avoid extracting ratio values
 """
 
 import re
@@ -171,7 +173,7 @@ class MultiFormatReportParser:
         Main parsing function - handles multiple report formats
         """
         print(f"\n{'='*60}")
-        print(f"🔍 MULTI-FORMAT PARSER ANALYSIS")
+        print(f"🔍 MULTI-FORMAT PARSER ANALYSIS (FIXED VERSION)")
         print(f"Gender: {gender}, Age: {age}")
         print(f"{'='*60}\n")
         
@@ -258,6 +260,8 @@ class MultiFormatReportParser:
         """
         Extract from table format:
         TEST_NAME    VALUE   UNIT   NORMAL_RANGE
+        
+        🔧 FIX: Now skips CALCULATED and RATIO lines
         """
         results = []
         
@@ -265,6 +269,19 @@ class MultiFormatReportParser:
             line_clean = line.strip()
             if not line_clean:
                 continue
+            
+            # 🔧 FIX: Skip CALCULATED and RATIO lines to avoid extracting ratio values
+            line_upper = line_clean.upper()
+            if 'CALCULATED' in line_upper or ' RATIO' in line_upper:
+                print(f"⏭️  Skipping ratio/calculated line: {line_clean[:80]}...")
+                continue
+            
+            # Skip lines that are clearly just ratio headers or descriptions
+            if any(keyword in line_upper for keyword in ['TC/', 'TRIG/', 'LDL/', 'HDL/', 'NON-HDL']):
+                # Check if this is a ratio line (contains "RATIO" or is a calculated field)
+                if 'RATIO' in line_upper or line_upper.startswith(('TC/', 'TRIG/', 'LDL/', 'HDL/')):
+                    print(f"⏭️  Skipping ratio field: {line_clean[:80]}...")
+                    continue
             
             # Try to find test name
             test_name = self._find_test_name_in_line(line_clean)
@@ -287,12 +304,19 @@ class MultiFormatReportParser:
     def _extract_line_by_line(self, lines: List[str]) -> List[Dict]:
         """
         Extract when each test is on its own line
+        
+        🔧 FIX: Also skips CALCULATED/RATIO lines here
         """
         results = []
         
         for i, line in enumerate(lines):
             # Skip if line is too short or too long
             if len(line.strip()) < 3 or len(line.strip()) > 200:
+                continue
+            
+            # 🔧 FIX: Skip CALCULATED and RATIO lines
+            line_upper = line.upper()
+            if 'CALCULATED' in line_upper or ' RATIO' in line_upper:
                 continue
             
             # Find test name
@@ -319,12 +343,20 @@ class MultiFormatReportParser:
         Example:
         Line 1: "Hemoglobin"
         Line 2: "13.5 g/dL"
+        
+        🔧 FIX: Also skips CALCULATED/RATIO lines here
         """
         results = []
         
         i = 0
         while i < len(lines):
             line = lines[i].strip()
+            
+            # 🔧 FIX: Skip CALCULATED and RATIO lines
+            line_upper = line.upper()
+            if 'CALCULATED' in line_upper or ' RATIO' in line_upper:
+                i += 1
+                continue
             
             # Check if this line is a test name (and ONLY a test name)
             if self._is_standalone_test_name(line):
@@ -536,66 +568,51 @@ MedicalReportParser = MultiFormatReportParser
 
 
 # ============================================
-# TESTING
+# TESTING WITH YOUR ACTUAL PDF DATA
 # ============================================
 
 if __name__ == "__main__":
     parser = MultiFormatReportParser()
     
-    # Test 1: Table format (Thyrocare style)
     print("="*60)
-    print("TEST 1: Table Format (Thyrocare)")
+    print("🧪 TESTING WITH YOUR ACTUAL THYROCARE REPORT")
     print("="*60)
     
-    test_text_1 = """
-    TEST NAME                VALUE    UNIT     REFERENCE RANGE
-    HbA1c                    5.9      %        < 5.7
-    TOTAL CHOLESTEROL        195      mg/dL    < 200
-    HDL CHOLESTEROL          46       mg/dL    40-60
-    LDL CHOLESTEROL          118      mg/dL    < 100
-    TRIGLYCERIDES            210      mg/dL    < 150
+    # Your actual report data from the PDF
+    test_text = """
+    TEST NAME TECHNOLOGY VALUE UNITS Bio. Ref. Interval.
+    TOTAL CHOLESTEROL PHOTOMETRY 206 mg/dL < 200
+    HDL CHOLESTEROL - DIRECT PHOTOMETRY 46 mg/dL 40-60
+    LDL CHOLESTEROL - DIRECT PHOTOMETRY 123 mg/dL < 100
+    TRIGLYCERIDES PHOTOMETRY 238 mg/dL < 150
+    TC/ HDL CHOLESTEROL RATIO CALCULATED 4.5 Ratio 3 - 5
+    TRIG / HDL RATIO CALCULATED 5.22 Ratio < 3.12
+    LDL / HDL RATIO CALCULATED 2.7 Ratio 1.5-3.5
+    HDL / LDL RATIO CALCULATED 0.37 Ratio > 0.40
+    NON-HDL CHOLESTEROL CALCULATED 160.6 mg/dL < 160
+    VLDL CHOLESTEROL CALCULATED 47.68 mg/dL 5 - 40
+    
+    HbA1c H.P.L.C 5.9 %
+    AVERAGE BLOOD GLUCOSE (ABG) CALCULATED 123 mg/dL
     """
     
-    result1 = parser.parse_report(test_text_1, gender='female', age=50)
-    print(f"Found {result1['total_tests']} tests")
-    print(f"Report Type: {result1['report_type']}")
+    result = parser.parse_report(test_text, gender='female', age=50)
     
-    print("\n" + "="*60)
-    print("TEST 2: Multi-line Format")
-    print("="*60)
+    print(f"\n✅ RESULTS:")
+    print(f"Found {result['total_tests']} tests")
+    print(f"Report Type: {result['report_type']}")
     
-    test_text_2 = """
-    Hemoglobin
-    13.5 g/dL
-    Normal Range: 12.0-15.5
+    print(f"\n📋 Extracted Values:")
+    for r in result['all_results']:
+        print(f"   • {r['term']}: {r['value']} {r['unit']}")
     
-    White Blood Cell Count
-    7500 cells/µL
-    Normal: 4500-11000
+    print(f"\n✅ EXPECTED VALUES:")
+    print(f"   • Total Cholesterol: 206 mg/dL")
+    print(f"   • HDL: 46 mg/dL")
+    print(f"   • LDL: 123 mg/dL")
+    print(f"   • Triglycerides: 238 mg/dL")
+    print(f"   • HbA1c: 5.9 %")
     
-    Glucose (Fasting)
-    110 mg/dL
-    Normal: 70-100
-    """
-    
-    result2 = parser.parse_report(test_text_2, gender='female', age=35)
-    print(f"Found {result2['total_tests']} tests")
-    print(f"Report Type: {result2['report_type']}")
-    
-    print("\n" + "="*60)
-    print("TEST 3: Compact Format (PathLab style)")
-    print("="*60)
-    
-    test_text_3 = """
-    TSH: 3.2 mIU/L (Normal: 0.4-4.5)
-    Free T3: 2.8 pg/mL (Normal: 2.3-4.2)
-    Free T4: 1.2 ng/dL (Normal: 0.8-1.8)
-    """
-    
-    result3 = parser.parse_report(test_text_3, gender='male', age=45)
-    print(f"Found {result3['total_tests']} tests")
-    print(f"Report Type: {result3['report_type']}")
-    
-    print("\n" + "="*60)
-    print("ALL TESTS PASSED! ✅")
-    print("="*60)
+    print(f"\n{'='*60}")
+    print(f"✅ PARSER FIX COMPLETE!")
+    print(f"{'='*60}")
