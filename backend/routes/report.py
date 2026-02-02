@@ -480,6 +480,266 @@ def get_report_details(report_id):
         }), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    
+    # ============================================
+# 🔥 ADD THIS TO YOUR report.py FILE 🔥
+# ============================================
+# Add this endpoint AFTER the /details/<report_id> endpoint (around line 500)
+# This is the MISSING endpoint that your frontend is calling!
+
+@report_bp.route('/verify-authenticity/<report_id>', methods=['GET'])
+@jwt_required()
+def verify_report_authenticity(report_id):
+    """
+    🔥 FIXED VERSION - Re-verify a report's authenticity
+    This endpoint RE-PARSES the report with the FIXED parser
+    and runs both PDF forensics and medical validation
+    """
+    try:
+        if not BSON_AVAILABLE:
+            return jsonify({'error': 'Database features unavailable'}), 500
+        
+        current_user = get_jwt_identity()
+        
+        # Fetch the report from database
+        reports_collection = current_app.db['reports']
+        report = reports_collection.find_one({
+            '_id': ObjectId(report_id),
+            'user_email': current_user
+        })
+        
+        if not report:
+            return jsonify({'error': 'Report not found'}), 404
+        
+        print(f"\n{'='*60}")
+        print(f"🔍 VERIFYING REPORT AUTHENTICITY")
+        print(f"Report ID: {report_id}")
+        print(f"User: {current_user}")
+        print(f"Filename: {report.get('original_filename', 'Unknown')}")
+        print(f"{'='*60}\n")
+        
+        filepath = report.get('filepath')
+        
+        if not filepath or not os.path.exists(filepath):
+            return jsonify({
+                'error': 'Report file not found',
+                'details': 'The original PDF file is no longer available'
+            }), 404
+        
+        # ============================================
+        # STEP 1: PDF FORENSICS
+        # ============================================
+        verification_result = None
+        
+        try:
+            print("🔍 Running PDF forensics...")
+            from utils.pdf_forensics import PDFForensics
+            
+            forensics = PDFForensics()
+            verification_result = forensics.analyze_pdf(filepath)
+            
+            print(f"✅ PDF Forensics complete!")
+            print(f"   Trust Score: {verification_result['trust_score']}/100")
+            print(f"   Risk Level: {verification_result['risk_level']}")
+            
+        except Exception as e:
+            print(f"❌ PDF Forensics failed: {e}")
+            import traceback
+            traceback.print_exc()
+            verification_result = {
+                'verified': False,
+                'trust_score': 0,
+                'risk_level': 'Error',
+                'suspicion_score': 100,
+                'findings': [f'Verification error: {str(e)}'],
+                'recommendations': ['Unable to verify - manual review required']
+            }
+        
+        # ============================================
+        # STEP 2: RE-PARSE WITH FIXED PARSER 🔧
+        # ============================================
+        parsed_data = None
+        
+        # Get OCR text (either from database or re-extract)
+        extracted_text = report.get('extracted_text')
+        
+        if not extracted_text or len(extracted_text.strip()) < 50:
+            print("⚠️ No OCR text in database, re-extracting...")
+            # Re-extract if needed
+            if OCR_AVAILABLE and callable(process_file):
+                try:
+                    extracted_text = process_file(filepath)
+                except Exception as e:
+                    print(f"❌ Text extraction failed: {e}")
+                    extracted_text = None
+        
+        if extracted_text and len(extracted_text.strip()) >= 50:
+            try:
+                print("🧪 RE-PARSING REPORT WITH FIXED PARSER...")
+                
+                if not RULE_BASED_AVAILABLE:
+                    raise Exception("Parser not available")
+                
+                from utils.report_parser import MedicalReportParser
+                
+                # 🔥 RE-PARSE with the FIXED parser
+                parser = MedicalReportParser()
+                parsed_data = parser.parse_report(
+                    extracted_text,
+                    gender=report.get('gender', 'female'),  # Get from report if stored
+                    age=report.get('age', 50)  # Get from report if stored
+                )
+                
+                print(f"✅ RE-PARSED: Found {parsed_data['total_tests']} tests")
+                print(f"📋 Report type: {parsed_data['report_type']}")
+                
+                # 🔍 DEBUG: Print extracted values
+                print(f"\n📊 EXTRACTED TEST VALUES:")
+                for test in parsed_data.get('all_results', []):
+                    print(f"   • {test['term']}: {test['value']} {test['unit']}")
+                print()
+                
+            except Exception as e:
+                print(f"❌ Re-parsing failed: {e}")
+                import traceback
+                traceback.print_exc()
+                # Use old parsed data if available
+                parsed_data = report.get('parsed_data')
+        else:
+            print("⚠️ Using cached parsed_data from database")
+            parsed_data = report.get('parsed_data')
+        
+        # ============================================
+        # STEP 3: MEDICAL VALIDATION 🔧
+        # ============================================
+        medical_validation = None
+        
+        if parsed_data and parsed_data.get('all_results'):
+            try:
+                print("⚕️ MEDICAL VALIDATION - Checking value plausibility...")
+                from utils.medical_validator import MedicalValidator
+                
+                validator = MedicalValidator()
+                medical_validation = validator.validate_report(parsed_data)
+                
+                print(f"✅ Medical validation complete!")
+                print(f"   Medical Suspicion: {medical_validation['suspicion_score']}")
+                print(f"   Validated: {medical_validation['validated']}")
+                
+                # Combine PDF forensics + medical validation
+                if verification_result:
+                    pdf_suspicion = verification_result.get('suspicion_score', 0)
+                    medical_suspicion = medical_validation['suspicion_score']
+                    combined_suspicion = pdf_suspicion + medical_suspicion
+                    
+                    # Recalculate trust score
+                    verification_result['trust_score'] = max(0, 100 - combined_suspicion)
+                    verification_result['findings'].extend(medical_validation['findings'])
+                    verification_result['medical_validation'] = medical_validation
+                    
+                    # Redetermine risk level based on combined score
+                    trust_score = verification_result['trust_score']
+                    if trust_score >= 90:
+                        verification_result['risk_level'] = "Verified ✅"
+                    elif trust_score >= 70:
+                        verification_result['risk_level'] = "Low Risk"
+                    elif trust_score >= 50:
+                        verification_result['risk_level'] = "Medium Risk"
+                    elif trust_score >= 30:
+                        verification_result['risk_level'] = "High Risk"
+                    else:
+                        verification_result['risk_level'] = "Critical - Likely Fake"
+                    
+                    print(f"\n📊 FINAL RESULTS:")
+                    print(f"   PDF Suspicion: {pdf_suspicion}")
+                    print(f"   Medical Suspicion: {medical_suspicion}")
+                    print(f"   Combined Suspicion: {combined_suspicion}")
+                    print(f"   Trust Score: {verification_result['trust_score']}/100")
+                    print(f"   Risk Level: {verification_result['risk_level']}")
+                
+            except Exception as e:
+                print(f"❌ Medical validation failed: {e}")
+                import traceback
+                traceback.print_exc()
+        else:
+            print("⚠️ No parsed data available for medical validation")
+        
+        # ============================================
+        # STEP 4: UPDATE DATABASE WITH NEW RESULTS
+        # ============================================
+        try:
+            # Update the report with new verification results
+            update_data = {
+                'verification': verification_result,
+                'medical_validation': medical_validation,
+                'last_verified_at': datetime.now(IST).strftime("%Y-%m-%d %I:%M %p")
+            }
+            
+            # Also update parsed_data if we re-parsed
+            if parsed_data:
+                update_data['parsed_data'] = parsed_data
+            
+            reports_collection.update_one(
+                {'_id': ObjectId(report_id)},
+                {'$set': update_data}
+            )
+            
+            print(f"💾 Updated report in database")
+            
+        except Exception as e:
+            print(f"⚠️ Failed to update database: {e}")
+        
+        print(f"{'='*60}\n")
+        
+        # ============================================
+        # STEP 5: RETURN RESULTS
+        # ============================================
+        return jsonify({
+            'success': True,
+            'verification': verification_result,
+            'medical_validation': medical_validation,
+            'report_id': report_id,
+            'verified_at': datetime.now(IST).strftime("%Y-%m-%d %I:%M %p"),
+            'parsed_data_available': parsed_data is not None,
+            'tests_found': len(parsed_data.get('all_results', [])) if parsed_data else 0
+        }), 200
+        
+    except Exception as e:
+        print(f"\n❌ ERROR in verify_report_authenticity:")
+        print(f"{'='*60}")
+        import traceback
+        traceback.print_exc()
+        print(f"{'='*60}\n")
+        return jsonify({
+            'error': 'Verification failed',
+            'details': str(e)
+        }), 500
+
+
+# ============================================
+# 🔧 INSTRUCTIONS TO ADD THIS CODE:
+# ============================================
+"""
+1. Open your backend/routes/report.py file
+
+2. Find the line with:
+   @report_bp.route('/details/<report_id>', methods=['GET'])
+
+3. Scroll down to the END of that function (around line 500)
+
+4. PASTE the entire verify_report_authenticity function above
+
+5. Save the file
+
+6. Restart your Flask server
+
+7. Test by clicking "Verify Authenticity" on a report
+
+That's it! The endpoint will now:
+✅ Re-parse the report with the FIXED parser
+✅ Run medical validation with correct values
+✅ Show proper trust scores
+"""
 # ============================================
 # 🔥 COMPARE TWO REPORTS 🔥 - IMPROVED WITH BETTER ERROR HANDLING
 # ============================================
