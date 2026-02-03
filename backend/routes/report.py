@@ -68,89 +68,43 @@ def validate_file_size(file):
 # ============================================
 def extract_tests_from_raw_text(text: str) -> List[Dict]:
     """
-    UNIVERSAL EXTRACTOR - Works for ALL Thyrocare report formats
-    Handles: Liver Function, Thyroid, Lipid Profile, CBC, etc.
+    UNIVERSAL EXTRACTOR with DEBUG - Let's see what's actually in the text
     """
     print(f"\n{'='*80}")
-    print(f"🔥 UNIVERSAL EXTRACTION - ALL TEST TYPES")
+    print(f"🔍 DEBUG: First 500 chars of extracted text:")
+    print(f"{'='*80}")
+    print(text[:500])
     print(f"{'='*80}\n")
+    
+    # Look for ANY line with a number and unit pattern
+    print(f"🔍 Looking for lines with VALUE + UNIT pattern...\n")
     
     tests = []
     lines = text.split('\n')
     
-    for line in lines:
+    for i, line in enumerate(lines):
         line = line.strip()
-        if len(line) < 15:
-            continue
         
-        # Skip header lines and ratio lines
-        if any(x in line.upper() for x in ['TEST NAME', 'TECHNOLOGY', 'RATIO', 'CALCULATED']):
-            continue
-        
-        # ═══════════════════════════════════════════════════════════════
-        # PATTERN: TEST_NAME   TECHNOLOGY   VALUE   UNITS   REFERENCE
-        # Strategy: Find TECHNOLOGY keyword, then grab number after it
-        # ═══════════════════════════════════════════════════════════════
-        
-        # Match PHOTOMETRY tests (most common)
-        if 'PHOTOMETRY' in line:
-            match = re.search(r'PHOTOMETRY\s+([\d.]+)\s+(\S+)', line)
+        # Look for pattern: NUMBER + UNIT (mg/dL, U/L, ng/dL, etc.)
+        if re.search(r'(\d+\.?\d*)\s+(mg/dL|U/L|ng/dL|µg/dL|µIU/mL|gm/dL|%)', line):
+            print(f"Line {i}: {line[:100]}")
+            
+            # Try to extract: TEST_NAME, VALUE, UNIT
+            match = re.search(r'^([A-Z\s\-\(\)]+?)\s+(?:PHOTOMETRY|E\.C\.L\.I\.A|H\.P\.L\.C|C\.M\.I\.A)?\s*(\d+\.?\d*)\s+(mg/dL|U/L|ng/dL|µg/dL|µIU/mL|gm/dL|%)', line)
+            
             if match:
-                value = float(match.group(1))
-                unit = match.group(2)
+                name = match.group(1).strip()
+                value = float(match.group(2))
+                unit = match.group(3)
                 
-                # Extract test name (everything before PHOTOMETRY)
-                name_match = re.search(r'^(.+?)\s+PHOTOMETRY', line)
-                if name_match:
-                    name = name_match.group(1).strip()
-                    tests.append({'name': name, 'value': value, 'unit': unit, 'status': 'NORMAL'})
-                    print(f"   ✓ {name:35} = {value:8} {unit}")
+                # Skip if name contains keywords that indicate it's not a real test
+                if any(x in name.upper() for x in ['RATIO', 'CALCULATED', 'TEST NAME', 'TECHNOLOGY']):
                     continue
-        
-        # Match E.C.L.I.A tests (thyroid tests)
-        if 'E.C.L.I.A' in line:
-            match = re.search(r'E\.C\.L\.I\.A\s+([\d.]+)\s+(\S+)', line)
-            if match:
-                value = float(match.group(1))
-                unit = match.group(2)
                 
-                # Extract test name
-                name_match = re.search(r'^(.+?)\s+E\.C\.L\.I\.A', line)
-                if name_match:
-                    name = name_match.group(1).strip()
-                    tests.append({'name': name, 'value': value, 'unit': unit, 'status': 'NORMAL'})
-                    print(f"   ✓ {name:35} = {value:8} {unit}")
-                    continue
-        
-        # Match H.P.L.C tests (HbA1c)
-        if 'H.P.L.C' in line:
-            match = re.search(r'H\.P\.L\.C\s+([\d.]+)\s+(%)', line)
-            if match:
-                value = float(match.group(1))
-                unit = match.group(2)
-                
-                name_match = re.search(r'^(.+?)\s+H\.P\.L\.C', line)
-                if name_match:
-                    name = name_match.group(1).strip()
-                    tests.append({'name': name, 'value': value, 'unit': unit, 'status': 'NORMAL'})
-                    print(f"   ✓ {name:35} = {value:8} {unit}")
-                    continue
-        
-        # Match C.M.I.A tests (Troponin)
-        if 'C.M.I.A' in line:
-            match = re.search(r'C\.M\.I\.A\s+([\d.]+)\s+(\S+)', line)
-            if match:
-                value = float(match.group(1))
-                unit = match.group(2)
-                
-                name_match = re.search(r'^(.+?)\s+C\.M\.I\.A', line)
-                if name_match:
-                    name = name_match.group(1).strip()
-                    tests.append({'name': name, 'value': value, 'unit': unit, 'status': 'NORMAL'})
-                    print(f"   ✓ {name:35} = {value:8} {unit}")
-                    continue
+                tests.append({'name': name, 'value': value, 'unit': unit, 'status': 'NORMAL'})
+                print(f"   ✓ Extracted: {name} = {value} {unit}\n")
     
-    print(f"\n   → Extracted {len(tests)} tests total")
+    print(f"\n   → Total extracted: {len(tests)} tests")
     print(f"{'='*80}\n")
     
     return tests
