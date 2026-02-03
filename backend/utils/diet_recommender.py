@@ -296,25 +296,40 @@ class UniversalDietRecommender:
                     conditions.append('prediabetes')
         
         # ============================================
-        # LIVER CONDITIONS
+        # LIVER CONDITIONS (Only flag if SIGNIFICANTLY abnormal)
         # ============================================
         
         liver_abnormal = False
         
-        if 'sgot' in test_values and test_values['sgot'] > 48:
-            liver_abnormal = True
+        # SGOT/AST - Use upper limit with buffer
+        if 'sgot' in test_values:
+            if test_values['sgot'] > 60:  # Significantly elevated (normal <48)
+                liver_abnormal = True
         
-        if 'sgpt' in test_values and test_values['sgpt'] > 45:
-            liver_abnormal = True
+        # SGPT/ALT - More specific to liver, use stricter limit
+        if 'sgpt' in test_values:
+            if test_values['sgpt'] > 55:  # Significantly elevated (normal <45)
+                liver_abnormal = True
         
-        if 'bilirubin_total' in test_values and test_values['bilirubin_total'] > 1.2:
-            liver_abnormal = True
+        # Bilirubin - Only if clearly high
+        if 'bilirubin_total' in test_values:
+            if test_values['bilirubin_total'] > 1.5:  # Clearly elevated (normal <1.2)
+                liver_abnormal = True
         
-        if 'ggt' in test_values and test_values['ggt'] > 65:
-            liver_abnormal = True
+        # GGT - Sensitive marker
+        if 'ggt' in test_values:
+            if test_values['ggt'] > 80:  # Significantly elevated (normal <65)
+                liver_abnormal = True
         
-        if 'albumin' in test_values and test_values['albumin'] < 3.5:
-            liver_abnormal = True
+        # Albumin - Low indicates poor liver function
+        if 'albumin' in test_values:
+            if test_values['albumin'] < 3.2:  # Clearly low (normal >3.5)
+                liver_abnormal = True
+        
+        # ALP - Very high indicates bile duct issues
+        if 'alp' in test_values:
+            if test_values['alp'] > 150:  # Significantly elevated (normal <130)
+                liver_abnormal = True
         
         if liver_abnormal:
             conditions.append('liver_concern')
