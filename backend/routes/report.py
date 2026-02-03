@@ -67,19 +67,6 @@ def validate_file_size(file):
 # REGEX EXTRACTION FUNCTION (ADDED FOR FIX)
 # ============================================
 def extract_tests_from_raw_text(text: str) -> List[Dict]:
-    """
-    🔥 FINAL FIX - Matches the VALUE column, not the Reference column
-    
-    Your PDF format:
-    TEST_NAME | TECHNOLOGY | VALUE | UNITS | Bio. Ref. Interval.
-    TOTAL CHOLESTEROL | PHOTOMETRY | 206 | mg/dL | < 200
-                                     ^^^            ^^^
-                                  (WE WANT)    (SKIP THIS!)
-    
-    The KEY: Match the number that comes RIGHT BEFORE the unit,
-    NOT the number after it!
-    """
-    
     print(f"\n{'='*80}")
     print(f"🔥 FINAL EXTRACTION - VALUE COLUMN ONLY")
     print(f"{'='*80}\n")
