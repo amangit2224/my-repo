@@ -1200,8 +1200,12 @@ def extract_date_from_text(text):
 @jwt_required()
 def calculate_health_risks(report_id):
     """
-    Calculate health risks based on a report's test values
-    Returns cardiovascular risk, diabetes risk, and overall health score
+    ✅ FIXED VERSION - Now supports ALL test types:
+    - Lipid Profile (Cholesterol, HDL, LDL, Triglycerides)
+    - Diabetes (HbA1c, Glucose)
+    - Kidney (Creatinine, Urea)
+    - Liver (SGOT, SGPT, Bilirubin, ALP, etc.) ← NEW!
+    - Thyroid (T3, T4, TSH) ← NEW!
     """
     try:
         if not BSON_AVAILABLE:
@@ -1223,174 +1227,28 @@ def calculate_health_risks(report_id):
         parsed_data = report.get('parsed_data', {})
       
         print(f"\n{'='*60}")
-        print(f"🧮 CALCULATING HEALTH RISKS")
+        print(f"🧮 CALCULATING HEALTH RISKS (ALL TEST TYPES)")
         print(f"Report ID: {report_id}")
         print(f"User: {current_user}")
-        print(f"{'='*60}")
-        print(f"Parsed data keys: {list(parsed_data.keys()) if parsed_data else 'NONE'}")
         print(f"{'='*60}\n")
       
-        # Extract test values
-        test_values = {}
-      
-        # METHOD 1: Try parsed_data['all_results'] (YOUR PARSER FORMAT!)
-        if parsed_data and 'all_results' in parsed_data:
-            tests = parsed_data['all_results']
-            print(f"📋 METHOD 1: Found {len(tests)} tests in parsed_data['all_results']")
-          
-            for test in tests:
-                test_name = str(test.get('term', '')).lower()
-                test_value = test.get('value')
-                test_unit = test.get('unit', '')
-              
-                print(f" Test: {test.get('term')} = {test_value} {test_unit}")
-              
-                if test_value is None:
-                    continue
-              
-                try:
-                    if isinstance(test_value, str):
-                        test_value = test_value.strip().replace(',', '')
-                        test_value = float(test_value)
-                    else:
-                        test_value = float(test_value)
-                except Exception as e:
-                    print(f" ❌ ERROR converting {test_value}: {e}")
-                    continue
-              
-                # Map test names to standardized keys
-                if 'total' in test_name and 'cholesterol' in test_name:
-                    test_values['total_cholesterol'] = test_value
-                    print(f" ✅ Mapped to: total_cholesterol")
-                elif 'hdl' in test_name:
-                    test_values['hdl'] = test_value
-                    print(f" ✅ Mapped to: hdl")
-                elif 'ldl' in test_name:
-                    test_values['ldl'] = test_value
-                    print(f" ✅ Mapped to: ldl")
-                elif 'triglyceride' in test_name or 'trig' in test_name:
-                    test_values['triglycerides'] = test_value
-                    print(f" ✅ Mapped to: triglycerides")
-                elif 'hba1c' in test_name or 'a1c' in test_name or ('hemoglobin' in test_name and 'a1c' in test_name):
-                    test_values['hba1c'] = test_value
-                    print(f" ✅ Mapped to: hba1c")
-                elif 'glucose' in test_name:
-                    test_values['fasting_glucose'] = test_value
-                    print(f" ✅ Mapped to: fasting_glucose")
-                elif 'creatinine' in test_name:
-                    test_values['creatinine'] = test_value
-                    print(f" ✅ Mapped to: creatinine")
-                elif 'urea' in test_name or 'bun' in test_name:
-                    test_values['urea'] = test_value
-                    print(f" ✅ Mapped to: urea")
-                else:
-                    print(f" ⚠️ No mapping for this test")
-      
-        # METHOD 2: Try parsed_data['tests'] (fallback)
-        elif parsed_data and 'tests' in parsed_data:
-            tests = parsed_data['tests']
-            print(f"📋 METHOD 2: Found {len(tests)} tests in parsed_data['tests']")
-          
-            for test in tests:
-                test_name = str(test.get('name', '')).lower()
-                test_value = test.get('value')
-                test_unit = test.get('unit', '')
-              
-                print(f" Test: {test.get('name')} = {test_value} {test_unit}")
-              
-                if test_value is None:
-                    continue
-              
-                try:
-                    if isinstance(test_value, str):
-                        test_value = test_value.strip().replace(',', '')
-                        test_value = float(test_value)
-                    else:
-                        test_value = float(test_value)
-                except Exception as e:
-                    print(f" ❌ ERROR converting {test_value}: {e}")
-                    continue
-              
-                # Same mapping logic
-                if 'total' in test_name and 'cholesterol' in test_name:
-                    test_values['total_cholesterol'] = test_value
-                elif 'hdl' in test_name:
-                    test_values['hdl'] = test_value
-                elif 'ldl' in test_name:
-                    test_values['ldl'] = test_value
-                elif 'triglyceride' in test_name:
-                    test_values['triglycerides'] = test_value
-                elif 'hba1c' in test_name or 'a1c' in test_name:
-                    test_values['hba1c'] = test_value
-                elif 'glucose' in test_name:
-                    test_values['fasting_glucose'] = test_value
-                elif 'creatinine' in test_name:
-                    test_values['creatinine'] = test_value
-                elif 'urea' in test_name or 'bun' in test_name:
-                    test_values['urea'] = test_value
-      
-        # METHOD 3: Try categories structure
-        if not test_values and parsed_data and 'categories' in parsed_data:
-            print(f"📋 METHOD 3: Trying categories structure")
-            categories = parsed_data['categories']
-            print(f" Found categories: {list(categories.keys())}")
-          
-            for category_name, category_data in categories.items():
-                if isinstance(category_data, dict) and 'tests' in category_data:
-                    print(f" Category '{category_name}' has {len(category_data['tests'])} tests")
-                    for test in category_data['tests']:
-                        test_name = str(test.get('name', '')).lower()
-                        test_value = test.get('value')
-                      
-                        if test_value is None:
-                            continue
-                      
-                        try:
-                            if isinstance(test_value, str):
-                                test_value = float(test_value.strip().replace(',', ''))
-                            else:
-                                test_value = float(test_value)
-                        except:
-                            continue
-                      
-                        # Same mapping logic
-                        if 'total' in test_name and 'cholesterol' in test_name:
-                            test_values['total_cholesterol'] = test_value
-                        elif 'hdl' in test_name:
-                            test_values['hdl'] = test_value
-                        elif 'ldl' in test_name:
-                            test_values['ldl'] = test_value
-                        elif 'triglyceride' in test_name:
-                            test_values['triglycerides'] = test_value
-                        elif 'hba1c' in test_name or 'a1c' in test_name:
-                            test_values['hba1c'] = test_value
-                        elif 'glucose' in test_name:
-                            test_values['fasting_glucose'] = test_value
-                        elif 'creatinine' in test_name:
-                            test_values['creatinine'] = test_value
-                        elif 'urea' in test_name:
-                            test_values['urea'] = test_value
-      
-        print(f"\n{'='*60}")
-        print(f"📊 FINAL EXTRACTED TEST VALUES:")
+        # Extract test values (UNIVERSAL MAPPING)
+        test_values = extract_all_test_values(parsed_data)
+        
+        print(f"📊 EXTRACTED {len(test_values)} TEST VALUES:")
         for key, value in test_values.items():
-            print(f" {key}: {value}")
-        print(f"{'='*60}\n")
+            print(f"   {key}: {value}")
+        print()
       
         # Check if we have any test values
         if not test_values:
             return jsonify({
                 'error': 'No test data available for risk calculation',
-                'details': 'Could not find required test values in the report.',
-                'debug': {
-                    'parsed_data_keys': list(parsed_data.keys()) if parsed_data else [],
-                    'has_all_results': 'all_results' in parsed_data if parsed_data else False,
-                    'has_tests_key': 'tests' in parsed_data if parsed_data else False,
-                    'has_categories_key': 'categories' in parsed_data if parsed_data else False
-                }
+                'details': 'Could not find any medical test values in the report.',
+                'suggestion': 'This report may not contain numerical test results suitable for risk assessment.'
             }), 400
       
-        # Calculate risks
+        # Calculate risks (UNIVERSAL - works for all test types)
         risks = calculate_all_risks(test_values)
       
         return jsonify({
@@ -1408,64 +1266,187 @@ def calculate_health_risks(report_id):
         traceback.print_exc()
         print(f"{'='*60}\n")
         return jsonify({'error': str(e), 'type': 'exception'}), 500
+
+
+# ============================================
+# 🔥 NEW: UNIVERSAL TEST VALUE EXTRACTOR
+# ============================================
+def extract_all_test_values(parsed_data):
+    """
+    Extract ALL test values from parsed_data
+    Works with any report type (Lipid, Liver, Thyroid, CBC, etc.)
+    """
+    test_values = {}
+    
+    if not parsed_data or 'all_results' not in parsed_data:
+        return test_values
+    
+    tests = parsed_data['all_results']
+    
+    # Define mapping for ALL test types
+    test_mapping = {
+        # Lipid Profile
+        'total cholesterol': 'total_cholesterol',
+        'cholesterol total': 'total_cholesterol',
+        'hdl cholesterol': 'hdl',
+        'hdl': 'hdl',
+        'ldl cholesterol': 'ldl',
+        'ldl': 'ldl',
+        'triglycerides': 'triglycerides',
+        'vldl cholesterol': 'vldl',
+        'vldl': 'vldl',
+        
+        # Diabetes
+        'hba1c': 'hba1c',
+        'glycosylated hemoglobin': 'hba1c',
+        'glucose': 'glucose',
+        'fasting glucose': 'glucose',
+        'blood glucose': 'glucose',
+        
+        # Kidney Function
+        'creatinine': 'creatinine',
+        'serum creatinine': 'creatinine',
+        'urea': 'urea',
+        'blood urea nitrogen': 'urea',
+        'bun': 'urea',
+        'uric acid': 'uric_acid',
+        
+        # Liver Function ← NEW!
+        'sgot': 'sgot',
+        'ast': 'sgot',
+        'aspartate aminotransferase': 'sgot',
+        'sgpt': 'sgpt',
+        'alt': 'sgpt',
+        'alanine transaminase': 'sgpt',
+        'alkaline phosphatase': 'alp',
+        'alp': 'alp',
+        'bilirubin - total': 'bilirubin_total',
+        'bilirubin total': 'bilirubin_total',
+        'total bilirubin': 'bilirubin_total',
+        'bilirubin -direct': 'bilirubin_direct',
+        'bilirubin direct': 'bilirubin_direct',
+        'direct bilirubin': 'bilirubin_direct',
+        'ggt': 'ggt',
+        'gamma glutamyl transferase': 'ggt',
+        'albumin': 'albumin',
+        'serum albumin': 'albumin',
+        'protein - total': 'total_protein',
+        'total protein': 'total_protein',
+        
+        # Thyroid Function ← NEW!
+        'tsh': 'tsh',
+        'thyroid stimulating hormone': 'tsh',
+        'total triiodothyronine': 't3',
+        't3': 't3',
+        'triiodothyronine': 't3',
+        'total thyroxine': 't4',
+        't4': 't4',
+        'thyroxine': 't4',
+        'free t3': 'free_t3',
+        'free t4': 'free_t4',
+    }
+    
+    for test in tests:
+        test_name = str(test.get('term', '')).lower().strip()
+        test_value = test.get('value')
+        
+        if test_value is None or test_name == '':
+            continue
+        
+        # Convert to float
+        try:
+            if isinstance(test_value, str):
+                test_value = float(test_value.strip().replace(',', ''))
+            else:
+                test_value = float(test_value)
+        except:
+            continue
+        
+        # Check if this test name matches any of our mappings
+        for pattern, standard_name in test_mapping.items():
+            if pattern in test_name:
+                test_values[standard_name] = test_value
+                print(f"   ✅ Mapped '{test_name}' → {standard_name} = {test_value}")
+                break
+    
+    return test_values
+
+
+# ============================================
+# 🔥 UPDATED: calculate_all_risks (NOW INCLUDES LIVER & THYROID)
+# ============================================
 def calculate_all_risks(test_values):
     """
-    Calculate all health risks based on test values
-    Returns a dictionary with risk assessments
+    Calculate ALL health risks based on available test values
+    ✅ NOW SUPPORTS: Cardio, Diabetes, Kidney, Liver, Thyroid
     """
     risks = {
         'overall_score': 100,
         'cardiovascular': None,
         'diabetes': None,
         'kidney': None,
+        'liver': None,        # ← NEW!
+        'thyroid': None,      # ← NEW!
         'recommendations': []
     }
-  
-    # ============================================
-    # CARDIOVASCULAR RISK ASSESSMENT
-    # ============================================
+    
+    # Cardiovascular Risk
     cardio_risk = assess_cardiovascular_risk(test_values)
     risks['cardiovascular'] = cardio_risk
-  
-    # Deduct from overall score based on cardio risk
     if cardio_risk['level'] == 'HIGH':
         risks['overall_score'] -= 15
         risks['recommendations'].extend(cardio_risk['recommendations'])
     elif cardio_risk['level'] == 'MEDIUM':
         risks['overall_score'] -= 8
         risks['recommendations'].extend(cardio_risk['recommendations'])
-  
-    # ============================================
-    # DIABETES RISK ASSESSMENT
-    # ============================================
+    
+    # Diabetes Risk
     diabetes_risk = assess_diabetes_risk(test_values)
     risks['diabetes'] = diabetes_risk
-  
-    # Deduct from overall score based on diabetes risk
     if diabetes_risk['level'] == 'DIABETIC':
         risks['overall_score'] -= 15
         risks['recommendations'].extend(diabetes_risk['recommendations'])
     elif diabetes_risk['level'] == 'PREDIABETIC':
         risks['overall_score'] -= 10
         risks['recommendations'].extend(diabetes_risk['recommendations'])
-  
-    # ============================================
-    # KIDNEY HEALTH ASSESSMENT
-    # ============================================
+    
+    # Kidney Health
     kidney_health = assess_kidney_health(test_values)
     risks['kidney'] = kidney_health
-  
-    # Deduct from overall score based on kidney health
     if kidney_health['level'] == 'HIGH_RISK':
         risks['overall_score'] -= 15
         risks['recommendations'].extend(kidney_health['recommendations'])
     elif kidney_health['level'] == 'MODERATE_RISK':
         risks['overall_score'] -= 8
         risks['recommendations'].extend(kidney_health['recommendations'])
-  
+    
+    # ============================================
+    # 🔥 NEW: LIVER HEALTH ASSESSMENT
+    # ============================================
+    liver_health = assess_liver_health(test_values)
+    risks['liver'] = liver_health
+    if liver_health['level'] == 'HIGH_RISK':
+        risks['overall_score'] -= 15
+        risks['recommendations'].extend(liver_health['recommendations'])
+    elif liver_health['level'] == 'MODERATE_RISK':
+        risks['overall_score'] -= 8
+        risks['recommendations'].extend(liver_health['recommendations'])
+    
+    # ============================================
+    # 🔥 NEW: THYROID HEALTH ASSESSMENT
+    # ============================================
+    thyroid_health = assess_thyroid_health(test_values)
+    risks['thyroid'] = thyroid_health
+    if thyroid_health['level'] == 'HYPERTHYROID' or thyroid_health['level'] == 'HYPOTHYROID':
+        risks['overall_score'] -= 12
+        risks['recommendations'].extend(thyroid_health['recommendations'])
+    elif thyroid_health['level'] == 'BORDERLINE':
+        risks['overall_score'] -= 5
+        risks['recommendations'].extend(thyroid_health['recommendations'])
+    
     # Ensure score doesn't go below 0
     risks['overall_score'] = max(0, risks['overall_score'])
-  
+    
     # Determine overall health status
     if risks['overall_score'] >= 90:
         risks['overall_status'] = 'Excellent'
@@ -1482,233 +1463,222 @@ def calculate_all_risks(test_values):
     else:
         risks['overall_status'] = 'Critical'
         risks['overall_message'] = 'Immediate medical attention recommended. Please consult your doctor.'
-  
+    
     # Remove duplicate recommendations
     risks['recommendations'] = list(set(risks['recommendations']))
-  
+    
     return risks
-def assess_cardiovascular_risk(test_values):
+
+
+# ============================================
+# 🔥 NEW: LIVER HEALTH ASSESSMENT FUNCTION
+# ============================================
+def assess_liver_health(test_values):
     """
-    Assess cardiovascular disease risk based on lipid profile
+    Assess liver health based on liver function tests
+    Tests: SGOT, SGPT, ALP, Bilirubin, GGT, Albumin
     """
     risk = {
         'level': 'UNKNOWN',
-        'score': 0,
         'factors': [],
         'recommendations': []
     }
-  
-    total_chol = test_values.get('total_cholesterol')
-    hdl = test_values.get('hdl')
-    ldl = test_values.get('ldl')
-    triglycerides = test_values.get('triglycerides')
-  
+    
+    sgot = test_values.get('sgot')  # AST
+    sgpt = test_values.get('sgpt')  # ALT
+    alp = test_values.get('alp')
+    bilirubin_total = test_values.get('bilirubin_total')
+    ggt = test_values.get('ggt')
+    albumin = test_values.get('albumin')
+    
     risk_points = 0
-  
-    # Total Cholesterol assessment
-    if total_chol is not None:
-        if total_chol >= 240:
+    
+    # SGOT (AST) assessment
+    if sgot is not None:
+        if sgot > 80:  # Significantly elevated
             risk_points += 3
-            risk['factors'].append(f'High Total Cholesterol: {total_chol} mg/dL (>= 240)')
-        elif total_chol >= 200:
+            risk['factors'].append(f'Elevated SGOT/AST: {sgot} U/L (>80 - Significant liver damage)')
+        elif sgot > 48:  # Mildly elevated
             risk_points += 2
-            risk['factors'].append(f'Borderline High Cholesterol: {total_chol} mg/dL (200-239)')
+            risk['factors'].append(f'Elevated SGOT/AST: {sgot} U/L (>48 - Mild liver stress)')
         else:
-            risk['factors'].append(f'Normal Total Cholesterol: {total_chol} mg/dL (<200)')
-  
-    # HDL assessment
-    if hdl is not None:
-        if hdl < 40:
-            risk_points += 2
-            risk['factors'].append(f'Low HDL (Good Cholesterol): {hdl} mg/dL (<40)')
-        elif hdl >= 60:
-            risk_points -= 1 # Protective factor
-            risk['factors'].append(f'High HDL (Good Cholesterol): {hdl} mg/dL (>=60) - Protective!')
-        else:
-            risk['factors'].append(f'Normal HDL: {hdl} mg/dL (40-60)')
-  
-    # LDL assessment
-    if ldl is not None:
-        if ldl >= 160:
+            risk['factors'].append(f'Normal SGOT/AST: {sgot} U/L (8-48)')
+    
+    # SGPT (ALT) assessment - MORE specific to liver than AST
+    if sgpt is not None:
+        if sgpt > 90:  # Significantly elevated
             risk_points += 3
-            risk['factors'].append(f'High LDL (Bad Cholesterol): {ldl} mg/dL (>=160)')
-        elif ldl >= 130:
+            risk['factors'].append(f'Elevated SGPT/ALT: {sgpt} U/L (>90 - Significant liver damage)')
+        elif sgpt > 45:  # Mildly elevated
             risk_points += 2
-            risk['factors'].append(f'Borderline High LDL: {ldl} mg/dL (130-159)')
-        elif ldl >= 100:
-            risk_points += 1
-            risk['factors'].append(f'Near Optimal LDL: {ldl} mg/dL (100-129)')
+            risk['factors'].append(f'Elevated SGPT/ALT: {sgpt} U/L (>45 - Mild liver stress)')
         else:
-            risk['factors'].append(f'Optimal LDL: {ldl} mg/dL (<100)')
-  
-    # Triglycerides assessment
-    if triglycerides is not None:
-        if triglycerides >= 200:
+            risk['factors'].append(f'Normal SGPT/ALT: {sgpt} U/L (7-45)')
+    
+    # Alkaline Phosphatase (ALP) assessment
+    if alp is not None:
+        if alp > 200:  # Significantly elevated
             risk_points += 2
-            risk['factors'].append(f'High Triglycerides: {triglycerides} mg/dL (>=200)')
-        elif triglycerides >= 150:
+            risk['factors'].append(f'High Alkaline Phosphatase: {alp} U/L (>200 - Bile duct obstruction possible)')
+        elif alp > 130:  # Mildly elevated
             risk_points += 1
-            risk['factors'].append(f'Borderline High Triglycerides: {triglycerides} mg/dL (150-199)')
+            risk['factors'].append(f'Elevated Alkaline Phosphatase: {alp} U/L (>130)')
         else:
-            risk['factors'].append(f'Normal Triglycerides: {triglycerides} mg/dL (<150)')
-  
+            risk['factors'].append(f'Normal Alkaline Phosphatase: {alp} U/L (40-130)')
+    
+    # Total Bilirubin assessment
+    if bilirubin_total is not None:
+        if bilirubin_total > 2.0:  # Significantly elevated - visible jaundice
+            risk_points += 3
+            risk['factors'].append(f'High Bilirubin: {bilirubin_total} mg/dL (>2.0 - Jaundice likely)')
+        elif bilirubin_total > 1.2:  # Mildly elevated
+            risk_points += 1
+            risk['factors'].append(f'Elevated Bilirubin: {bilirubin_total} mg/dL (>1.2)')
+        else:
+            risk['factors'].append(f'Normal Bilirubin: {bilirubin_total} mg/dL (0.1-1.2)')
+    
+    # GGT assessment (sensitive to alcohol)
+    if ggt is not None:
+        if ggt > 100:
+            risk_points += 2
+            risk['factors'].append(f'High GGT: {ggt} U/L (>100 - Alcohol/bile duct issues)')
+        elif ggt > 65:
+            risk_points += 1
+            risk['factors'].append(f'Elevated GGT: {ggt} U/L (>65)')
+        else:
+            risk['factors'].append(f'Normal GGT: {ggt} U/L (<65)')
+    
+    # Albumin assessment (LOW albumin indicates poor liver function)
+    if albumin is not None:
+        if albumin < 3.0:
+            risk_points += 3
+            risk['factors'].append(f'Low Albumin: {albumin} g/dL (<3.0 - Severe liver dysfunction)')
+        elif albumin < 3.5:
+            risk_points += 1
+            risk['factors'].append(f'Low Albumin: {albumin} g/dL (<3.5 - Mild liver dysfunction)')
+        else:
+            risk['factors'].append(f'Normal Albumin: {albumin} g/dL (3.5-5.5)')
+    
     # Determine risk level
-    if risk_points >= 5:
-        risk['level'] = 'HIGH'
-        risk['recommendations'] = [
-            'Consult a cardiologist immediately',
-            'Consider starting cholesterol-lowering medication',
-            'Follow a heart-healthy diet (low saturated fat)',
-            'Exercise at least 30 minutes daily',
-            'Stop smoking if applicable'
-        ]
-    elif risk_points >= 3:
-        risk['level'] = 'MEDIUM'
-        risk['recommendations'] = [
-            'Monitor cholesterol levels regularly',
-            'Reduce saturated fat and trans fat intake',
-            'Increase physical activity to 30 mins daily',
-            'Maintain healthy weight',
-            'Consider consulting a dietitian'
-        ]
-    else:
-        risk['level'] = 'LOW'
-        risk['recommendations'] = [
-            'Maintain current healthy lifestyle',
-            'Continue regular exercise',
-            'Annual cholesterol screening recommended'
-        ]
-  
-    risk['score'] = risk_points
-  
-    return risk
-def assess_diabetes_risk(test_values):
-    """
-    Assess diabetes risk based on glucose and HbA1c levels
-    """
-    risk = {
-        'level': 'UNKNOWN',
-        'factors': [],
-        'recommendations': []
-    }
-  
-    hba1c = test_values.get('hba1c')
-    fasting_glucose = test_values.get('fasting_glucose')
-  
-    # HbA1c assessment (primary indicator)
-    if hba1c is not None:
-        if hba1c >= 6.5:
-            risk['level'] = 'DIABETIC'
-            risk['factors'].append(f'HbA1c: {hba1c}% (>=6.5% indicates diabetes)')
-            risk['recommendations'] = [
-                'Consult an endocrinologist immediately',
-                'Start diabetes management plan',
-                'Monitor blood sugar regularly',
-                'Follow diabetic diet plan',
-                'Exercise 30-45 minutes daily',
-                'Check for complications (eyes, kidneys, feet)'
-            ]
-        elif hba1c >= 5.7:
-            risk['level'] = 'PREDIABETIC'
-            risk['factors'].append(f'HbA1c: {hba1c}% (5.7-6.4% indicates prediabetes)')
-            risk['recommendations'] = [
-                'Lifestyle changes to prevent diabetes',
-                'Reduce sugar and refined carbohydrate intake',
-                'Lose 5-10% body weight if overweight',
-                'Exercise 150 minutes per week',
-                'Monitor HbA1c every 3-6 months',
-                'Consider consulting a dietitian'
-            ]
-        else:
-            risk['level'] = 'NORMAL'
-            risk['factors'].append(f'HbA1c: {hba1c}% (<5.7% is normal)')
-            risk['recommendations'] = [
-                'Maintain healthy lifestyle',
-                'Annual HbA1c screening recommended',
-                'Balanced diet with limited processed sugars'
-            ]
-  
-    # Fasting Glucose assessment (secondary indicator)
-    if fasting_glucose is not None:
-        if fasting_glucose >= 126:
-            if risk['level'] != 'DIABETIC':
-                risk['level'] = 'DIABETIC'
-            risk['factors'].append(f'Fasting Glucose: {fasting_glucose} mg/dL (>=126 indicates diabetes)')
-        elif fasting_glucose >= 100:
-            if risk['level'] == 'UNKNOWN' or risk['level'] == 'NORMAL':
-                risk['level'] = 'PREDIABETIC'
-            risk['factors'].append(f'Fasting Glucose: {fasting_glucose} mg/dL (100-125 indicates prediabetes)')
-        else:
-            if risk['level'] == 'UNKNOWN':
-                risk['level'] = 'NORMAL'
-            risk['factors'].append(f'Fasting Glucose: {fasting_glucose} mg/dL (<100 is normal)')
-  
-    return risk
-def assess_kidney_health(test_values):
-    """
-    Assess kidney health based on creatinine and urea levels
-    """
-    risk = {
-        'level': 'UNKNOWN',
-        'factors': [],
-        'recommendations': []
-    }
-  
-    creatinine = test_values.get('creatinine')
-    urea = test_values.get('urea')
-  
-    risk_points = 0
-  
-    # Creatinine assessment
-    if creatinine is not None:
-        if creatinine > 1.3: # Elevated for most adults
-            risk_points += 2
-            risk['factors'].append(f'Elevated Creatinine: {creatinine} mg/dL (>1.3)')
-        elif creatinine > 1.1:
-            risk_points += 1
-            risk['factors'].append(f'Borderline Creatinine: {creatinine} mg/dL (>1.1)')
-        else:
-            risk['factors'].append(f'Normal Creatinine: {creatinine} mg/dL (<=1.1)')
-  
-    # Urea assessment
-    if urea is not None:
-        if urea > 45: # Elevated
-            risk_points += 2
-            risk['factors'].append(f'Elevated Urea: {urea} mg/dL (>45)')
-        elif urea > 40:
-            risk_points += 1
-            risk['factors'].append(f'Borderline Urea: {urea} mg/dL (>40)')
-        else:
-            risk['factors'].append(f'Normal Urea: {urea} mg/dL (<=40)')
-  
-    # Determine risk level
-    if risk_points >= 3:
+    if risk_points >= 6:
         risk['level'] = 'HIGH_RISK'
         risk['recommendations'] = [
-            'Consult a nephrologist immediately',
-            'Get kidney function tests (eGFR)',
-            'Stay well hydrated',
-            'Limit protein intake',
-            'Monitor blood pressure regularly',
-            'Avoid nephrotoxic medications'
+            'Consult a gastroenterologist or hepatologist urgently',
+            'Stop all alcohol consumption immediately',
+            'Liver ultrasound or CT scan recommended',
+            'Consider liver biopsy if needed',
+            'Avoid hepatotoxic medications (Tylenol, etc.)',
+            'Weight loss if overweight (fatty liver disease)'
         ]
-    elif risk_points >= 1:
+    elif risk_points >= 3:
         risk['level'] = 'MODERATE_RISK'
         risk['recommendations'] = [
-            'Monitor kidney function regularly',
-            'Stay hydrated (8-10 glasses water daily)',
-            'Limit sodium intake',
-            'Control blood pressure and blood sugar',
-            'Recheck kidney tests in 3 months'
+            'Limit alcohol intake significantly',
+            'Weight loss if overweight',
+            'Liver function test recheck in 3 months',
+            'Avoid unnecessary medications',
+            'Increase vegetable intake, reduce processed foods',
+            'Consider hepatitis screening'
         ]
     else:
         risk['level'] = 'NORMAL'
         risk['recommendations'] = [
-            'Kidney function is normal',
-            'Maintain adequate hydration',
-            'Annual kidney screening recommended'
+            'Liver function is normal',
+            'Continue healthy lifestyle',
+            'Limit alcohol to moderate levels',
+            'Annual liver screening recommended'
         ]
-  
+    
+    return risk
+
+
+# ============================================
+# 🔥 NEW: THYROID HEALTH ASSESSMENT FUNCTION
+# ============================================
+def assess_thyroid_health(test_values):
+    """
+    Assess thyroid health based on TSH, T3, T4 levels
+    """
+    risk = {
+        'level': 'UNKNOWN',
+        'factors': [],
+        'recommendations': []
+    }
+    
+    tsh = test_values.get('tsh')
+    t3 = test_values.get('t3')
+    t4 = test_values.get('t4')
+    
+    # TSH is the PRIMARY indicator
+    if tsh is not None:
+        if tsh > 10.0:
+            risk['level'] = 'HYPOTHYROID'
+            risk['factors'].append(f'High TSH: {tsh} µIU/mL (>10 - Severe Hypothyroidism)')
+            risk['recommendations'] = [
+                'Consult endocrinologist immediately',
+                'Thyroid hormone replacement (Levothyroxine) likely needed',
+                'Regular TSH monitoring every 6-8 weeks',
+                'Check for Hashimoto\'s thyroiditis (antibodies)',
+                'Ensure adequate iodine intake',
+                'Consider selenium supplementation'
+            ]
+        elif tsh > 4.5:
+            risk['level'] = 'HYPOTHYROID'
+            risk['factors'].append(f'Elevated TSH: {tsh} µIU/mL (>4.5 - Hypothyroidism)')
+            risk['recommendations'] = [
+                'Consult endocrinologist',
+                'Thyroid hormone replacement may be needed',
+                'Recheck TSH in 6-8 weeks',
+                'Check thyroid antibodies',
+                'Monitor symptoms (fatigue, weight gain, cold intolerance)'
+            ]
+        elif tsh < 0.1:
+            risk['level'] = 'HYPERTHYROID'
+            risk['factors'].append(f'Very Low TSH: {tsh} µIU/mL (<0.1 - Severe Hyperthyroidism)')
+            risk['recommendations'] = [
+                'Urgent endocrinologist referral',
+                'Anti-thyroid medication or radioactive iodine therapy',
+                'Beta-blockers for symptom control',
+                'Check for Graves\' disease',
+                'Monitor heart rate and blood pressure',
+                'Regular TSH monitoring'
+            ]
+        elif tsh < 0.4:
+            risk['level'] = 'HYPERTHYROID'
+            risk['factors'].append(f'Low TSH: {tsh} µIU/mL (<0.4 - Hyperthyroidism)')
+            risk['recommendations'] = [
+                'Consult endocrinologist',
+                'Treatment may be needed to prevent complications',
+                'Monitor for symptoms (weight loss, anxiety, palpitations)',
+                'Recheck TSH in 6-8 weeks'
+            ]
+        else:
+            risk['level'] = 'NORMAL'
+            risk['factors'].append(f'Normal TSH: {tsh} µIU/mL (0.4-4.5)')
+            risk['recommendations'] = [
+                'Thyroid function is normal',
+                'Continue healthy lifestyle',
+                'Annual TSH screening recommended'
+            ]
+    
+    # T3 assessment (supports TSH findings)
+    if t3 is not None:
+        if t3 > 200:
+            risk['factors'].append(f'High T3: {t3} ng/dL (>200 - Hyperthyroidism)')
+        elif t3 < 80:
+            risk['factors'].append(f'Low T3: {t3} ng/dL (<80 - Hypothyroidism)')
+        else:
+            risk['factors'].append(f'Normal T3: {t3} ng/dL (80-200)')
+    
+    # T4 assessment (supports TSH findings)
+    if t4 is not None:
+        if t4 > 12.7:
+            risk['factors'].append(f'High T4: {t4} µg/dL (>12.7 - Hyperthyroidism)')
+        elif t4 < 4.8:
+            risk['factors'].append(f'Low T4: {t4} µg/dL (<4.8 - Hypothyroidism)')
+        else:
+            risk['factors'].append(f'Normal T4: {t4} µg/dL (4.8-12.7)')
+    
     return risk
 # ============================================
 # 🔥 DIET RECOMMENDATIONS ENDPOINT 🔥
