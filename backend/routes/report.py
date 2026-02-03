@@ -71,7 +71,7 @@ def extract_tests_from_raw_text(text: str) -> List[Dict]:
     WORKS WITH SPLIT TABLE FORMAT - test names and values on different lines
     """
     print(f"\n{'='*80}")
-    print(f"🔥 FINAL FIX - HANDLING SPLIT TABLE FORMAT")
+    print(f"🔥 FINAL FIX - HANDLING SPLIT TABLE FORMAT hopefully") 
     print(f"{'='*80}\n")
     
     tests = []
