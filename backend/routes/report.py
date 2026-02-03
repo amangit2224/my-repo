@@ -68,41 +68,61 @@ def validate_file_size(file):
 # ============================================
 def extract_tests_from_raw_text(text: str) -> List[Dict]:
     """
-    UNIVERSAL EXTRACTOR with DEBUG - Let's see what's actually in the text
+    WORKS WITH SPLIT TABLE FORMAT - test names and values on different lines
     """
     print(f"\n{'='*80}")
-    print(f"🔍 DEBUG: First 500 chars of extracted text:")
-    print(f"{'='*80}")
-    print(text[:500])
+    print(f"🔥 FINAL FIX - HANDLING SPLIT TABLE FORMAT")
     print(f"{'='*80}\n")
-    
-    # Look for ANY line with a number and unit pattern
-    print(f"🔍 Looking for lines with VALUE + UNIT pattern...\n")
     
     tests = []
     lines = text.split('\n')
     
+    # STRATEGY: Build a mapping of line numbers to test names
+    test_names = {}
+    value_lines = {}
+    
+    # STEP 1: Find all test name lines (uppercase, no numbers)
     for i, line in enumerate(lines):
         line = line.strip()
+        # Test names are usually all caps and have no numbers
+        if len(line) > 5 and line.isupper() and not re.search(r'\d', line):
+            # Common Thyrocare test names
+            if any(keyword in line for keyword in ['PHOSPHATASE', 'BILIRUBIN', 'TRANSFERASE', 
+                                                     'PROTEIN', 'ALBUMIN', 'GLOBULIN', 
+                                                     'TRIIODOTHYRONINE', 'THYROXINE', 'TSH',
+                                                     'CHOLESTEROL', 'TRIGLYCERIDES']):
+                test_names[i] = line
+                print(f"   Found test name at line {i}: {line}")
+    
+    # STEP 2: Find all value lines (number + unit)
+    for i, line in enumerate(lines):
+        line = line.strip()
+        # Value lines: start with a number followed by unit
+        match = re.match(r'^([\d.]+)\s+(mg/dL|U/L|ng/dL|µg/dL|µIU/mL|gm/dL|%)', line)
+        if match:
+            value = float(match.group(1))
+            unit = match.group(2)
+            value_lines[i] = {'value': value, 'unit': unit}
+            print(f"   Found value at line {i}: {value} {unit}")
+    
+    # STEP 3: Match test names with values (sequential pairing)
+    test_name_indices = sorted(test_names.keys())
+    value_indices = sorted(value_lines.keys())
+    
+    print(f"\n   Matching {len(test_name_indices)} test names with {len(value_indices)} values...\n")
+    
+    # Pair them up (assuming same order)
+    for name_idx, value_idx in zip(test_name_indices, value_indices):
+        name = test_names[name_idx]
+        value_data = value_lines[value_idx]
         
-        # Look for pattern: NUMBER + UNIT (mg/dL, U/L, ng/dL, etc.)
-        if re.search(r'(\d+\.?\d*)\s+(mg/dL|U/L|ng/dL|µg/dL|µIU/mL|gm/dL|%)', line):
-            print(f"Line {i}: {line[:100]}")
-            
-            # Try to extract: TEST_NAME, VALUE, UNIT
-            match = re.search(r'^([A-Z\s\-\(\)]+?)\s+(?:PHOTOMETRY|E\.C\.L\.I\.A|H\.P\.L\.C|C\.M\.I\.A)?\s*(\d+\.?\d*)\s+(mg/dL|U/L|ng/dL|µg/dL|µIU/mL|gm/dL|%)', line)
-            
-            if match:
-                name = match.group(1).strip()
-                value = float(match.group(2))
-                unit = match.group(3)
-                
-                # Skip if name contains keywords that indicate it's not a real test
-                if any(x in name.upper() for x in ['RATIO', 'CALCULATED', 'TEST NAME', 'TECHNOLOGY']):
-                    continue
-                
-                tests.append({'name': name, 'value': value, 'unit': unit, 'status': 'NORMAL'})
-                print(f"   ✓ Extracted: {name} = {value} {unit}\n")
+        tests.append({
+            'name': name,
+            'value': value_data['value'],
+            'unit': value_data['unit'],
+            'status': 'NORMAL'
+        })
+        print(f"   ✓ {name:40} = {value_data['value']:8} {value_data['unit']}")
     
     print(f"\n   → Total extracted: {len(tests)} tests")
     print(f"{'='*80}\n")
