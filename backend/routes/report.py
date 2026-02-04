@@ -68,81 +68,63 @@ def validate_file_size(file):
 # ============================================
 def extract_tests_from_raw_text(text: str) -> List[Dict]:
     """
-    ✅ BULLETPROOF VERSION - Tested and working on actual Thyrocare reports
-    
-    Works with Thyrocare table format:
-    TEST NAME                    TECHNOLOGY      VALUE   UNITS   Bio. Ref.
-    ALKALINE PHOSPHATASE        PHOTOMETRY      100.9   U/L     45-129
-    
-    Handles:
-    - PHOTOMETRY tests (liver, lipid profile)
-    - E.C.L.I.A tests (thyroid)
-    - H.P.L.C tests (HbA1c)
-    - C.M.I.A tests (troponin)
-    - CALCULATED tests (skip ratios, include derived values)
+    ✅ WORKS WITH THYROCARE REPORTS - Clean version
     """
     print(f"\n{'='*80}")
-    print(f"🔥 BULLETPROOF THYROCARE EXTRACTOR v3.0")
+    print(f"🔥 THYROCARE EXTRACTOR")
     print(f"{'='*80}\n")
     
     tests = []
-    lines = text.split('\n')
     
-    # Technologies used by Thyrocare
-    technologies = ['PHOTOMETRY', 'E.C.L.I.A', 'H.P.L.C', 'C.M.I.A', 'CALCULATED']
+    # FIRST: Clean the text (PyPDF2 gives HTML-like output)
+    text = text.replace('<table>', '').replace('</table>', '')
+    text = text.replace('&amp;lt;', '<').replace('&lt;', '<')
+    text = text.replace('&amp;gt;', '>').replace('&gt;', '>')
     
-    for i, line in enumerate(lines):
-        line_stripped = line.strip()
+    # Find ALL test lines using regex
+    # Pattern: TestName + Technology + Value + Unit + Reference
+    pattern = r'([A-Z][A-Z\s/&()-]+(?:\([A-Z]+\))?)\s+(PHOTOMETRY|CALCULATED|E\.C\.L\.I\.A)\s+([\d.]+)\s+(U/L|mg/dL|gm/dL|Ratio|%)\s'
+    
+    matches = re.finditer(pattern, text)
+    
+    for match in matches:
+        test_name = match.group(1).strip()
+        value = float(match.group(3))
+        unit = match.group(4).strip()
         
-        # Skip empty lines
-        if len(line_stripped) < 10:
+        # Skip ratio tests
+        if 'RATIO' in test_name.upper():
+            print(f"   ⊘ Skipping ratio: {test_name}")
             continue
+            
+        tests.append({
+            'name': test_name,
+            'value': value,
+            'unit': unit,
+            'status': 'NORMAL'
+        })
+        print(f"   ✓ {test_name:40} = {value:8} {unit}")
+    
+    # If no tests found, try simpler pattern
+    if not tests:
+        print("⚠️  No tests with first pattern, trying fallback...")
+        # Look for: ALKALINE PHOSPHATASE 100.9 U/L
+        simple_pattern = r'([A-Z][A-Z\s/&()-]+(?:\([A-Z]+\))?)\s+([\d.]+)\s+(U/L|mg/dL|gm/dL)'
+        matches = re.finditer(simple_pattern, text)
         
-        # Skip header lines
-        if 'TEST NAME' in line_stripped or 'TECHNOLOGY' in line_stripped:
-            continue
-        
-        # Skip method description lines
-        if line_stripped.startswith('Method:') or ' - ' in line_stripped[:10]:
-            continue
-        
-        # Check if this line contains a technology keyword
-        for tech in technologies:
-            if tech in line:
-                # Found a test line!
-                
-                # Extract test name (everything before TECHNOLOGY)
-                tech_pos = line.find(tech)
-                test_name = line[:tech_pos].strip()
-                
-                # Extract the part after technology
-                after_tech = line[tech_pos + len(tech):].strip()
-                
-                # Extract value and unit
-                value_match = re.search(r'([\d.]+)\s+(mg/dL|U/L|ng/dL|µg/dL|µIU/mL|gm/dL|%|Ratio)', after_tech)
-                
-                if value_match and test_name:
-                    value = float(value_match.group(1))
-                    unit = value_match.group(2)
-                    
-                    # Skip ratio tests (they're derived, not base tests)
-                    if 'RATIO' in test_name.upper():
-                        print(f"   ⊘ Skipping ratio: {test_name}")
-                        break
-                    
-                    # Skip if test name is too generic or looks like a method description
-                    if len(test_name) < 3:
-                        break
-                    
-                    tests.append({
-                        'name': test_name,
-                        'value': value,
-                        'unit': unit,
-                        'status': 'NORMAL'
-                    })
-                    print(f"   ✓ {test_name:45} = {value:8} {unit}")
-                
-                break  # Found technology, move to next line
+        for match in matches:
+            test_name = match.group(1).strip()
+            value = float(match.group(2))
+            unit = match.group(3).strip()
+            
+            if len(test_name) > 5 and value > 0:
+                tests.append({
+                    'name': test_name,
+                    'value': value,
+                    'unit': unit,
+                    'status': 'NORMAL'
+                })
+                print(f"   ✓ {test_name:40} = {value:8} {unit}")
     
     print(f"\n   → Total extracted: {len(tests)} tests")
     print(f"{'='*80}\n")
