@@ -68,67 +68,65 @@ def validate_file_size(file):
 # ============================================
 def extract_tests_from_raw_text(text: str) -> List[Dict]:
     """
-    ✅ WORKS WITH THYROCARE REPORTS - Clean version
+    WORKS WITH SPLIT TABLE FORMAT - test names and values on different lines
     """
     print(f"\n{'='*80}")
-    print(f"🔥 THYROCARE EXTRACTOR")
+    print(f"🔥 FINAL FIX - HANDLING SPLIT TABLE FORMAT hopefully")
     print(f"{'='*80}\n")
-    
+   
     tests = []
-    
-    # FIRST: Clean the text (PyPDF2 gives HTML-like output)
-    text = text.replace('<table>', '').replace('</table>', '')
-    text = text.replace('&amp;lt;', '<').replace('&lt;', '<')
-    text = text.replace('&amp;gt;', '>').replace('&gt;', '>')
-    
-    # Find ALL test lines using regex
-    # Pattern: TestName + Technology + Value + Unit + Reference
-    pattern = r'([A-Z][A-Z\s/&()-]+(?:\([A-Z]+\))?)\s+(PHOTOMETRY|CALCULATED|E\.C\.L\.I\.A)\s+([\d.]+)\s+(U/L|mg/dL|gm/dL|Ratio|%)\s'
-    
-    matches = re.finditer(pattern, text)
-    
-    for match in matches:
-        test_name = match.group(1).strip()
-        value = float(match.group(3))
-        unit = match.group(4).strip()
-        
-        # Skip ratio tests
-        if 'RATIO' in test_name.upper():
-            print(f"   ⊘ Skipping ratio: {test_name}")
-            continue
-            
+    lines = text.split('\n')
+   
+    # STRATEGY: Build a mapping of line numbers to test names
+    test_names = {}
+    value_lines = {}
+   
+    # STEP 1: Find all test name lines (uppercase, no numbers)
+    for i, line in enumerate(lines):
+        line = line.strip()
+        # Test names are usually all caps and have no numbers
+        if len(line) > 5 and line.isupper() and not re.search(r'\d', line):
+            # Common Thyrocare test names
+            if any(keyword in line for keyword in ['PHOSPHATASE', 'BILIRUBIN', 'TRANSFERASE',
+                                                     'PROTEIN', 'ALBUMIN', 'GLOBULIN',
+                                                     'TRIIODOTHYRONINE', 'THYROXINE', 'TSH',
+                                                     'CHOLESTEROL', 'TRIGLYCERIDES']):
+                test_names[i] = line
+                print(f" Found test name at line {i}: {line}")
+   
+    # STEP 2: Find all value lines (number + unit)
+    for i, line in enumerate(lines):
+        line = line.strip()
+        # Value lines: start with a number followed by unit
+        match = re.match(r'^([\d.]+)\s+(mg/dL|U/L|ng/dL|µg/dL|µIU/mL|gm/dL|%)', line)
+        if match:
+            value = float(match.group(1))
+            unit = match.group(2)
+            value_lines[i] = {'value': value, 'unit': unit}
+            print(f" Found value at line {i}: {value} {unit}")
+   
+    # STEP 3: Match test names with values (sequential pairing)
+    test_name_indices = sorted(test_names.keys())
+    value_indices = sorted(value_lines.keys())
+   
+    print(f"\n Matching {len(test_name_indices)} test names with {len(value_indices)} values...\n")
+   
+    # Pair them up (assuming same order)
+    for name_idx, value_idx in zip(test_name_indices, value_indices):
+        name = test_names[name_idx]
+        value_data = value_lines[value_idx]
+       
         tests.append({
-            'name': test_name,
-            'value': value,
-            'unit': unit,
+            'name': name,
+            'value': value_data['value'],
+            'unit': value_data['unit'],
             'status': 'NORMAL'
         })
-        print(f"   ✓ {test_name:40} = {value:8} {unit}")
-    
-    # If no tests found, try simpler pattern
-    if not tests:
-        print("⚠️  No tests with first pattern, trying fallback...")
-        # Look for: ALKALINE PHOSPHATASE 100.9 U/L
-        simple_pattern = r'([A-Z][A-Z\s/&()-]+(?:\([A-Z]+\))?)\s+([\d.]+)\s+(U/L|mg/dL|gm/dL)'
-        matches = re.finditer(simple_pattern, text)
-        
-        for match in matches:
-            test_name = match.group(1).strip()
-            value = float(match.group(2))
-            unit = match.group(3).strip()
-            
-            if len(test_name) > 5 and value > 0:
-                tests.append({
-                    'name': test_name,
-                    'value': value,
-                    'unit': unit,
-                    'status': 'NORMAL'
-                })
-                print(f"   ✓ {test_name:40} = {value:8} {unit}")
-    
-    print(f"\n   → Total extracted: {len(tests)} tests")
+        print(f" ✓ {name:40} = {value_data['value']:8} {value_data['unit']}")
+   
+    print(f"\n → Total extracted: {len(tests)} tests")
     print(f"{'='*80}\n")
-    
+   
     return tests
 # ============================================
 # MAIN UPLOAD ENDPOINT
