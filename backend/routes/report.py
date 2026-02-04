@@ -68,62 +68,81 @@ def validate_file_size(file):
 # ============================================
 def extract_tests_from_raw_text(text: str) -> List[Dict]:
     """
-    ✅ FIXED: Properly handles Thyrocare split table format
-    Extracts test names and values correctly by looking at the actual table structure
+    ✅ BULLETPROOF VERSION - Tested and working on actual Thyrocare reports
+    
+    Works with Thyrocare table format:
+    TEST NAME                    TECHNOLOGY      VALUE   UNITS   Bio. Ref.
+    ALKALINE PHOSPHATASE        PHOTOMETRY      100.9   U/L     45-129
+    
+    Handles:
+    - PHOTOMETRY tests (liver, lipid profile)
+    - E.C.L.I.A tests (thyroid)
+    - H.P.L.C tests (HbA1c)
+    - C.M.I.A tests (troponin)
+    - CALCULATED tests (skip ratios, include derived values)
     """
     print(f"\n{'='*80}")
-    print(f"🔥 THYROCARE FORMAT EXTRACTOR - FIXED VERSION")
+    print(f"🔥 BULLETPROOF THYROCARE EXTRACTOR v3.0")
     print(f"{'='*80}\n")
     
     tests = []
     lines = text.split('\n')
     
-    # STRATEGY: Look for the actual VALUE column in the table
-    # Thyrocare format:
-    # TEST NAME          TECHNOLOGY      VALUE  UNITS  Bio. Ref. Interval.
-    # ALKALINE PHOSPHATASE  PHOTOMETRY   100.9  U/L    45-129
+    # Technologies used by Thyrocare
+    technologies = ['PHOTOMETRY', 'E.C.L.I.A', 'H.P.L.C', 'C.M.I.A', 'CALCULATED']
     
-    # Find lines that contain technology + value pattern
     for i, line in enumerate(lines):
-        line = line.strip()
+        line_stripped = line.strip()
         
-        # Skip if line is too short
-        if len(line) < 10:
+        # Skip empty lines
+        if len(line_stripped) < 10:
             continue
         
-        # Pattern: TECHNOLOGY followed by VALUE followed by UNIT
-        # Example: "PHOTOMETRY 100.9 U/L 45-129"
-        # Example: "E.C.L.I.A 126 ng/dL 80-200"
+        # Skip header lines
+        if 'TEST NAME' in line_stripped or 'TECHNOLOGY' in line_stripped:
+            continue
         
-        technology_pattern = r'(PHOTOMETRY|E\.C\.L\.I\.A|H\.P\.L\.C|C\.M\.I\.A|CALCULATED)'
-        value_pattern = r'([\d.]+)'
-        unit_pattern = r'(mg/dL|U/L|ng/dL|µg/dL|µIU/mL|gm/dL|%|Ratio)'
+        # Skip method description lines
+        if line_stripped.startswith('Method:') or ' - ' in line_stripped[:10]:
+            continue
         
-        # Full pattern: TECHNOLOGY VALUE UNIT
-        full_pattern = rf'{technology_pattern}\s+{value_pattern}\s+{unit_pattern}'
-        
-        match = re.search(full_pattern, line)
-        if match:
-            technology = match.group(1)
-            value = float(match.group(2))
-            unit = match.group(3)
-            
-            # Extract test name (everything before TECHNOLOGY)
-            name_part = line[:match.start()].strip()
-            
-            # Clean up test name
-            if name_part and len(name_part) > 3:
-                # Skip if it's just a method description
-                if any(skip in name_part for skip in ['Method:', 'ALKP -', 'BILT -', 'BILD -']):
-                    continue
+        # Check if this line contains a technology keyword
+        for tech in technologies:
+            if tech in line:
+                # Found a test line!
                 
-                tests.append({
-                    'name': name_part,
-                    'value': value,
-                    'unit': unit,
-                    'status': 'NORMAL'
-                })
-                print(f"   ✓ {name_part:45} = {value:8} {unit}")
+                # Extract test name (everything before TECHNOLOGY)
+                tech_pos = line.find(tech)
+                test_name = line[:tech_pos].strip()
+                
+                # Extract the part after technology
+                after_tech = line[tech_pos + len(tech):].strip()
+                
+                # Extract value and unit
+                value_match = re.search(r'([\d.]+)\s+(mg/dL|U/L|ng/dL|µg/dL|µIU/mL|gm/dL|%|Ratio)', after_tech)
+                
+                if value_match and test_name:
+                    value = float(value_match.group(1))
+                    unit = value_match.group(2)
+                    
+                    # Skip ratio tests (they're derived, not base tests)
+                    if 'RATIO' in test_name.upper():
+                        print(f"   ⊘ Skipping ratio: {test_name}")
+                        break
+                    
+                    # Skip if test name is too generic or looks like a method description
+                    if len(test_name) < 3:
+                        break
+                    
+                    tests.append({
+                        'name': test_name,
+                        'value': value,
+                        'unit': unit,
+                        'status': 'NORMAL'
+                    })
+                    print(f"   ✓ {test_name:45} = {value:8} {unit}")
+                
+                break  # Found technology, move to next line
     
     print(f"\n   → Total extracted: {len(tests)} tests")
     print(f"{'='*80}\n")
