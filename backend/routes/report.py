@@ -1960,7 +1960,7 @@ def chat_with_report(report_id):
          
             # Use REST API with correct model
             GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
-            url = f"https://generativelanguage.googleapis.com/v1/models/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+            url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
          
             headers = {"Content-Type": "application/json"}
          
