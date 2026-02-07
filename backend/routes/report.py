@@ -1512,77 +1512,116 @@ def extract_all_test_values(parsed_data):
 # ============================================
 def calculate_all_risks(test_values):
     """
-    Calculate ALL health risks based on available test values
-    ✅ NOW SUPPORTS: Cardio, Diabetes, Kidney, Liver, Thyroid
+    Calculate health risks ONLY for categories where we have test data
+    ✅ No more empty/fake categories
     """
     risks = {
         'overall_score': 100,
-        'cardiovascular': None,
-        'diabetes': None,
-        'kidney': None,
-        'liver': None, # ← NEW!
-        'thyroid': None, # ← NEW!
-        'recommendations': []
+        'recommendations': [],
+        'categories_assessed': []  # Track what we actually assessed
     }
-   
-    # Cardiovascular Risk
-    cardio_risk = assess_cardiovascular_risk(test_values)
-    risks['cardiovascular'] = cardio_risk
-    if cardio_risk['level'] == 'HIGH':
-        risks['overall_score'] -= 15
-        risks['recommendations'].extend(cardio_risk['recommendations'])
-    elif cardio_risk['level'] == 'MEDIUM':
-        risks['overall_score'] -= 8
-        risks['recommendations'].extend(cardio_risk['recommendations'])
-   
-    # Diabetes Risk
-    diabetes_risk = assess_diabetes_risk(test_values)
-    risks['diabetes'] = diabetes_risk
-    if diabetes_risk['level'] == 'DIABETIC':
-        risks['overall_score'] -= 15
-        risks['recommendations'].extend(diabetes_risk['recommendations'])
-    elif diabetes_risk['level'] == 'PREDIABETIC':
-        risks['overall_score'] -= 10
-        risks['recommendations'].extend(diabetes_risk['recommendations'])
-   
-    # Kidney Health
-    kidney_health = assess_kidney_health(test_values)
-    risks['kidney'] = kidney_health
-    if kidney_health['level'] == 'HIGH_RISK':
-        risks['overall_score'] -= 15
-        risks['recommendations'].extend(kidney_health['recommendations'])
-    elif kidney_health['level'] == 'MODERATE_RISK':
-        risks['overall_score'] -= 8
-        risks['recommendations'].extend(kidney_health['recommendations'])
-   
+    
     # ============================================
-    # 🔥 NEW: LIVER HEALTH ASSESSMENT
+    # Cardiovascular Risk - ONLY if we have lipid tests
     # ============================================
-    liver_health = assess_liver_health(test_values)
-    risks['liver'] = liver_health
-    if liver_health['level'] == 'HIGH_RISK':
-        risks['overall_score'] -= 15
-        risks['recommendations'].extend(liver_health['recommendations'])
-    elif liver_health['level'] == 'MODERATE_RISK':
-        risks['overall_score'] -= 8
-        risks['recommendations'].extend(liver_health['recommendations'])
-   
+    has_cardio_tests = any(test_values.get(key) for key in ['total_cholesterol', 'hdl', 'ldl', 'triglycerides'])
+    
+    if has_cardio_tests:
+        cardio_risk = assess_cardiovascular_risk(test_values)
+        
+        # Only add if we actually found risk factors
+        if cardio_risk['factors']:
+            risks['cardiovascular'] = cardio_risk
+            risks['categories_assessed'].append('cardiovascular')
+            
+            if cardio_risk['level'] == 'HIGH':
+                risks['overall_score'] -= 15
+                risks['recommendations'].extend(cardio_risk['recommendations'])
+            elif cardio_risk['level'] == 'MEDIUM':
+                risks['overall_score'] -= 8
+                risks['recommendations'].extend(cardio_risk['recommendations'])
+    
     # ============================================
-    # 🔥 NEW: THYROID HEALTH ASSESSMENT
+    # Diabetes Risk - ONLY if we have diabetes markers
     # ============================================
-    thyroid_health = assess_thyroid_health(test_values)
-    risks['thyroid'] = thyroid_health
-    if thyroid_health['level'] == 'HYPERTHYROID' or thyroid_health['level'] == 'HYPOTHYROID':
-        risks['overall_score'] -= 12
-        risks['recommendations'].extend(thyroid_health['recommendations'])
-    elif thyroid_health['level'] == 'BORDERLINE':
-        risks['overall_score'] -= 5
-        risks['recommendations'].extend(thyroid_health['recommendations'])
-   
-    # Ensure score doesn't go below 0
+    has_diabetes_tests = any(test_values.get(key) for key in ['hba1c', 'glucose'])
+    
+    if has_diabetes_tests:
+        diabetes_risk = assess_diabetes_risk(test_values)
+        
+        if diabetes_risk['factors']:
+            risks['diabetes'] = diabetes_risk
+            risks['categories_assessed'].append('diabetes')
+            
+            if diabetes_risk['level'] == 'DIABETIC':
+                risks['overall_score'] -= 15
+                risks['recommendations'].extend(diabetes_risk['recommendations'])
+            elif diabetes_risk['level'] == 'PREDIABETIC':
+                risks['overall_score'] -= 10
+                risks['recommendations'].extend(diabetes_risk['recommendations'])
+    
+    # ============================================
+    # Kidney Health - ONLY if we have kidney markers
+    # ============================================
+    has_kidney_tests = any(test_values.get(key) for key in ['creatinine', 'urea', 'uric_acid'])
+    
+    if has_kidney_tests:
+        kidney_health = assess_kidney_health(test_values)
+        
+        if kidney_health['factors']:
+            risks['kidney'] = kidney_health
+            risks['categories_assessed'].append('kidney')
+            
+            if kidney_health['level'] == 'HIGH_RISK':
+                risks['overall_score'] -= 15
+                risks['recommendations'].extend(kidney_health['recommendations'])
+            elif kidney_health['level'] == 'MODERATE_RISK':
+                risks['overall_score'] -= 8
+                risks['recommendations'].extend(kidney_health['recommendations'])
+    
+    # ============================================
+    # Liver Health - ONLY if we have liver markers
+    # ============================================
+    has_liver_tests = any(test_values.get(key) for key in ['sgot', 'sgpt', 'alp', 'bilirubin_total', 'ggt', 'albumin'])
+    
+    if has_liver_tests:
+        liver_health = assess_liver_health(test_values)
+        
+        if liver_health['factors']:
+            risks['liver'] = liver_health
+            risks['categories_assessed'].append('liver')
+            
+            if liver_health['level'] == 'HIGH_RISK':
+                risks['overall_score'] -= 15
+                risks['recommendations'].extend(liver_health['recommendations'])
+            elif liver_health['level'] == 'MODERATE_RISK':
+                risks['overall_score'] -= 8
+                risks['recommendations'].extend(liver_health['recommendations'])
+    
+    # ============================================
+    # Thyroid Health - ONLY if we have thyroid markers
+    # ============================================
+    has_thyroid_tests = any(test_values.get(key) for key in ['tsh', 't3', 't4'])
+    
+    if has_thyroid_tests:
+        thyroid_health = assess_thyroid_health(test_values)
+        
+        if thyroid_health['factors']:
+            risks['thyroid'] = thyroid_health
+            risks['categories_assessed'].append('thyroid')
+            
+            if thyroid_health['level'] in ['HYPERTHYROID', 'HYPOTHYROID']:
+                risks['overall_score'] -= 12
+                risks['recommendations'].extend(thyroid_health['recommendations'])
+            elif thyroid_health['level'] == 'BORDERLINE':
+                risks['overall_score'] -= 5
+                risks['recommendations'].extend(thyroid_health['recommendations'])
+    
+    # ============================================
+    # Overall Health Status
+    # ============================================
     risks['overall_score'] = max(0, risks['overall_score'])
-   
-    # Determine overall health status
+    
     if risks['overall_score'] >= 90:
         risks['overall_status'] = 'Excellent'
         risks['overall_message'] = 'Your health markers are excellent! Keep up the good work.'
@@ -1598,10 +1637,10 @@ def calculate_all_risks(test_values):
     else:
         risks['overall_status'] = 'Critical'
         risks['overall_message'] = 'Immediate medical attention recommended. Please consult your doctor.'
-   
+    
     # Remove duplicate recommendations
     risks['recommendations'] = list(set(risks['recommendations']))
-   
+    
     return risks
 # ============================================
 # 🔥 NEW: LIVER HEALTH ASSESSMENT FUNCTION
