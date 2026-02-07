@@ -111,9 +111,6 @@ function HealthRiskAssessment({ darkMode, setDarkMode }) {
     return '#EF4444';
   };
 
-  // ============================================
-  // 🎨 FIXED: getCategoryIcon - Add Liver & Thyroid icons
-  // ============================================
   const getCategoryIcon = (category) => {
     switch (category) {
       case 'cardiovascular':
@@ -132,20 +129,6 @@ function HealthRiskAssessment({ darkMode, setDarkMode }) {
         return (
           <svg width="24" height="24" viewBox="0 0 20 20" fill="currentColor">
             <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"/>
-          </svg>
-        );
-      case 'liver':
-        return (
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M18 2C17.1 2 16 2.9 16 4V6C16 6.5 15.8 7 15.5 7.4C15.2 7.7 14.7 8 14 8H10C9.3 8 8.8 7.7 8.5 7.4C8.2 7 8 6.5 8 6V4C8 2.9 6.9 2 6 2C4.9 2 4 2.9 4 4V6C4 7.9 4.7 9.4 5.8 10.5C6.9 11.6 8.4 12 10 12H10.5C10.8 12 11 12.2 11 12.5V13C11 14.7 10.3 16.2 9.2 17.3C8.1 18.4 6.6 19 5 19H4C3.4 19 3 19.4 3 20C3 20.6 3.4 21 4 21H5C7.1 21 8.9 20.2 10.2 18.9C11.5 17.6 12.3 15.8 12.3 13.7V12.5C12.3 12.2 12.5 12 12.8 12H13.3C14.9 12 16.4 11.3 17.5 10.2C18.6 9.1 19.3 7.6 19.3 5.7V4C19.3 2.9 18.4 2 17.5 2H18Z"/>
-            <ellipse cx="12" cy="15" rx="6" ry="5" opacity="0.3"/>
-          </svg>
-        );
-      case 'thyroid':
-        return (
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2C10.9 2 10 2.9 10 4V5.5C8.3 6.2 7 7.8 7 9.7V12C7 13.7 6.3 15.2 5.2 16.3C4.1 17.4 2.6 18 1 18H0V20H1C2.9 20 4.7 19.2 6 17.9C7.3 16.6 8 14.8 8 12.7V9.7C8 8.5 8.8 7.5 10 7.1V19C10 20.1 10.9 21 12 21C13.1 21 14 20.1 14 19V7.1C15.2 7.5 16 8.5 16 9.7V12.7C16 14.8 16.7 16.6 18 17.9C19.3 19.2 21.1 20 23 20H24V18H23C21.4 18 19.9 17.4 18.8 16.3C17.7 15.2 17 13.7 17 12V9.7C17 7.8 15.7 6.2 14 5.5V4C14 2.9 13.1 2 12 2Z"/>
-            <circle cx="12" cy="5" r="2" opacity="0.4"/>
           </svg>
         );
       default:
@@ -241,12 +224,12 @@ function HealthRiskAssessment({ darkMode, setDarkMode }) {
                 {darkMode ? (
                   <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11 -2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd"/>
-                </svg>
-              ) : (
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>
-                </svg>
-              )}
+                  </svg>
+                ) : (
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>
+                  </svg>
+                )}
               </button>
               
               <button onClick={handleLogout} className="navbar-logout-btn">
@@ -533,7 +516,9 @@ function HealthRiskAssessment({ darkMode, setDarkMode }) {
             <div className="risk-category-card" style={{ borderColor: getRiskColor(riskData.liver.level) }}>
               <div className="category-header">
                 <div className="category-icon liver-icon">
-                  {getCategoryIcon('liver')}
+                  <svg width="24" height="24" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/>
+                  </svg>
                 </div>
                 <div className="category-info">
                   <h3>Liver Health</h3>
@@ -582,7 +567,9 @@ function HealthRiskAssessment({ darkMode, setDarkMode }) {
             <div className="risk-category-card" style={{ borderColor: getRiskColor(riskData.thyroid.level) }}>
               <div className="category-header">
                 <div className="category-icon thyroid-icon">
-                  {getCategoryIcon('thyroid')}
+                  <svg width="24" height="24" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z" clipRule="evenodd"/>
+                  </svg>
                 </div>
                 <div className="category-info">
                   <h3>Thyroid Health</h3>
