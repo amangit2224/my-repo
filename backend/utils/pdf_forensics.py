@@ -77,33 +77,29 @@ class PDFForensics:
             }
     
     def _check_metadata(self, pdf_reader):
-        """Check for presence and validity of metadata"""
+        """Check for presence and validity of metadata - SIMPLIFIED"""
         try:
             metadata = pdf_reader.metadata
             
             if not metadata:
                 self.suspicion_score += 20
-                self.findings.append("⚠️ Missing PDF metadata - suspicious")
+                self.findings.append("⚠️ Document information incomplete")
                 print("⚠️  No metadata found (+20 suspicion)")
             else:
-                # Check for key metadata fields
                 has_creator = metadata.get('/Creator')
                 has_producer = metadata.get('/Producer')
                 has_creation_date = metadata.get('/CreationDate')
                 
                 if not has_creator and not has_producer:
                     self.suspicion_score += 15
-                    self.findings.append("⚠️ Missing creator/producer info")
+                    self.findings.append("⚠️ Software information missing")
                     print("⚠️  Missing creator/producer (+15 suspicion)")
                 
                 if not has_creation_date:
                     self.suspicion_score += 10
-                    self.findings.append("⚠️ Missing creation date")
+                    self.findings.append("⚠️ Creation date not recorded")
                     print("⚠️  Missing creation date (+10 suspicion)")
-                else:
-                    self.findings.append("✅ Has creation date metadata")
-                    print("✅ Creation date present")
-                    
+                        
         except Exception as e:
             print(f"⚠️  Metadata check failed: {e}")
     
@@ -150,26 +146,26 @@ class PDFForensics:
             mod_date_str = metadata.get('/ModDate')
             
             if creation_date_str and mod_date_str:
-                # Parse PDF date format: D:20250120... 
                 creation_date = self._parse_pdf_date(creation_date_str)
                 mod_date = self._parse_pdf_date(mod_date_str)
                 
                 if creation_date and mod_date:
                     time_diff = (mod_date - creation_date).total_seconds()
-                    hours_diff = time_diff / 3600
+                    days_diff = time_diff / (3600 * 24)
                     
-                    if hours_diff > 24:
+                    if days_diff > 30:
                         self.suspicion_score += 20
-                        self.findings.append(f"🚨 Modified {int(hours_diff)} hours after creation - possible tampering")
-                        print(f"🚨 Modified {int(hours_diff)}h after creation (+20 suspicion)")
-                    elif hours_diff > 1:
+                        self.findings.append("⚠️ Document was edited long after creation")
+                        print(f"🚨 Modified {int(days_diff)} days after creation (+20 suspicion)")
+                    elif days_diff > 7:
+                        self.suspicion_score += 10
+                        self.findings.append("⚠️ Document was edited after creation")
+                        print(f"⚠️  Modified {int(days_diff)} days later (+10 suspicion)")
+                    elif days_diff > 1:
                         self.suspicion_score += 5
-                        self.findings.append(f"⚠️ Modified {int(hours_diff)} hours after creation")
-                        print(f"⚠️  Modified {int(hours_diff)}h later (+5 suspicion)")
-                    else:
-                        self.findings.append("✅ Creation and modification dates consistent")
-                        print("✅ Date timestamps consistent")
-                        
+                        self.findings.append("⚠️ Minor editing detected")
+                        print(f"⚠️  Modified {int(days_diff)} days later (+5 suspicion)")
+                            
         except Exception as e:
             print(f"⚠️  Date check failed: {e}")
     
@@ -185,7 +181,7 @@ class PDFForensics:
             return None
     
     def _check_producer_software(self, pdf_reader):
-        """Check what software created the PDF"""
+        """Check what software created the PDF - SIMPLIFIED"""
         try:
             metadata = pdf_reader.metadata
             if not metadata:
@@ -194,36 +190,23 @@ class PDFForensics:
             producer = str(metadata.get('/Producer', '')).lower()
             creator = str(metadata.get('/Creator', '')).lower()
             
-            # Common legitimate medical report software
-            legitimate_producers = [
-                'adobe', 'microsoft', 'libreoffice', 'openoffice',
-                'reportlab', 'tcpdf', 'fpdf', 'wkhtmltopdf',
-                'google', 'apple', 'foxit'
-            ]
-            
-            # Suspicious software
             suspicious_producers = [
                 'photoshop', 'gimp', 'paint', 'canva',
-                'pixlr', 'online', 'converter', 'merge'
+                'pixlr', 'online', 'converter', 'merge', 'smallpdf'
             ]
             
-            is_legitimate = any(legit in producer or legit in creator 
-                               for legit in legitimate_producers)
             is_suspicious = any(sus in producer or sus in creator 
                                for sus in suspicious_producers)
             
             if is_suspicious:
                 self.suspicion_score += 30
-                self.findings.append(f"🚨 Created with image editing software: {producer}")
+                self.findings.append("⚠️ Created using image editing software")
                 print(f"🚨 Suspicious software: {producer} (+30 suspicion)")
-            elif is_legitimate:
-                self.findings.append(f"✅ Created with legitimate software: {producer}")
-                print(f"✅ Legitimate software: {producer}")
-            else:
+            elif not producer and not creator:
                 self.suspicion_score += 10
-                self.findings.append(f"⚠️ Unknown software: {producer}")
-                print(f"⚠️  Unknown software: {producer} (+10 suspicion)")
-                
+                self.findings.append("⚠️ Software information unavailable")
+                print(f"⚠️  Unknown software (+10 suspicion)")
+                    
         except Exception as e:
             print(f"⚠️  Producer check failed: {e}")
     
@@ -241,22 +224,21 @@ class PDFForensics:
             self.risk_level = "Critical - Likely Fake"
     
     def _generate_recommendations(self):
-        """Generate recommendations based on findings"""
+        """Generate simplified, actionable recommendations"""
         recommendations = []
         
         if self.suspicion_score >= 50:
-            recommendations.append("🚨 URGENT: Manual verification required")
-            recommendations.append("Request original report from laboratory")
-            recommendations.append("Verify with issuing medical facility")
+            recommendations.append("Verify this report directly with the laboratory")
+            recommendations.append("Request a fresh copy from the medical facility")
         elif self.suspicion_score >= 30:
-            recommendations.append("⚠️ Additional verification recommended")
-            recommendations.append("Cross-check with official records")
+            recommendations.append("Additional verification recommended")
+            recommendations.append("Contact the issuing facility if concerns arise")
         elif self.suspicion_score >= 15:
             recommendations.append("Minor inconsistencies detected")
             recommendations.append("Report appears mostly legitimate")
         else:
-            recommendations.append("✅ Report appears authentic")
-            recommendations.append("No significant red flags detected")
+            recommendations.append("This report appears authentic")
+            recommendations.append("No significant concerns detected")
         
         return recommendations
 

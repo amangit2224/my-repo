@@ -20,6 +20,28 @@ function ReportDetails({ darkMode, setDarkMode }) {
   const [chatOpen, setChatOpen] = useState(false);
   const printRef = useRef();
 
+  // Simplify findings helper function
+  const simplifyFinding = (finding) => {
+    if (finding.includes('✅')) return null;
+    
+    const simplifications = {
+      'Document information incomplete': { text: 'Document information is incomplete', severity: 'warning' },
+      'Software information missing': { text: 'Software information not found', severity: 'info' },
+      'Creation date not recorded': { text: 'Creation date not recorded', severity: 'info' },
+      'PDF is encrypted': { text: 'Document is password protected', severity: 'warning' },
+      'Single-page report': { text: 'Unusually short document', severity: 'info' },
+      'Document was edited': { text: 'Document was edited after creation', severity: 'warning' },
+      'Created using image editing software': { text: 'Created using image editing software', severity: 'warning' },
+      'Software information unavailable': { text: 'Created with unrecognized software', severity: 'info' }
+    };
+    
+    for (const [key, value] of Object.entries(simplifications)) {
+      if (finding.includes(key)) return value;
+    }
+    
+    return null;
+  };
+
   useEffect(() => {
     if (!reportId || reportId === 'undefined') {
       setLoading(false);
@@ -274,6 +296,12 @@ function ReportDetails({ darkMode, setDarkMode }) {
     );
   }
 
+  // Process findings for simplified display
+  const simplifiedFindings = report.verification_enabled && report.verification ? 
+    report.verification.findings
+      .map(finding => simplifyFinding(finding))
+      .filter(finding => finding !== null) : [];
+
   return (
     <div className="dashboard-wrapper">
       {/* Modern Navbar */}
@@ -374,7 +402,7 @@ function ReportDetails({ darkMode, setDarkMode }) {
             </div>
           </div>
 
-          {/* Verification Badge */}
+          {/* Verification Panel - UPDATED */}
           {report.verification_enabled && report.verification && (
             <div className={`verification-card ${
               report.verification.trust_score >= 70 ? 'verified' : 
@@ -411,20 +439,37 @@ function ReportDetails({ darkMode, setDarkMode }) {
                 </div>
               </div>
 
-              {report.verification.findings && report.verification.findings.length > 0 && (
+              {/* Simplified Findings Section */}
+              {simplifiedFindings.length > 0 && (
                 <div className="verification-section">
                   <div className="section-label">
                     <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
                       <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
                       <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd"/>
                     </svg>
-                    Findings
+                    Document Analysis
                   </div>
-                  <ul className="verification-list">
-                    {report.verification.findings.map((finding, idx) => (
-                      <li key={idx}>{finding}</li>
+                  <div className="findings-grid">
+                    {simplifiedFindings.map((finding, idx) => (
+                      <div 
+                        key={idx} 
+                        className={`finding-item ${finding.severity}`}
+                      >
+                        <div className="finding-icon">
+                          {finding.severity === 'warning' ? (
+                            <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
+                            </svg>
+                          ) : (
+                            <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd"/>
+                            </svg>
+                          )}
+                        </div>
+                        <span className="finding-text">{finding.text}</span>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 </div>
               )}
 
