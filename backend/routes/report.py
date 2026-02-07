@@ -1768,25 +1768,35 @@ def assess_liver_health(test_values):
 def assess_thyroid_health(test_values):
     """
     Assess thyroid health based on TSH, T3, T4 levels
+    ✅ NOW WORKS even if only some tests are available
     """
     risk = {
         'level': 'UNKNOWN',
         'factors': [],
         'recommendations': []
     }
-   
+    
     tsh = test_values.get('tsh')
     t3 = test_values.get('t3')
     t4 = test_values.get('t4')
-   
-    # TSH is the PRIMARY indicator
+    
+    # Track abnormalities
+    has_hypothyroid_signs = False
+    has_hyperthyroid_signs = False
+    abnormal_count = 0
+    
+    # ============================================
+    # TSH Assessment (PRIMARY indicator if available)
+    # ============================================
     if tsh is not None:
         if tsh > 10.0:
             risk['level'] = 'HYPOTHYROID'
+            has_hypothyroid_signs = True
+            abnormal_count += 1
             risk['factors'].append(f'High TSH: {tsh} µIU/mL (>10 - Severe Hypothyroidism)')
             risk['recommendations'] = [
                 'Consult endocrinologist immediately',
-                'Thyroid hormone replacement replacement (Levothyroxine) likely needed',
+                'Thyroid hormone replacement (Levothyroxine) likely needed',
                 'Regular TSH monitoring every 6-8 weeks',
                 'Check for Hashimoto\'s thyroiditis (antibodies)',
                 'Ensure adequate iodine intake',
@@ -1794,6 +1804,8 @@ def assess_thyroid_health(test_values):
             ]
         elif tsh > 4.5:
             risk['level'] = 'HYPOTHYROID'
+            has_hypothyroid_signs = True
+            abnormal_count += 1
             risk['factors'].append(f'Elevated TSH: {tsh} µIU/mL (>4.5 - Hypothyroidism)')
             risk['recommendations'] = [
                 'Consult endocrinologist',
@@ -1804,6 +1816,8 @@ def assess_thyroid_health(test_values):
             ]
         elif tsh < 0.1:
             risk['level'] = 'HYPERTHYROID'
+            has_hyperthyroid_signs = True
+            abnormal_count += 1
             risk['factors'].append(f'Very Low TSH: {tsh} µIU/mL (<0.1 - Severe Hyperthyroidism)')
             risk['recommendations'] = [
                 'Urgent endocrinologist referral',
@@ -1815,6 +1829,8 @@ def assess_thyroid_health(test_values):
             ]
         elif tsh < 0.4:
             risk['level'] = 'HYPERTHYROID'
+            has_hyperthyroid_signs = True
+            abnormal_count += 1
             risk['factors'].append(f'Low TSH: {tsh} µIU/mL (<0.4 - Hyperthyroidism)')
             risk['recommendations'] = [
                 'Consult endocrinologist',
@@ -1823,32 +1839,80 @@ def assess_thyroid_health(test_values):
                 'Recheck TSH in 6-8 weeks'
             ]
         else:
-            risk['level'] = 'NORMAL'
             risk['factors'].append(f'Normal TSH: {tsh} µIU/mL (0.4-4.5)')
-            risk['recommendations'] = [
-                'Thyroid function is normal',
-                'Continue healthy lifestyle',
-                'Annual TSH screening recommended'
-            ]
-   
-    # T3 assessment (supports TSH findings)
+    
+    # ============================================
+    # T3 Assessment (supports diagnosis)
+    # ============================================
     if t3 is not None:
         if t3 > 200:
+            has_hyperthyroid_signs = True
+            abnormal_count += 1
             risk['factors'].append(f'High T3: {t3} ng/dL (>200 - Hyperthyroidism)')
         elif t3 < 80:
+            has_hypothyroid_signs = True
+            abnormal_count += 1
             risk['factors'].append(f'Low T3: {t3} ng/dL (<80 - Hypothyroidism)')
         else:
             risk['factors'].append(f'Normal T3: {t3} ng/dL (80-200)')
-   
-    # T4 assessment (supports TSH findings)
+    
+    # ============================================
+    # T4 Assessment (supports diagnosis)
+    # ============================================
     if t4 is not None:
         if t4 > 12.7:
+            has_hyperthyroid_signs = True
+            abnormal_count += 1
             risk['factors'].append(f'High T4: {t4} µg/dL (>12.7 - Hyperthyroidism)')
         elif t4 < 4.8:
+            has_hypothyroid_signs = True
+            abnormal_count += 1
             risk['factors'].append(f'Low T4: {t4} µg/dL (<4.8 - Hypothyroidism)')
         else:
             risk['factors'].append(f'Normal T4: {t4} µg/dL (4.8-12.7)')
-   
+    
+    # ============================================
+    # FINAL DETERMINATION (when TSH is missing)
+    # ============================================
+    if risk['level'] == 'UNKNOWN' and abnormal_count > 0:
+        # TSH is missing, but we have T3/T4 abnormalities
+        if has_hypothyroid_signs and not has_hyperthyroid_signs:
+            risk['level'] = 'HYPOTHYROID'
+            risk['recommendations'] = [
+                'TSH test needed to confirm hypothyroidism',
+                'Consult endocrinologist for complete thyroid panel',
+                'Monitor symptoms: fatigue, weight gain, cold intolerance',
+                'Thyroid hormone replacement may be needed',
+                'Follow up in 4-6 weeks'
+            ]
+        elif has_hyperthyroid_signs and not has_hypothyroid_signs:
+            risk['level'] = 'HYPERTHYROID'
+            risk['recommendations'] = [
+                'TSH test needed to confirm hyperthyroidism',
+                'Consult endocrinologist urgently',
+                'Monitor symptoms: weight loss, anxiety, rapid heartbeat',
+                'Anti-thyroid medication may be needed',
+                'Check for Graves\' disease'
+            ]
+        else:
+            # Mixed results - need more testing
+            risk['level'] = 'BORDERLINE'
+            risk['recommendations'] = [
+                'Complete thyroid panel needed (TSH, Free T3, Free T4)',
+                'Consult endocrinologist for evaluation',
+                'Results are inconclusive',
+                'Follow up in 4-6 weeks'
+            ]
+    elif risk['level'] == 'UNKNOWN' and abnormal_count == 0:
+        # All available tests are normal
+        risk['level'] = 'NORMAL'
+        risk['recommendations'] = [
+            'Thyroid function appears normal',
+            'Continue healthy lifestyle',
+            'Annual thyroid screening recommended',
+            'Monitor for symptoms if they develop'
+        ]
+    
     return risk
 # ============================================
 # 🔥 DIET RECOMMENDATIONS ENDPOINT 🔥
