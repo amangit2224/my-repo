@@ -213,7 +213,7 @@ class PDFForensics:
     def _determine_risk_level(self, trust_score):
         """Determine risk level based on trust score"""
         if trust_score >= 90:
-            self.risk_level = "Verified ✅"
+            self.risk_level = "Verified"
         elif trust_score >= 70:
             self.risk_level = "Low Risk"
         elif trust_score >= 50:

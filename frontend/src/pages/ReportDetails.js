@@ -20,26 +20,35 @@ function ReportDetails({ darkMode, setDarkMode }) {
   const [chatOpen, setChatOpen] = useState(false);
   const printRef = useRef();
 
-  // Simplify findings helper function
-  const simplifyFinding = (finding) => {
-    if (finding.includes('✅')) return null;
-    
-    const simplifications = {
-      'Document information incomplete': { text: 'Document information is incomplete', severity: 'warning' },
-      'Software information missing': { text: 'Software information not found', severity: 'info' },
-      'Creation date not recorded': { text: 'Creation date not recorded', severity: 'info' },
-      'PDF is encrypted': { text: 'Document is password protected', severity: 'warning' },
-      'Single-page report': { text: 'Unusually short document', severity: 'info' },
-      'Document was edited': { text: 'Document was edited after creation', severity: 'warning' },
-      'Created using image editing software': { text: 'Created using image editing software', severity: 'warning' },
-      'Software information unavailable': { text: 'Created with unrecognized software', severity: 'info' }
-    };
-    
-    for (const [key, value] of Object.entries(simplifications)) {
-      if (finding.includes(key)) return value;
-    }
-    
-    return null;
+  // Helper functions for verification analysis
+  const hasMetadataIssue = (findings) => {
+    return findings.some(f => 
+      f.includes('Document information incomplete') || 
+      f.includes('Software information missing') ||
+      f.includes('Creation date not recorded')
+    );
+  };
+
+  const hasSoftwareIssue = (findings) => {
+    return findings.some(f => 
+      f.includes('image editing software') || 
+      f.includes('Software information unavailable')
+    );
+  };
+
+  const hasModificationIssue = (findings) => {
+    return findings.some(f => 
+      f.includes('edited') || 
+      f.includes('Modified')
+    );
+  };
+
+  const hasStructureIssue = (findings) => {
+    return findings.some(f => 
+      f.includes('Single-page') || 
+      f.includes('Unusually long') ||
+      f.includes('encrypted')
+    );
   };
 
   useEffect(() => {
@@ -100,7 +109,6 @@ function ReportDetails({ darkMode, setDarkMode }) {
     const maxWidth = pageWidth - (margin * 2);
     let yPosition = margin;
 
-    // Helper function to add new page if needed
     const checkAddPage = (heightNeeded) => {
       if (yPosition + heightNeeded > pageHeight - margin) {
         pdf.addPage();
@@ -110,7 +118,6 @@ function ReportDetails({ darkMode, setDarkMode }) {
       return false;
     };
 
-    // Helper function to add wrapped text
     const addText = (text, fontSize, fontStyle = 'normal', color = [0, 0, 0]) => {
       pdf.setFontSize(fontSize);
       pdf.setFont('helvetica', fontStyle);
@@ -126,8 +133,7 @@ function ReportDetails({ darkMode, setDarkMode }) {
       });
     };
 
-    // Header - Report Name
-    pdf.setFillColor(37, 99, 235); // Blue background
+    pdf.setFillColor(37, 99, 235);
     pdf.rect(0, 0, pageWidth, 80, 'F');
     pdf.setTextColor(255, 255, 255);
     pdf.setFontSize(24);
@@ -140,7 +146,6 @@ function ReportDetails({ darkMode, setDarkMode }) {
     
     yPosition = 100;
 
-    // Verification Section (if enabled)
     if (report.verification_enabled && report.verification) {
       checkAddPage(80);
       
@@ -148,7 +153,6 @@ function ReportDetails({ darkMode, setDarkMode }) {
       const verificationColor = trustScore >= 70 ? [16, 185, 129] : 
                                 trustScore >= 50 ? [245, 158, 11] : [239, 68, 68];
       
-      // Verification box
       pdf.setDrawColor(...verificationColor);
       pdf.setLineWidth(2);
       pdf.rect(margin, yPosition, maxWidth, 60, 'S');
@@ -181,7 +185,6 @@ function ReportDetails({ darkMode, setDarkMode }) {
       yPosition += 20;
     }
 
-    // Summary Section Header
     checkAddPage(40);
     pdf.setFillColor(240, 240, 245);
     pdf.rect(margin, yPosition, maxWidth, 30, 'F');
@@ -191,58 +194,45 @@ function ReportDetails({ darkMode, setDarkMode }) {
     pdf.text('Plain Language Summary', margin + 10, yPosition + 20);
     yPosition += 45;
 
-    // Process summary text - remove markdown and format
     let summaryText = report.plain_language_summary;
-    
-    // Split by lines
     const lines = summaryText.split('\n');
     
     lines.forEach((line) => {
       line = line.trim();
       if (!line) {
-        yPosition += 10; // Empty line spacing
+        yPosition += 10;
         return;
       }
       
-      // Check for headers and format accordingly
       if (line.startsWith('####')) {
-        // H4 - Small header
         checkAddPage(25);
         const text = line.replace(/^####\s*/, '');
         addText(text, 11, 'bold', [0, 0, 0]);
         yPosition += 5;
       } else if (line.startsWith('###')) {
-        // H3 - Medium header
         checkAddPage(30);
         const text = line.replace(/^###\s*/, '');
         addText(text, 13, 'bold', [37, 99, 235]);
         yPosition += 8;
       } else if (line.startsWith('##')) {
-        // H2 - Large header
         checkAddPage(35);
         const text = line.replace(/^##\s*/, '');
         addText(text, 15, 'bold', [37, 99, 235]);
         yPosition += 10;
       } else if (line.startsWith('#')) {
-        // H1 - Main header
         checkAddPage(40);
         const text = line.replace(/^#\s*/, '');
         addText(text, 17, 'bold', [37, 99, 235]);
         yPosition += 12;
       } else {
-        // Regular text - handle bold
         let processedLine = line;
-        
-        // Remove markdown bold markers but keep the emphasis in formatting
         processedLine = processedLine.replace(/\*\*/g, '');
-        
         checkAddPage(20);
         addText(processedLine, 10, 'normal', [50, 50, 50]);
         yPosition += 3;
       }
     });
 
-    // Footer
     const totalPages = pdf.internal.pages.length - 1;
     for (let i = 1; i <= totalPages; i++) {
       pdf.setPage(i);
@@ -255,7 +245,6 @@ function ReportDetails({ darkMode, setDarkMode }) {
                { align: 'center' });
     }
 
-    // Save PDF
     pdf.save(`${report.filename.replace(/\.[^/.]+$/, '')}_summary.pdf`);
   };
 
@@ -295,12 +284,6 @@ function ReportDetails({ darkMode, setDarkMode }) {
       </div>
     );
   }
-
-  // Process findings for simplified display
-  const simplifiedFindings = report.verification_enabled && report.verification ? 
-    report.verification.findings
-      .map(finding => simplifyFinding(finding))
-      .filter(finding => finding !== null) : [];
 
   return (
     <div className="dashboard-wrapper">
@@ -402,92 +385,294 @@ function ReportDetails({ darkMode, setDarkMode }) {
             </div>
           </div>
 
-          {/* Verification Panel - UPDATED */}
+          {/* COMPREHENSIVE VERIFICATION PANEL */}
           {report.verification_enabled && report.verification && (
-            <div className={`verification-card ${
-              report.verification.trust_score >= 70 ? 'verified' : 
-              report.verification.trust_score >= 50 ? 'warning' : 'danger'
-            }`}>
-              <div className="verification-header">
-                <div className="verification-icon">
-                  {report.verification.trust_score >= 70 ? (
-                    <svg width="32" height="32" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
-                    </svg>
-                  ) : report.verification.trust_score >= 50 ? (
-                    <svg width="32" height="32" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
-                    </svg>
-                  ) : (
-                    <svg width="32" height="32" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/>
-                    </svg>
-                  )}
+            <div className="verification-section">
+              {/* Header with Trust Score */}
+              <div className="verification-header-card">
+                <div className="verification-badge-large">
+                  <div className={`badge-icon ${
+                    report.verification.trust_score >= 90 ? 'verified' :
+                    report.verification.trust_score >= 70 ? 'low-risk' :
+                    report.verification.trust_score >= 50 ? 'medium-risk' : 'high-risk'
+                  }`}>
+                    {report.verification.trust_score >= 70 ? (
+                      <svg width="32" height="32" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                      </svg>
+                    ) : (
+                      <svg width="32" height="32" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
+                      </svg>
+                    )}
+                  </div>
+                  <div className="badge-content">
+                    <h3 className="badge-title">{report.verification.risk_level}</h3>
+                    <p className="badge-subtitle">Document Authenticity Analysis</p>
+                  </div>
                 </div>
-                <div className="verification-info">
-                  <h3>{report.verification.risk_level}</h3>
-                  <div className="trust-score-wrapper">
-                    <span className="trust-label">Trust Score</span>
-                    <div className="trust-score-bar">
-                      <div 
-                        className="trust-score-fill"
-                        style={{ width: `${report.verification.trust_score}%` }}
-                      ></div>
-                    </div>
-                    <span className="trust-value">{report.verification.trust_score}/100</span>
+                
+                <div className="trust-score-card">
+                  <div className="score-circle">
+                    <svg width="120" height="120" viewBox="0 0 120 120">
+                      <circle
+                        cx="60"
+                        cy="60"
+                        r="54"
+                        fill="none"
+                        stroke="#e5e7eb"
+                        strokeWidth="8"
+                      />
+                      <circle
+                        cx="60"
+                        cy="60"
+                        r="54"
+                        fill="none"
+                        stroke={
+                          report.verification.trust_score >= 90 ? '#22c55e' :
+                          report.verification.trust_score >= 70 ? '#86efac' :
+                          report.verification.trust_score >= 50 ? '#fbbf24' : '#ef4444'
+                        }
+                        strokeWidth="8"
+                        strokeDasharray={`${(report.verification.trust_score / 100) * 339.292} 339.292`}
+                        strokeLinecap="round"
+                        transform="rotate(-90 60 60)"
+                        style={{ transition: 'stroke-dasharray 1s ease' }}
+                      />
+                      <text x="60" y="55" textAnchor="middle" fontSize="28" fontWeight="700" fill="var(--text)">
+                        {report.verification.trust_score}
+                      </text>
+                      <text x="60" y="72" textAnchor="middle" fontSize="12" fill="var(--text-light)">
+                        Trust Score
+                      </text>
+                    </svg>
+                  </div>
+                  <div className="score-label">
+                    {report.verification.trust_score >= 90 && 'Highly Authentic'}
+                    {report.verification.trust_score >= 70 && report.verification.trust_score < 90 && 'Mostly Legitimate'}
+                    {report.verification.trust_score >= 50 && report.verification.trust_score < 70 && 'Requires Verification'}
+                    {report.verification.trust_score < 50 && 'High Risk - Verify Immediately'}
                   </div>
                 </div>
               </div>
 
-              {/* Simplified Findings Section */}
-              {simplifiedFindings.length > 0 && (
-                <div className="verification-section">
-                  <div className="section-label">
-                    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
-                      <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd"/>
-                    </svg>
-                    Document Analysis
-                  </div>
-                  <div className="findings-grid">
-                    {simplifiedFindings.map((finding, idx) => (
-                      <div 
-                        key={idx} 
-                        className={`finding-item ${finding.severity}`}
-                      >
-                        <div className="finding-icon">
-                          {finding.severity === 'warning' ? (
-                            <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
-                            </svg>
-                          ) : (
-                            <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd"/>
-                            </svg>
-                          )}
-                        </div>
-                        <span className="finding-text">{finding.text}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {/* Detailed Analysis Section */}
+              <div className="verification-analysis">
+                <h4 className="analysis-title">
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 0l-2 2a1 1 0 101.414 1.414L8 10.414l1.293 1.293a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                  </svg>
+                  Detailed Verification Report
+                </h4>
 
-              {report.verification.recommendations && report.verification.recommendations.length > 0 && (
-                <div className="verification-section">
-                  <div className="section-label">
-                    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1h4v1a2 2 0 11-4 0zM12 14c.015-.34.208-.646.477-.859a4 4 0 10-4.954 0c.27.213.462.519.476.859h4.002z"/>
-                    </svg>
-                    Recommendations
+                <div className="analysis-grid">
+                  {/* PDF Metadata Check */}
+                  <div className="analysis-item">
+                    <div className="analysis-item-header">
+                      <div className="analysis-icon metadata">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                          <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
+                          <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd"/>
+                        </svg>
+                      </div>
+                      <div className="analysis-item-title">
+                        <h5>Document Information</h5>
+                        <p>Checks if PDF contains proper creation data and metadata</p>
+                      </div>
+                    </div>
+                    <div className="analysis-result">
+                      {hasMetadataIssue(report.verification.findings) ? (
+                        <>
+                          <span className="result-badge warning">Issue Detected</span>
+                          <p className="result-text">
+                            The document is missing standard information that legitimate medical reports typically contain. 
+                            This could indicate the file was created using non-standard tools or has been modified.
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <span className="result-badge success">Passed</span>
+                          <p className="result-text">
+                            Document contains proper metadata including creation date, software information, and document properties. 
+                            This is consistent with legitimate medical reports.
+                          </p>
+                        </>
+                      )}
+                    </div>
                   </div>
-                  <ul className="verification-list">
-                    {report.verification.recommendations.map((rec, idx) => (
-                      <li key={idx}>{rec}</li>
-                    ))}
-                  </ul>
+
+                  {/* Software Analysis */}
+                  <div className="analysis-item">
+                    <div className="analysis-item-header">
+                      <div className="analysis-icon software">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M2 5a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V5zm3.293 1.293a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 01-1.414-1.414L7.586 10 5.293 7.707a1 1 0 010-1.414zM11 12a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd"/>
+                        </svg>
+                      </div>
+                      <div className="analysis-item-title">
+                        <h5>Creation Software</h5>
+                        <p>Verifies the document was created with legitimate medical software</p>
+                      </div>
+                    </div>
+                    <div className="analysis-result">
+                      {hasSoftwareIssue(report.verification.findings) ? (
+                        <>
+                          <span className="result-badge warning">Suspicious</span>
+                          <p className="result-text">
+                            The document appears to have been created or edited using image editing software or online converters. 
+                            Legitimate medical reports are typically generated directly from laboratory or hospital management systems.
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <span className="result-badge success">Passed</span>
+                          <p className="result-text">
+                            Document was created using professional document generation software commonly used by medical laboratories 
+                            and healthcare facilities. The software signature is legitimate.
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Modification Timeline */}
+                  <div className="analysis-item">
+                    <div className="analysis-item-header">
+                      <div className="analysis-icon timeline">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd"/>
+                        </svg>
+                      </div>
+                      <div className="analysis-item-title">
+                        <h5>Modification History</h5>
+                        <p>Analyzes if the document was altered after initial creation</p>
+                      </div>
+                    </div>
+                    <div className="analysis-result">
+                      {hasModificationIssue(report.verification.findings) ? (
+                        <>
+                          <span className="result-badge warning">Modified</span>
+                          <p className="result-text">
+                            The document was edited sometime after it was originally created. While this isn't necessarily fraudulent, 
+                            legitimate medical reports are typically not edited after generation. We recommend verifying directly with the issuing facility.
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <span className="result-badge success">Passed</span>
+                          <p className="result-text">
+                            The document shows no signs of post-creation modification. The creation and modification timestamps are 
+                            consistent, indicating the file has remained unchanged since generation.
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Document Structure */}
+                  <div className="analysis-item">
+                    <div className="analysis-item-header">
+                      <div className="analysis-icon structure">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                          <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"/>
+                        </svg>
+                      </div>
+                      <div className="analysis-item-title">
+                        <h5>Document Structure</h5>
+                        <p>Reviews page count, formatting, and overall file integrity</p>
+                      </div>
+                    </div>
+                    <div className="analysis-result">
+                      {hasStructureIssue(report.verification.findings) ? (
+                        <>
+                          <span className="result-badge info">Unusual</span>
+                          <p className="result-text">
+                            The document structure is atypical compared to standard medical reports. This could be due to different 
+                            laboratory formats or scanning processes. Review the content carefully for accuracy.
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <span className="result-badge success">Passed</span>
+                          <p className="result-text">
+                            Document structure is consistent with standard medical laboratory reports. Page count, layout, and 
+                            formatting align with industry standards.
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              )}
+              </div>
+
+              {/* Overall Assessment */}
+              <div className="verification-summary-card">
+                <div className="summary-header">
+                  <svg width="24" height="24" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"/>
+                  </svg>
+                  <h4>Final Assessment</h4>
+                </div>
+                <div className="summary-content">
+                  {report.verification.trust_score >= 90 ? (
+                    <>
+                      <p className="summary-verdict verified">
+                        <strong>This document appears to be authentic and unaltered.</strong>
+                      </p>
+                      <p className="summary-explanation">
+                        Our automated verification system has found no significant red flags. The document metadata, 
+                        creation software, and structure are all consistent with legitimate medical laboratory reports. 
+                        However, if you have any concerns, we recommend verifying directly with the issuing facility.
+                      </p>
+                    </>
+                  ) : report.verification.trust_score >= 70 ? (
+                    <>
+                      <p className="summary-verdict low-risk">
+                        <strong>This document appears mostly legitimate with minor inconsistencies.</strong>
+                      </p>
+                      <p className="summary-explanation">
+                        While our analysis detected some minor irregularities, these could be due to different laboratory 
+                        systems or document handling processes. The overall indicators suggest the document is likely authentic. 
+                        If critical decisions depend on this report, consider requesting verification from the source.
+                      </p>
+                    </>
+                  ) : report.verification.trust_score >= 50 ? (
+                    <>
+                      <p className="summary-verdict medium-risk">
+                        <strong>This document has some concerning characteristics that require additional verification.</strong>
+                      </p>
+                      <p className="summary-explanation">
+                        Our analysis has identified several irregularities that are uncommon in authentic medical reports. 
+                        While this doesn't necessarily mean the document is fraudulent, we strongly recommend contacting 
+                        the issuing laboratory or medical facility to verify its authenticity before making any decisions based on this report.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="summary-verdict high-risk">
+                        <strong>This document shows multiple red flags indicating possible tampering or fabrication.</strong>
+                      </p>
+                      <p className="summary-explanation">
+                        Our verification system has detected significant issues with this document's authenticity markers. 
+                        The characteristics observed are highly unusual for legitimate medical reports. We strongly advise 
+                        against relying on this document without direct verification from the claimed issuing facility. 
+                        Request an official copy directly from the laboratory or hospital.
+                      </p>
+                    </>
+                  )}
+                </div>
+                
+                {report.verification.recommendations && report.verification.recommendations.length > 0 && (
+                  <div className="summary-actions">
+                    <h5>Recommended Actions:</h5>
+                    <ul>
+                      {report.verification.recommendations.map((rec, idx) => (
+                        <li key={idx}>{rec}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
