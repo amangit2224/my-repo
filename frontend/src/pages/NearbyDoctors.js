@@ -31,116 +31,171 @@ function NearbyDoctors({ darkMode, setDarkMode }) {
   const [selectedRadius, setSelectedRadius] = useState(5); // km
   const [filteredHospitals, setFilteredHospitals] = useState([]);
 
-  // Bangalore hospitals data (sample - real locations)
+  // Hospitals near Banashankari 3rd Stage & PES University Ring Road Campus
   const hospitals = [
     {
       id: 1,
-      name: "Manipal Hospital",
-      lat: 12.9716,
-      lng: 77.5946,
-      address: "98, HAL Old Airport Road, Bengaluru",
+      name: "Kusuma Hospital",
+      lat: 12.941983,
+      lng: 77.550809,
+      address: "10th Main Rd, 50 Feet Main Rd, Srinagar, Banashankari",
       rating: 4.5,
-      phone: "+91 80 2502 4444",
+      phone: "+91 80 2326 5566",
       type: "Multi-Speciality",
       emergency: true
     },
     {
       id: 2,
-      name: "Apollo Hospital",
-      lat: 12.9634,
-      lng: 77.6401,
-      address: "154/11, Opp. IIM-B, Bannerghatta Road",
-      rating: 4.6,
-      phone: "+91 80 2630 0330",
+      name: "AV Multi-speciality Hospital",
+      lat: 12.932737,
+      lng: 77.541092,
+      address: "Hosakerehalli Main Rd, 6th Block, Banashankari 3rd Stage",
+      rating: 4.2,
+      phone: "+91 80 4242 5050",
       type: "Multi-Speciality",
       emergency: true
     },
     {
       id: 3,
-      name: "Fortis Hospital",
-      lat: 12.9279,
-      lng: 77.6271,
-      address: "154/9, Opp. IIM-B, Bannerghatta Road",
-      rating: 4.4,
-      phone: "+91 80 6621 4444",
+      name: "ReLife Hospital",
+      lat: 12.927900,
+      lng: 77.546804,
+      address: "100 feet ring road, 2nd Block, Banashankari 3rd Stage",
+      rating: 4.6,
+      phone: "+91 80 4155 5555",
       type: "Multi-Speciality",
       emergency: true
     },
     {
       id: 4,
-      name: "Columbia Asia Hospital",
-      lat: 13.0358,
-      lng: 77.5972,
-      address: "Kirloskar Business Park, Hebbal",
-      rating: 4.3,
-      phone: "+91 80 6614 6000",
-      type: "Multi-Speciality",
+      name: "Motherhood Hospital",
+      lat: 12.926937,
+      lng: 77.561086,
+      address: "30th Main Rd, Banashankari 3rd Stage, Bengaluru",
+      rating: 4.8,
+      phone: "+91 80 6780 1680",
+      type: "Maternity & Child Care",
       emergency: true
     },
     {
       id: 5,
-      name: "Sakra World Hospital",
-      lat: 12.9698,
-      lng: 77.7499,
-      address: "Devarabeesanahalli, Outer Ring Road",
-      rating: 4.5,
-      phone: "+91 80 4969 4969",
+      name: "Aarna Hospital",
+      lat: 12.922109,
+      lng: 77.543458,
+      address: "Arav Arcade, 24th Cross, Banashankari 3rd Stage",
+      rating: 4.8,
+      phone: "+91 80 4212 1212",
       type: "Multi-Speciality",
       emergency: true
     },
     {
       id: 6,
-      name: "Narayana Health City",
-      lat: 12.8104,
-      lng: 77.6633,
-      address: "258/A, Bommasandra, Anekal Taluk",
-      rating: 4.7,
-      phone: "+91 80 7122 2222",
+      name: "Vinayaka Hospital",
+      lat: 12.937519,
+      lng: 77.549500,
+      address: "80 Feet Rd, Mysore Bank Colony, Banashankari 1st Stage",
+      rating: 4.3,
+      phone: "+91 80 2689 3030",
       type: "Multi-Speciality",
       emergency: true
     },
     {
       id: 7,
-      name: "St. John's Medical College Hospital",
-      lat: 12.9436,
-      lng: 77.6267,
-      address: "Sarjapur Road, Koramangala",
-      rating: 4.6,
-      phone: "+91 80 4963 0000",
-      type: "Medical College",
+      name: "Devagiri Hospital",
+      lat: 12.924108,
+      lng: 77.565804,
+      address: "24th Cross Rd, Banashankari Stage II, Bengaluru",
+      rating: 4.3,
+      phone: "+91 98456 61188",
+      type: "Multi-Speciality",
       emergency: true
     },
     {
       id: 8,
-      name: "Bangalore Baptist Hospital",
-      lat: 12.9539,
-      lng: 77.6011,
-      address: "Bellary Road, Hebbal",
-      rating: 4.2,
-      phone: "+91 80 2287 5000",
+      name: "Bhagwan Mahaveer Jain Hospital",
+      lat: 12.944252,
+      lng: 77.537314,
+      address: "3rd Main Rd, 1st phase Girinagar, Banashankari",
+      rating: 4.7,
+      phone: "+91 80 4042 4042",
       type: "Multi-Speciality",
       emergency: true
     },
     {
       id: 9,
-      name: "Cloudnine Hospital",
-      lat: 12.9306,
-      lng: 77.6197,
-      address: "1533, 9th Main, 3rd Block, Jayanagar",
+      name: "People Tree Hospitals",
+      lat: 12.942054,
+      lng: 77.553603,
+      address: "50 Feet Main Rd, Hanumanthnagar, Banashankari 1st Stage",
       rating: 4.4,
-      phone: "+91 80 6801 6801",
-      type: "Maternity & Child Care",
-      emergency: false
+      phone: "+91 80 2661 5566",
+      type: "Multi-Speciality",
+      emergency: true
     },
     {
       id: 10,
-      name: "Aster CMI Hospital",
-      lat: 13.0096,
-      lng: 77.5843,
-      address: "43/2, New Airport Road, Hebbal",
-      rating: 4.5,
-      phone: "+91 80 4344 4444",
+      name: "ARHAM HOSPITALS",
+      lat: 12.938316,
+      lng: 77.556467,
+      address: "7th cross, srinivasnagar, Banashankari 1st Stage",
+      rating: 4.9,
+      phone: "+91 80 4163 4163",
       type: "Multi-Speciality",
+      emergency: true
+    },
+    {
+      id: 11,
+      name: "Sagar Hospitals - DSI",
+      lat: 12.908123,
+      lng: 77.564985,
+      address: "Shavige Malleshwara Hills, Kumaraswamy Layout",
+      rating: 4.4,
+      phone: "+91 80 4299 9999",
+      type: "Multi-Speciality",
+      emergency: true
+    },
+    {
+      id: 12,
+      name: "Confido Multi Speciality Hospital",
+      lat: 12.956304,
+      lng: 77.546384,
+      address: "Mysore Rd, near Veeranjaneya temple, Banashankari",
+      rating: 4.5,
+      phone: "+91 80 4610 0000",
+      type: "Multi-Speciality",
+      emergency: true
+    },
+    {
+      id: 13,
+      name: "Spandana Multi-Speciality Hospital",
+      lat: 12.941746,
+      lng: 77.526303,
+      address: "Near Nayandahalli Metro Station, Mysore Road",
+      rating: 4.4,
+      phone: "+91 80 4242 4242",
+      type: "Multi-Speciality",
+      emergency: true
+    },
+    {
+      id: 14,
+      name: "Sanyra Hospital",
+      lat: 12.922527,
+      lng: 77.473821,
+      address: "Kommaghatta Main Rd, Kengeri Satellite Town",
+      rating: 4.8,
+      phone: "+91 80 4112 2233",
+      type: "Multi-Speciality",
+      emergency: true
+    },
+    {
+      id: 15,
+      name: "Natus Women & Children Hospital",
+      lat: 12.942688,
+      lng: 77.525605,
+      address: "Mysore Rd, Near Nayandahalli Metro Station",
+      rating: 4.6,
+      phone: "+91 80 4950 5050",
+      type: "Maternity & Child Care",
       emergency: true
     }
   ];
@@ -168,22 +223,22 @@ function NearbyDoctors({ darkMode, setDarkMode }) {
         },
         (error) => {
           console.error('Geolocation error:', error);
-          // Fallback to Bangalore center
+          // Fallback to Banashankari 3rd Stage center (near PES University)
           setUserLocation({
-            lat: 12.9716,
-            lng: 77.5946
+            lat: 12.9279,
+            lng: 77.5468
           });
           setError('Using approximate location. Enable location for accurate results.');
           setLoading(false);
         }
       );
     } else {
-      // Fallback to Bangalore center
+      // Fallback to Banashankari 3rd Stage center (near PES University)
       setUserLocation({
-        lat: 12.9716,
-        lng: 77.5946
+        lat: 12.9279,
+        lng: 77.5468
       });
-      setError('Geolocation not supported. Showing Bangalore central hospitals.');
+      setError('Geolocation not supported. Showing Banashankari area hospitals.');
       setLoading(false);
     }
   };
