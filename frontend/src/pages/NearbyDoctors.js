@@ -31,8 +31,9 @@ function NearbyDoctors({ darkMode, setDarkMode }) {
   const [selectedRadius, setSelectedRadius] = useState(5); // km
   const [filteredHospitals, setFilteredHospitals] = useState([]);
 
-  // Hospitals near Banashankari 3rd Stage & PES University Ring Road Campus
+  // Comprehensive Bangalore Hospitals Database - 25 Total Hospitals
   const hospitals = [
+    // Banashankari & PES University Area (15 hospitals)
     {
       id: 1,
       name: "Kusuma Hospital",
@@ -196,6 +197,117 @@ function NearbyDoctors({ darkMode, setDarkMode }) {
       rating: 4.6,
       phone: "+91 80 4950 5050",
       type: "Maternity & Child Care",
+      emergency: true
+    },
+    // Other Bangalore Areas (10 hospitals)
+    {
+      id: 16,
+      name: "Manipal Hospital",
+      lat: 12.9716,
+      lng: 77.5946,
+      address: "98, HAL Old Airport Road, Bengaluru",
+      rating: 4.5,
+      phone: "+91 80 2502 4444",
+      type: "Multi-Speciality",
+      emergency: true
+    },
+    {
+      id: 17,
+      name: "Apollo Hospital",
+      lat: 12.9634,
+      lng: 77.6401,
+      address: "154/11, Opp. IIM-B, Bannerghatta Road",
+      rating: 4.6,
+      phone: "+91 80 2630 0330",
+      type: "Multi-Speciality",
+      emergency: true
+    },
+    {
+      id: 18,
+      name: "Fortis Hospital",
+      lat: 12.9279,
+      lng: 77.6271,
+      address: "154/9, Opp. IIM-B, Bannerghatta Road",
+      rating: 4.4,
+      phone: "+91 80 6621 4444",
+      type: "Multi-Speciality",
+      emergency: true
+    },
+    {
+      id: 19,
+      name: "Columbia Asia Hospital",
+      lat: 13.0358,
+      lng: 77.5972,
+      address: "Kirloskar Business Park, Hebbal",
+      rating: 4.3,
+      phone: "+91 80 6614 6000",
+      type: "Multi-Speciality",
+      emergency: true
+    },
+    {
+      id: 20,
+      name: "Sakra World Hospital",
+      lat: 12.9698,
+      lng: 77.7499,
+      address: "Devarabeesanahalli, Outer Ring Road",
+      rating: 4.5,
+      phone: "+91 80 4969 4969",
+      type: "Multi-Speciality",
+      emergency: true
+    },
+    {
+      id: 21,
+      name: "Narayana Health City",
+      lat: 12.8104,
+      lng: 77.6633,
+      address: "258/A, Bommasandra, Anekal Taluk",
+      rating: 4.7,
+      phone: "+91 80 7122 2222",
+      type: "Multi-Speciality",
+      emergency: true
+    },
+    {
+      id: 22,
+      name: "St. John's Medical College Hospital",
+      lat: 12.9436,
+      lng: 77.6267,
+      address: "Sarjapur Road, Koramangala",
+      rating: 4.6,
+      phone: "+91 80 4963 0000",
+      type: "Medical College",
+      emergency: true
+    },
+    {
+      id: 23,
+      name: "Bangalore Baptist Hospital",
+      lat: 12.9539,
+      lng: 77.6011,
+      address: "Bellary Road, Hebbal",
+      rating: 4.2,
+      phone: "+91 80 2287 5000",
+      type: "Multi-Speciality",
+      emergency: true
+    },
+    {
+      id: 24,
+      name: "Cloudnine Hospital",
+      lat: 12.9306,
+      lng: 77.6197,
+      address: "1533, 9th Main, 3rd Block, Jayanagar",
+      rating: 4.4,
+      phone: "+91 80 6801 6801",
+      type: "Maternity & Child Care",
+      emergency: false
+    },
+    {
+      id: 25,
+      name: "Aster CMI Hospital",
+      lat: 13.0096,
+      lng: 77.5843,
+      address: "43/2, New Airport Road, Hebbal",
+      rating: 4.5,
+      phone: "+91 80 4344 4444",
+      type: "Multi-Speciality",
       emergency: true
     }
   ];
